@@ -10,19 +10,21 @@
 
 ---
 
-## Faz 1 — Solution Yapısı, Docker Compose & Walking Skeleton
+## Faz 1 — Solution Yapısı, Docker Compose & Walking Skeleton ✅
+
+> **Tamamlanma:** 2026-04-03
 
 **Hedef:** Proje iskeletini oluştur, geliştirme ortamını ayağa kaldır, uçtan uca çalışan minimal bir API ile altyapıyı kanıtla.
 
-- [ ] .NET 9 (STS) solution oluştur (`EntApp.sln`)
-- [ ] `Directory.Build.props` — global paket versiyonları, C# 13, nullable enable
-- [ ] `.editorconfig` — kod formatlama kuralları
-- [ ] Klasör yapısı: `src/`, `tests/`, `database/`, `docs/`, `frontend/`
-- [ ] `docker-compose.yml` — PostgreSQL 16, Redis 7, RabbitMQ, Keycloak, Seq, Jaeger
-- [ ] `docker-compose.override.yml` — geliştirme ortamı ayarları (port, volume)
-- [ ] Docker Compose ile tüm servisleri ayağa kaldır ve test et
-- [ ] `.gitignore`, `README.md`
-- [ ] **Walking Skeleton:** Host/WebAPI projesi oluştur, minimal `Program.cs`, `/health` endpoint çalışır
+- [x] .NET 9 (STS) solution oluştur (`EntApp.sln`)
+- [x] `Directory.Build.props` — global paket versiyonları, C# 13, nullable enable
+- [x] `.editorconfig` — kod formatlama kuralları
+- [x] Klasör yapısı: `src/`, `tests/`, `database/`, `docs/`, `frontend/`
+- [x] `docker-compose.yml` — PostgreSQL 16, Redis 7, RabbitMQ, Seq
+- [x] `docker-compose.override.yml` — geliştirme ortamı ayarları (port, volume)
+- [x] Docker Compose ile tüm servisleri ayağa kaldır ve test et
+- [x] `.gitignore`, `README.md`
+- [x] **Walking Skeleton:** Host/WebAPI projesi oluştur, minimal `Program.cs`, `/health` endpoint çalışır
 
 **Çıktı:** `docker-compose up` ile tüm altyapı servisleri + boş API ayağa kalkar, `/health` çalışır.
 
