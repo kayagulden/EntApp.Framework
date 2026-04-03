@@ -149,10 +149,10 @@
 - [x] Axios/fetch instance — base URL, JWT interceptor, refresh token
 - [x] Zustand store: `useAuthStore`, `useUiStore`
 - [x] Dashboard sayfası (stat cards + activity feed)
-- [ ] Keycloak login entegrasyonu (OAuth2 PKCE redirect)
-- [ ] shadcn/ui bileşenleri (button, input, dialog, table vb.)
-- [ ] Orval Kurulumu
-- [ ] **Test altyapısı:** Vitest + Playwright E2E scaffold
+- [x] Keycloak login entegrasyonu (next-auth v5, OAuth2 PKCE, middleware, login page)
+- [x] shadcn/ui bileşenleri (Button, Input, Dialog, Table, Select, Toast — 7 adet)
+- [x] Orval Kurulumu (`orval.config.ts`, `npm run api:generate`)
+- [x] **Test altyapısı:** Vitest v3 (7 test) + Playwright E2E scaffold
 
 **Çıktı:** Login → sidebar'lı dashboard, dark/light mode çalışır.
 
