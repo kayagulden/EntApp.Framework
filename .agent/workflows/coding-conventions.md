@@ -1,12 +1,14 @@
 ---
-description: EntApp.Framework kodlama kuralları ve mimari kısıtlamalar. Kod yazarken, düzenlerken veya yeni modül eklerken bu kurallara uyulmalıdır.
+description: EntApp.Framework kodlama kuralları ve mimari kısıtlamalar. Kod yazarken, düzenlerken veya yeni modül eklerken bu kurallara uyulmalıdır. Bu dosya HER KOD DEĞİŞİKLİĞİNDEN ÖNCE okunmalıdır.
 ---
 
 // turbo-all
 
 # EntApp.Framework — Kodlama Kuralları
 
-Bu kurallar tüm kod yazım, düzenleme ve modül oluşturma işlemlerinde geçerlidir. Detaylı açıklamalar ve örnekler için `docs/CODING_CONVENTIONS.md` dosyasına bakın.
+> **⚠️ ZORUNLU:** Bu dosyadaki kurallar özet niteliğindedir. Detaylı açıklamalar, kod örnekleri ve anti-pattern'ler için `docs/CODING_CONVENTIONS.md` dosyasını oku ve uygula.
+
+Bu kurallar tüm kod yazım, düzenleme ve modül oluşturma işlemlerinde geçerlidir.
 
 ---
 
@@ -32,12 +34,19 @@ Bu kurallar tüm kod yazım, düzenleme ve modül oluşturma işlemlerinde geçe
 - Handler'lar **asla exception fırlatmaz** (iş mantığı hataları için). `Result<T>` döner.
 - Validasyon: `FluentValidation` ile `AbstractValidator<TCommand>` — handler'dan önce `ValidationBehavior` çalışır.
 
+### Transaction Yönetimi
+- `TransactionBehavior` tüm Command'ları otomatik transaction'a sarar. Transaction gerektirmeyen Command'lar `ITransactionless` marker interface kullanır.
+- Handler içinde **SADECE DB işi** yapılır. Dış servis çağrısı, email, PDF, uzun hesaplama gibi işler **handler içinde YASAKTIR**.
+- Yan etkiler (email, bildirim, dış servis) **Domain Event** (post-commit) veya **Integration Event** (Outbox) ile tetiklenir.
+- Dış servis sonucu handler içinde gerekiyorsa, handler'dan önce (controller/endpoint) çağrılır, sonuç Command'a konur.
+- **Thin Handler prensibi:** Handler = Entity oluştur + Event ekle + SaveChanges. Gerisi event handler'da.
+
 ### Domain Events vs Integration Events
-- **Domain Event** = modül-içi, aynı transaction, `MediatR INotification`.
+- **Domain Event** = modül-içi, `MediatR INotification`. İki tipi vardır:
+  - `IDomainEvent` → **pre-commit** (aynı transaction) — stok düşürme, bakiye güncelleme
+  - `IPostCommitDomainEvent` → **post-commit** (tx sonrası) — email, bildirim, cache, loglama
 - **Integration Event** = modüller-arası, Outbox tablosu üzerinden, `IIntegrationEvent` + `IdempotencyKey`.
 - Domain event handler **asla başka modülün DB'sine yazmaz**. Modül sınırı geçilecekse → Integration Event.
-- Domain event'ler **pre-commit** dispatch edilir (aynı transaction).
-- Integration event'ler **post-commit** Outbox'tan publish edilir.
 
 ### Dynamic UI Attribute Kuralları
 - C# entity üzerindeki `[DynamicField]` attributeları **sadece veri tipi ve validasyon** bilgisi taşır.

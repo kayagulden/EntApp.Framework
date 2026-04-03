@@ -255,28 +255,192 @@ public interface ILlmService
 // "AI": { "DefaultProvider": "OpenAI", "FallbackProvider": "Ollama" }
 ```
 
-### Modüller AI'ı Nasıl Kullanır
+### Modüller AI'ı Nasıl Kullanır — 3 Pattern
 
+#### Pattern A: MediatR ile Senkron İstek (En yaygın)
+
+Modüller, AI modülüne `Shared.Contracts` üzerinden MediatR sorgusu gönderir:
+
+```csharp
+// Shared.Contracts/Ai/ — tüm modüller kullanabilir
+public record AiCompletionQuery(string Prompt, string Context) : IRequest<Result<string>>;
+public record AiClassificationQuery(string Text, string[] Categories) : IRequest<Result<string>>;
+public record AiSummaryQuery(string Text, int MaxLength = 200) : IRequest<Result<string>>;
+public record AiEffortEstimateQuery(string Title, string Description) : IRequest<Result<int>>;
+public record AiSemanticSearchQuery(string Query, string Collection, int TopK = 5) : IRequest<Result<List<SearchResult>>>;
 ```
+
+```csharp
 // CRM modülü — müşteri özeti üretimi
 public class GenerateCustomerSummaryHandler : IRequestHandler<...>
 {
-    private readonly ILlmService _llm;
-    private readonly IPromptManager _prompts;
-
     public async Task<Result<string>> Handle(...)
     {
         var activities = await _repo.GetCustomerActivities(customerId);
-        var prompt = await _prompts.GetAsync("crm.customer-summary", new { activities });
-        var summary = await _llm.GenerateAsync(prompt);
-        return Result.Success(summary);
+        var summary = await _mediator.Send(new AiSummaryQuery(activities.ToText()));
+        return summary;
     }
 }
 ```
 
+#### Pattern B: Integration Event ile Asenkron (Ağır İşlemler)
+
+Uzun süren AI işlemleri (toplu test üretimi, doküman indeksleme) event ile tetiklenir:
+
+```csharp
+// Gereksinim onaylandığında → AI test senaryosu taslağı üretsin (arka planda)
+public record RequirementApprovedIntegrationEvent(Guid RequirementId, string Title, string Description) 
+    : IIntegrationEvent;
+
+// AI modülünde consumer — arka planda çalışır
+public class RequirementApprovedConsumer : IConsumer<RequirementApprovedIntegrationEvent>
+{
+    public async Task Consume(...)
+    {
+        var scenarios = await _llm.GenerateStructuredAsync<TestScenarioSuggestion[]>(...);
+        
+        // Sonucu TestManagement modülüne gönder
+        await _eventBus.PublishAsync(new AiTestScenariosGeneratedEvent(
+            RequirementId: context.Message.RequirementId,
+            SuggestedScenarios: scenarios  // Taslak olarak kaydedilir, QA onaylar
+        ));
+    }
+}
+```
+
+#### Pattern C: IAiService Interface (Doğrudan DI Kullanımı)
+
+Basit çağrılar için doğrudan inject:
+
+```csharp
+public interface IAiService
+{
+    Task<string> CompleteAsync(string prompt, CancellationToken ct = default);
+    Task<string> SummarizeAsync(string text, int maxLength = 200, CancellationToken ct = default);
+    Task<string[]> ClassifyAsync(string text, string[] categories, CancellationToken ct = default);
+    Task<float[]> EmbedAsync(string text, CancellationToken ct = default);
+    Task<List<SearchResult>> SemanticSearchAsync(string query, string collection, int topK = 5, CancellationToken ct = default);
+}
+```
+
+> [!NOTE]
+> **Pattern seçimi:** Basit sınıflandırma/özetleme → Pattern A (MediatR). Ağır üretim işleri (test senaryosu, release note) → Pattern B (Event). Utility çağrısı → Pattern C (IAiService).
+
 ---
 
-## 6. Prompt Management
+## 6. UI — AI Etkileşim Noktaları
+
+### 6a. AI Asistan Paneli (Floating Chat — Tüm Sayfalarda)
+
+Sağ alt köşede her sayfada erişilebilir floating panel. Sayfa bağlamını (hangi modül, hangi entity, hangi proje) otomatik algılar:
+
+```
+┌──────────────────────────────────────────┐
+│  🤖 AI Asistan                     [✕]  │
+├──────────────────────────────────────────┤
+│                                          │
+│  User: Bu sprint'te riskli item'lar      │
+│        hangileri?                         │
+│                                          │
+│  AI: Sprint 5'te 2 riskli item var:      │
+│  • US-12 "Login yenileme" — 8 SP,        │
+│    bağımlılık: US-45 henüz bitmedi       │
+│  • BUG-89 "Ödeme hatası" — blocker,      │
+│    3 gündür InProgress                   │
+│                                          │
+│  [Daha fazla detay]  [US-12'ye git]      │
+│                                          │
+├──────────────────────────────────────────┤
+│  [Mesaj yazın...                    ▶]  │
+└──────────────────────────────────────────┘
+```
+
+- Doğal dil ile soru sorma → RAG ile cevap (wiki, gereksinim, backlog arama)
+- Sonuçlar tıklanabilir link olarak gelir
+- Streaming response (token token gösterim)
+
+### 6b. Inline AI Önerileri (Form Alanlarında)
+
+Form doldurulurken AI, ilgili alanlar için otomatik öneri getirir:
+
+```
+┌─ Yeni Backlog Item ──────────────────────────────┐
+│                                                   │
+│ Başlık: [Kullanıcı login sayfası yenile___]      │
+│                                                   │
+│ Story Points: [  ]  🤖 AI Önerisi: 5 SP          │
+│                     (Benzer: US-34=5SP, US-67=3SP)│
+│                                                   │
+│ Öncelik:  [Medium ▼] 🤖 Öneri: High              │
+│                       (3 bağımlı item mevcut)     │
+│                                                   │
+│              [Kaydet]  [AI ile Zenginleştir 🤖]   │
+└───────────────────────────────────────────────────┘
+```
+
+### 6c. AI Aksiyonları (Buton / Context Menu)
+
+Entity detay sayfalarında bağlama uygun AI aksiyonları sunulur:
+
+| Sayfa | AI Aksiyonları |
+|-------|---------------|
+| **Backlog Item detay** | Test senaryosu üret, Efor tahmini yap, Kabul kriteri öner, Benzer item'ları bul |
+| **Gereksinim detay** | Özetle, İş kuralı çıkar, Teknik doküman taslağı oluştur |
+| **Ticket detay** | Yanıt öner, Benzer ticket bul, Öncelik/kategori öner |
+| **Release detay** | Release note üret |
+| **Wiki sayfa** | İçerik özetle, Çevir, İlgili sayfaları öner |
+| **Proje dashboard** | Sprint risk analizi, Kaynak önerisi |
+
+### 6d. Arka Plan AI (Kullanıcı Farkında Olmadan)
+
+| Tetikleyici | AI İşlemi | Sonuç |
+|------------|-----------|-------|
+| Ticket oluşturuldu | Metin analizi → kategori + öncelik tahmini | Form alanlarına öneri olarak yerleşir |
+| Gereksinim onaylandı | Test senaryosu taslakları üret | QA'nın onayına taslak olarak düşer |
+| Release planlandı | Backlog item'lardan release note üret | PM'in düzenlemesine taslak gelir |
+| Wiki sayfası kaydedildi | Embedding üret → pgvector'a kaydet | Semantic search'te bulunabilir olur |
+| Ticket kapandı | Çözüm özetini çıkar | Knowledge base'e öneri olarak ekle |
+
+> [!IMPORTANT]
+> **AI önerileri her zaman "öneri" olarak sunulur.** Otomatik kesinleştirme yapılmaz. Kullanıcı öneriyi kabul eder, değiştirir veya reddeder.
+
+---
+
+## 7. Frontend AI Bileşenleri
+
+```
+frontend/src/components/ai/
+├── AiAssistantPanel.tsx       → Floating chat paneli (tüm sayfalarda)
+├── AiSuggestionBadge.tsx      → Form alanı yanında AI önerisi gösterici
+├── AiActionButton.tsx         → "AI ile Zenginleştir" butonu
+├── AiActionMenu.tsx           → Context menu (test üret, özetle, çevir...)
+├── AiSearchBar.tsx            → Semantic search input
+├── AiStreamingText.tsx        → Streaming LLM response gösterimi
+├── AiLoadingIndicator.tsx     → AI işleniyor animasyonu (pulsing dot)
+└── hooks/
+    ├── useAiCompletion.ts     → AI completion API hook (streaming)
+    ├── useAiSuggestion.ts     → Inline öneri hook (debounced, 500ms)
+    └── useAiSearch.ts         → Semantic search hook
+```
+
+### AI API Endpoint'leri
+
+```
+POST   /api/v1/ai/complete           → Serbest prompt tamamlama
+POST   /api/v1/ai/summarize          → Metin özetleme
+POST   /api/v1/ai/classify           → Sınıflandırma
+POST   /api/v1/ai/embed              → Embedding üretme
+POST   /api/v1/ai/search             → Semantic search (RAG)
+POST   /api/v1/ai/chat               → Konuşma tabanlı AI (streaming SSE)
+POST   /api/v1/ai/suggest/effort     → Efor tahmini (backlog item context)
+POST   /api/v1/ai/suggest/tests      → Test senaryosu üretimi
+POST   /api/v1/ai/suggest/release-note → Release note üretimi
+GET    /api/v1/ai/usage              → Token kullanım istatistikleri
+```
+
+---
+
+## 8. Prompt Management
 
 Prompt'lar kodda sabit string olmamalı. Versiyonlanabilir, test edilebilir, runtime'da değiştirilebilir olmalı.
 
@@ -300,7 +464,7 @@ PromptTemplate tablosu:
 
 ---
 
-## 7. Maliyet Kontrolü
+## 9. Maliyet Kontrolü
 
 | Mekanizma | Açıklama |
 |-----------|----------|
@@ -312,7 +476,7 @@ PromptTemplate tablosu:
 
 ---
 
-## 8. On-Premise / Privacy Seçeneği
+## 10. On-Premise / Privacy Seçeneği
 
 Kurumsal müşteriler verilerinin dışarı çıkmasını istemeyebilir:
 
@@ -326,7 +490,7 @@ Framework **provider-agnostic** olduğu için `appsettings.json`'dan provider de
 
 ---
 
-## 9. Geliştirme Fazları
+## 11. Geliştirme Fazları
 
 | Faz | İçerik | Ne zaman |
 |-----|--------|----------|

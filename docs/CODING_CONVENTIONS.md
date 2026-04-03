@@ -178,10 +178,105 @@ return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Errors);
 Request ──► [1] ValidationBehavior      (FluentValidation — Command + Query)
            ──► [2] LoggingBehavior      (Serilog — Command + Query)
               ──► [3] PerformanceBehavior (>500ms → warning log)
-                 ──► [4] TransactionBehavior (sadece Command — begin/commit/rollback)
+                 ──► [4] TransactionBehavior (sadece Command, ITransactionless hariç)
                     ──► [5] CachingBehavior   (sadece Query — ICacheableQuery<T> marker)
                        ──► Handler
                           ──► Response
+```
+
+### 3.4. Transaction Yönetimi
+
+`TransactionBehavior` tüm Command handler'ları otomatik olarak transaction içinde çalıştırır. Handler içinde **sadece DB işi** yapılmalıdır. Yan etkiler Domain Event veya Integration Event ile tetiklenir.
+
+#### 🔴 Handler İçinde YAPIN vs YAPMAYIN
+
+```
+┌─────────────────────────────────────────────────┐
+│  Handler İçinde YAPIN (✅ Transaction içi)        │
+│  • Entity oluşturma / güncelleme                 │
+│  • Domain Event ekleme (AddDomainEvent)           │
+│  • Repository çağrıları                           │
+│  • UnitOfWork.SaveChangesAsync()                  │
+├─────────────────────────────────────────────────┤
+│  Handler İçinde YAPMAYIN (❌ Transaction'a sokmayın)│
+│  • HTTP/gRPC dış servis çağrısı                  │
+│  • Email/SMS gönderimi                            │
+│  • Dosya oluşturma (PDF, Excel)                   │
+│  • Uzun süren hesaplama/algoritma                  │
+│  • Cache yazma                                    │
+├─────────────────────────────────────────────────┤
+│  Bunları NEREDE YAPIN?                            │
+│  • Domain Event Handler (post-commit)              │
+│  • Integration Event Consumer (ayrı process)       │
+│  • Hangfire Background Job                         │
+└─────────────────────────────────────────────────┘
+```
+
+#### ✅ Doğru: Thin Handler
+
+```csharp
+// Transaction ~15ms — sadece DB işi
+public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Result<OrderId>>
+{
+    public async Task<Result<OrderId>> Handle(...)
+    {
+        var order = new SalesOrder { ... };
+
+        // Yan etkiler event olarak kaydedilir, handler içinde çalışmaz
+        order.AddDomainEvent(new OrderCreatedEvent(order.Id));
+
+        await _repo.AddAsync(order, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return Result.Success(order.Id);
+        // Post-commit: OrderCreatedEventHandler → email, PDF, bildirim
+    }
+}
+```
+
+#### ❌ Yanlış: Fat Handler
+
+```csharp
+// ❌ Transaction 3+ saniye açık kalır!
+public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Result<OrderId>>
+{
+    public async Task<Result<OrderId>> Handle(...)
+    {
+        var order = new SalesOrder { ... };
+        await _repo.AddAsync(order);              // 5ms
+        await _paymentService.ChargeAsync(...);    // 2000ms 💣 dış servis!
+        await _emailService.SendAsync(...);        // 800ms 💣 SMTP!
+        await _unitOfWork.SaveChangesAsync();      // 10ms
+    }
+}
+```
+
+#### Transaction Opt-Out (ITransactionless)
+
+Bazı Command'lar transaction gerektirmez (sadece dış servis çağrısı, cache invalidation vb.):
+
+```csharp
+// Transaction olmadan çalışsın
+public class InvalidateCacheCommand : IRequest<Result>, ITransactionless { }
+
+// Query'ler zaten transaction'a dahil değildir (TransactionBehavior otomatik atlar)
+```
+
+#### Dış Servis Sonucu Aynı Transaction'ın İçinde Gerekiyorsa
+
+Dış servise **handler'dan önce** (controller/endpoint düzeyinde) erişin, sonucu Command'a koyun:
+
+```csharp
+// Controller/Endpoint:
+var stockAvailable = await _stockService.CheckAsync(productId);  // Transaction dışı
+
+var command = new CreateOrderCommand
+{
+    ProductId = productId,
+    StockConfirmed = stockAvailable  // Sonucu command'a taşı
+};
+
+var result = await _mediator.Send(command);  // Handler'da sadece DB işi
 ```
 
 ---
@@ -196,18 +291,27 @@ Request ──► [1] ValidationBehavior      (FluentValidation — Command + Qu
 | **Fail** | Rollback | Retry + dead-letter queue |
 | **Tanım yeri** | `Module.Domain/Events/` | `Shared.Contracts/Events/` |
 
-### Yaşam Döngüsü
+### Yaşam Döngüsü (İki Aşamalı Dispatch)
 
 ```
 Handler: entity.AddDomainEvent(new OrderCreatedEvent(...))
+         entity.AddDomainEvent(new OrderNotifyEvent(...))    // IPostCommitDomainEvent
   → SaveChangesAsync()
-    → EF Interceptor (pre-commit): domain event'leri topla → _mediator.Publish()
-      → DomainEventHandler (aynı modül, aynı transaction)
-        → Gerekirse: _eventBus.Publish(IntegrationEvent)
-          → Outbox tablosuna yaz (aynı tx)
+    → EF Interceptor (pre-commit):
+        → IDomainEvent olanları dispatch → _mediator.Publish()
+          → DomainEventHandler (aynı modül, aynı transaction)
+            → Gerekirse: _eventBus.Publish(IntegrationEvent) → Outbox'a yaz
     → Commit başarılı (post-commit):
-      → OutboxProcessor → RabbitMQ publish (arka plan worker)
+        → IPostCommitDomainEvent olanları dispatch
+          → Email, bildirim, cache invalidation, dış servis
+        → OutboxProcessor → RabbitMQ publish (arka plan worker)
 ```
+
+| Event Tipi | Zamanlama | Kullanım |
+|-----------|-----------|----------|
+| `IDomainEvent` | Pre-commit (aynı tx) | Stok düşürme, bakiye güncelleme |
+| `IPostCommitDomainEvent` | Post-commit (tx sonrası) | Email, bildirim, cache, loglama |
+| `IIntegrationEvent` | Post-commit (Outbox) | Modüller arası bildirim |
 
 ### Idempotency
 
