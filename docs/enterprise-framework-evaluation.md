@@ -26,7 +26,7 @@
 | **ORM** | EF Core (TPT Kalıtım Stratejisi) | 9.x |
 | **Veritabanı** | PostgreSQL | 16+ |
 | **Cache** | Redis | 7.x |
-| **Message Bus** | MassTransit + **Apache Kafka** | — |
+| **Message Bus** | MassTransit + **RabbitMQ** (Başlangıç) / **Kafka** (Ölçeklenme) | — |
 | **Background Jobs** | Hangfire (PostgreSQL storage) | — |
 | **Auth** | Keycloak (self-hosted, Docker) | 24+ |
 | **Real-time** | SignalR | — |
@@ -44,6 +44,7 @@
 |--------|-----------|
 | **Framework** | React 19 + TypeScript |
 | **Meta Framework** | Next.js 15 (App Router) |
+| **API Client & Type Gen**| **Orval** (OpenAPI'den TS Type ve Axios hook otomatik üretimi) |
 | **UI Components** | **shadcn/ui** + Radix UI primitives |
 | **Styling** | Tailwind CSS 4 |
 | **State (server)** | TanStack Query v5 |
@@ -73,15 +74,15 @@
 services:
   postgres:     # Ana veritabanı
   redis:        # Distributed cache + session
-  kafka:        # Message bus (KRaft mode, Zookeeper'sız)
-  kafka-ui:     # Kafka cluster yönetim UI
+  rabbitmq:     # Message bus (Başlangıç için varsayılan, düşük memory)
   keycloak:     # Auth server
   seq:          # Log arama ve analiz
   jaeger:       # Distributed tracing
+  # kafka:      # (Opsiyonel - İleride yüksek throughput gerektiğinde)
 ```
 
 > [!NOTE]
-> **Kafka neden?** Yüksek throughput, event replay, topic partitioning, consumer groups. MassTransit Kafka transport'u sayesinde modüler monolitten ayrılacak modüller Kafka üzerinden iletişime geçer. Aynı MassTransit abstraction'ı kullanıldığı için kod değişikliği zaruri değildir.
+> **Neden Başlangıçta RabbitMQ?** Modüler monolit yapısında, modüller aynı process içinde çalışırken başlangıçta Kafka kullanmak geliştirme ortamında gereksiz bir operasyonel yüktür (RAM ve yönetim). MassTransit sayesinde önce RabbitMQ (veya In-Memory) ile başlanır. İleride bir modül bağımsız servise çıkarıldığında kod değişmeden sadece MassTransit Kafka transport'una geçilir.
 
 ---
 
@@ -775,7 +776,8 @@ Tüm framework seviyesi yönetim işlevlerinin tek yerden yapılabildiği dahili
 | Karar | Seçim | Gerekçe |
 |-------|-------|---------|
 | ORM Kalıtım Stratejisi | **TPT (Table-Per-Type)** | Çekirdek modül ve projenin kendi modüllerinin şema ayrılığı, migration çatışmalarını engelleme ve "orta seviye" kalıtıma (BaseEntity'ye alan ekleme) izin vermesi. |
-| Message Bus | **Kafka** (MassTransit transport) | Yüksek throughput, event replay, partition |
+| Message Bus | **RabbitMQ** (MassTransit) | Monolitik aşama ve geliştirme ortamı için daha düşük operasyonel yük. Ölçeklenme gerekirse Kafka'ya geçişe hazır. |
+| Frontend Type-Safety | **Orval (OpenAPI to TS)** | Backend ve Frontend arasında tam tip güvenliği. API güncellendiğinde Axios hook'ları ve DTO tiplerinin otomatik üretilmesi. |
 | UI Library | **shadcn/ui** | Özelleştirilebilir, Radix primitives, Tailwind native |
 | Auth Server | **Keycloak** | Self-hosted, SSO/LDAP/MFA hazır, ücretsiz |
 | Background Jobs | **Hangfire** | PostgreSQL storage, dashboard, retry |

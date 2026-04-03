@@ -36,21 +36,22 @@ Backend (metadata sağlayıcı)              Frontend (render engine)
 
 ## 3. Backend — Entity Metadata Tanımı
 
-### Attribute Yaklaşımı
+### Attribute Yaklaşımı (Veri & Validasyon)
+
+> [!IMPORTANT]
+> **Mimari Kural:** C# entity'si üzerindeki attributelar sadece **veritabanı, tip ve validasyon** kurallarını belirtir. Kolon sırası (order), listede görünürlük (showInList), grid genişliği (width) gibi saf UI konfigürasyonları C# kodunda tutulmaz. Bu sayede UI değişikliği için Backend derlemesi gerekmez. UI konfigürasyonları `DynamicUIConfigs` tablosundan veya JSON'dan çekilerek metadata'ya (API yanıtında) birleştirilir.
 
 ```csharp
-[DynamicEntity("Ülkeler", icon: "globe", menuGroup: "Tanımlar")]
+[DynamicEntity("Country", menuGroup: "Tanımlar")]
 public class Country : BaseEntity
 {
-    [DynamicField("Ülke Kodu", order: 1, width: "sm",
-        required: true, maxLength: 3, showInList: true)]
+    [DynamicField(required: true, maxLength: 3)]
     public string Code { get; set; }
 
-    [DynamicField("Ülke Adı", order: 2, 
-        required: true, searchable: true, showInList: true)]
+    [DynamicField(required: true, searchable: true)]
     public string Name { get; set; }
 
-    [DynamicField("Aktif", order: 3, defaultValue: true, showInList: true)]
+    [DynamicField(defaultValue: true)]
     public bool IsActive { get; set; }
 }
 ```
@@ -58,46 +59,60 @@ public class Country : BaseEntity
 ### Master-Detail
 
 ```csharp
-[DynamicEntity("Siparişler", icon: "shopping-cart", menuGroup: "Satış")]
+[DynamicEntity("SalesOrder", menuGroup: "Satış")]
 public class SalesOrder : AuditableEntity
 {
-    [DynamicField("Sipariş No", order: 1, readOnly: true, showInList: true)]
+    [DynamicField(readOnly: true)]
     public string OrderNumber { get; set; }
 
-    [DynamicField("Tarih", order: 2, fieldType: FieldType.Date, showInList: true)]
+    [DynamicField(fieldType: FieldType.Date)]
     public DateTime OrderDate { get; set; }
 
-    [DynamicField("Müşteri", order: 3, showInList: true)]
-    [DynamicLookup(typeof(Customer), displayField: "Name")]
+    [DynamicLookup(typeof(Customer))]
     public Guid CustomerId { get; set; }
 
-    [DynamicField("Durum", order: 4, showInList: true)]
     public OrderStatus Status { get; set; }
 
-    [DynamicDetail("Kalemler", order: 10)]
+    [DynamicDetail(typeof(OrderItem))]
     public List<OrderItem> Items { get; set; }
 }
 
-[DynamicEntity("Sipariş Kalemi", isDetail: true)]
+[DynamicEntity("OrderItem", isDetail: true)]
 public class OrderItem : BaseEntity
 {
-    [DynamicField("Ürün", order: 1)]
-    [DynamicLookup(typeof(Product), displayField: "Name")]
+    [DynamicLookup(typeof(Product))]
     public Guid ProductId { get; set; }
 
-    [DynamicField("Miktar", order: 2, fieldType: FieldType.Decimal)]
+    [DynamicField(fieldType: FieldType.Decimal)]
     public decimal Quantity { get; set; }
 
-    [DynamicField("Birim Fiyat", order: 3, fieldType: FieldType.Money)]
+    [DynamicField(fieldType: FieldType.Money)]
     public decimal UnitPrice { get; set; }
 
-    [DynamicField("Toplam", order: 4, fieldType: FieldType.Money, 
-        computed: "Quantity * UnitPrice", readOnly: true)]
+    [DynamicField(fieldType: FieldType.Money, computed: "Quantity * UnitPrice", readOnly: true)]
     public decimal LineTotal { get; set; }
 }
 ```
 
-### Metadata API Endpoint
+### UI Konfigürasyon Yönetimi (Admin Panel / Veritabanı)
+
+Yukarıdaki entity'lerin ekranda nasıl görüneceği (Etiketler, sıra, gizlilik) `DynamicUIConfigs` veritabanı tablosunda veya bir JSON dosyasında tutulur. Bu sayede admin panelinden "Müşteri kodunu listede 1. sıraya al" dendiğinde kod değişmez:
+
+```json
+// Örnek DB veya JSON Konfigürasyonu (Country)
+{
+  "entity": "Country",
+  "title": "Ülkeler",
+  "icon": "globe",
+  "fields": [
+    { "name": "Code", "label": "Ülke Kodu", "order": 1, "width": "sm", "showInList": true },
+    { "name": "Name", "label": "Ülke Adı", "order": 2, "showInList": true },
+    { "name": "IsActive", "label": "Aktif", "order": 3, "showInList": false }
+  ]
+}
+```
+
+### Metadata API Endpoint (Birleştirilmiş Sonuç)
 
 ```
 GET /api/meta/SalesOrder

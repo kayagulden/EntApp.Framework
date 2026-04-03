@@ -11,7 +11,7 @@
 
 - [ ] EntApp.Framework clone/fork → yeni solution oluştur
 - [ ] Business Framework katmanını kaldır (CRM, Sales, HR, Finance entity'leri)
-- [ ] Docker Compose: PostgreSQL, Redis, Kafka, Keycloak, Seq, Jaeger
+- [ ] Docker Compose: PostgreSQL, Redis, RabbitMQ, Keycloak, Seq, Jaeger
 - [ ] Framework core modüllerini aktifleştir: IAM, Audit, Configuration, Notification, FileManagement, MultiTenancy, Localization, Workflow
 - [ ] Keycloak realm: roller (Admin, PM, BA, Dev, QA, Requester)
 - [ ] Projeye özel `appsettings.json`

@@ -18,7 +18,7 @@
 - [ ] `Directory.Build.props` — global paket versiyonları, C# 13, nullable enable
 - [ ] `.editorconfig` — kod formatlama kuralları
 - [ ] Klasör yapısı: `src/`, `tests/`, `database/`, `docs/`, `frontend/`
-- [ ] `docker-compose.yml` — PostgreSQL 16, Redis 7, Kafka (KRaft), Kafka UI, Keycloak, Seq, Jaeger
+- [ ] `docker-compose.yml` — PostgreSQL 16, Redis 7, RabbitMQ, Keycloak, Seq, Jaeger
 - [ ] `docker-compose.override.yml` — geliştirme ortamı ayarları (port, volume)
 - [ ] Docker Compose ile tüm servisleri ayağa kaldır ve test et
 - [ ] `.gitignore`, `README.md`
@@ -75,7 +75,7 @@
 - [ ] `CachingBehavior.cs` — `ICacheableQuery<T>` marker ile Redis cache
 
 ### 3d — Shared.Infrastructure: EventBus & Cache
-- [ ] `KafkaEventBus.cs` — MassTransit + Kafka transport
+- [ ] `RabbitMQEventBus.cs` — MassTransit + RabbitMQ transport (Başlangıç)
 - [ ] `InMemoryEventBus.cs` — geliştirme/test ortamı için
 - [ ] `ICacheService.cs`, `RedisCacheService.cs`, `CacheKeyBuilder.cs`
 
@@ -106,7 +106,7 @@
 - [ ] `Host/WebAPI` projesi — ASP.NET Core Web API
 - [ ] `Program.cs` — composition root (DI, middleware, auth, Serilog, Swagger/Scalar)
 - [ ] `ModuleRegistration.cs` — modülleri tek yerden register etme mekanizması
-- [ ] `appsettings.json` — PostgreSQL, Redis, Kafka, Keycloak, Seq bağlantı bilgileri
+- [ ] `appsettings.json` — PostgreSQL, Redis, RabbitMQ, Keycloak, Seq bağlantı bilgileri
 - [ ] `appsettings.Development.json` — geliştirme ortamı override
 - [ ] Keycloak realm konfigürasyonu (realm, client, roles)
 - [ ] Swagger/Scalar endpoint çalışır durumda
@@ -115,6 +115,7 @@
 - [ ] OpenTelemetry → Jaeger tracing çalışır
 - [ ] `Dockerfile` — multi-stage build
 - [ ] API versioning (`Asp.Versioning`) konfigürasyonu
+- [ ] **Walking Skeleton:** Temel altyapının çalıştığını kanıtlamak için basit bir uçtan uca (End-to-End) API modülünün devreye alınması.
 
 **Çıktı:** Boş bir API ayağa kalkar, `/health`, `/swagger` endpointleri çalışır, loglar Seq'e gider.
 
@@ -132,6 +133,7 @@
 - [ ] `providers.tsx` — QueryClient, ThemeProvider, AuthProvider
 - [ ] Layout: sidebar (collapsible), header (user menu, notification bell, theme toggle), breadcrumb
 - [ ] Keycloak login entegrasyonu (OAuth2 PKCE redirect)
+- [ ] Orval Kurulumu — Swagger/OpenAPI spec'inden TypeScript tiplerinin ve Axios hook'larının otomatik üretilmesi (Type-safety)
 - [ ] Axios/fetch instance — base URL, JWT interceptor, refresh token
 - [ ] Zustand store: `useAuthStore`, `useUiStore`
 - [ ] Boş dashboard sayfası (placeholder)
@@ -394,7 +396,7 @@
 - [ ] **Prompt Yönetimi:** AI prompt şablonları düzenleme, versiyon karşılaştırma
 - [ ] **Background Jobs:** Hangfire dashboard embed
 - [ ] **AI İstatistikleri:** token kullanımı, maliyet raporu (Recharts grafikleri)
-- [ ] **System Health:** modül bazlı health check durumu, DB/Redis/Kafka bağlantısı
+- [ ] **System Health:** modül bazlı health check durumu, DB/Redis/RabbitMQ bağlantısı
 - [ ] **Audit Viewer:** kullanıcı aktivite logları, entity change history tarayıcısı
 - [ ] **Cache Yönetimi:** Redis cache temizleme, cache hit/miss oranları
 
@@ -435,7 +437,7 @@
 ### 15c — Kubernetes
 - [ ] Kubernetes manifest'leri: Deployment, Service, Ingress, ConfigMap, Secret
 - [ ] Helm chart (opsiyonel)
-- [ ] PostgreSQL, Redis, Kafka Kubernetes operator'ları veya managed servis konfigürasyonu
+- [ ] PostgreSQL, Redis, RabbitMQ Kubernetes operator'ları veya managed servis konfigürasyonu
 - [ ] Horizontal Pod Autoscaler (HPA)
 
 ### 15d — Güvenlik
