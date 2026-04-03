@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EntApp.Modules.IAM.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Kernel\EntApp.Shared.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

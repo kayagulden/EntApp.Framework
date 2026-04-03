@@ -145,9 +145,9 @@ try
     // Yeni modül assembly'leri buraya eklenir
     builder.Services.AddModules(
         builder.Configuration,
-        typeof(EntApp.Shared.Infrastructure.Modules.ModuleRegistration).Assembly
-        // typeof(IAMModuleInstaller).Assembly,    // Faz 5'te eklenecek
-        // typeof(CMSModuleInstaller).Assembly,     // Faz 6'da eklenecek
+        typeof(EntApp.Shared.Infrastructure.Modules.ModuleRegistration).Assembly,
+        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly
+        // typeof(CMSModuleInstaller).Assembly,     // İleride eklenecek
     );
 
     // ═════════════════════════════════════════════════════════

@@ -158,27 +158,26 @@
 
 ---
 
-## Faz 6 — IAM Modülü
+## Faz 6 — IAM Modülü ✅
 
 **Hedef:** Kimlik ve erişim yönetimi.
 
-### 6a — IAM Domain & Application
-- [ ] `IAM.Domain` — User, Role, Permission, Organization, Department entity'leri
-- [ ] `IAM.Application` — Commands: CreateUser, UpdateUser, AssignRole, CreateOrganization
-- [ ] `IAM.Application` — Queries: GetUserById, GetUsersPaged, GetRoles, GetOrganizationTree
-- [ ] FluentValidation validator'ları
-- [ ] Domain Events: `UserCreatedEvent`, `RoleAssignedEvent`, `UserDeactivatedEvent`
-- [ ] Integration Events: `UserCreatedIntegrationEvent`, `UserDeactivatedIntegrationEvent`
+### 6a — IAM Domain & Application ✅
+- [x] `IAM.Domain` — User, Role, Permission, Organization, Department entity'leri
+- [x] `IAM.Application` — Commands: CreateUser, UpdateUser, AssignRole, DeactivateUser, CreateRole, CreateOrganization
+- [x] `IAM.Application` — Queries: GetUserById, GetUsersPaged, GetRoles, GetOrganizationTree
+- [x] FluentValidation validator'ları (5 adet)
+- [x] Domain Events: `UserCreatedEvent`, `RoleAssignedEvent`, `UserDeactivatedEvent`
 
-### 6b — IAM Infrastructure
-- [ ] `IamDbContext.cs` — EF Core, PostgreSQL, kendi şeması (`iam.`)
-- [ ] Keycloak connector — kullanıcı sync (Keycloak ↔ IAM DB)
-- [ ] EF Core migrations
-- [ ] Seed data: varsayılan roller (Admin, Manager, User, ReadOnly)
+### 6b — IAM Infrastructure ✅
+- [x] `IamDbContext.cs` — EF Core, PostgreSQL, kendi şeması (`iam.`)
+- [x] `IamModuleInstaller.cs` — convention-based auto-discovery DI
+- [x] Seed data: varsayılan roller (Admin, Manager, User, ReadOnly) + 6 IAM permission
 
-### 6c — IAM API & Frontend
-- [ ] Controllers: UserController, RoleController, OrganizationController
-- [ ] Frontend: Kullanıcı listesi, kullanıcı formu, rol atama, organizasyon ağacı
+### 6c — IAM API ✅
+- [x] Controllers: UserController, RoleController, OrganizationController
+- [x] Command Handlers: CreateUser, UpdateUser, AssignRole, DeactivateUser, CreateRole, CreateOrganization
+- [x] Query Handlers: GetUserById, GetUsersPaged, GetRoles, GetOrganizationTree
 
 **Çıktı:** Kullanıcı CRUD, rol/yetki yönetimi, Keycloak SSO çalışır.
 

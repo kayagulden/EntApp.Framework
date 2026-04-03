@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EntApp.Modules.IAM.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Modules.IAM.Application\EntApp.Modules.IAM.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
