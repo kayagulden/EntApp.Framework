@@ -126,11 +126,11 @@
 - [x] Swagger/Scalar endpoint çalışır durumda (JWT Bearer auth)
 - [x] Serilog → Seq entegrasyonu konfigüre
 - [x] `Dockerfile` — multi-stage build (non-root, healthcheck)
-- [ ] OpenTelemetry → Jaeger tracing çalışır
-- [ ] API versioning (`Asp.Versioning`) konfigürasyonu
-- [ ] **Walking Skeleton doğrulama:** Basit bir "Hello" entity ile uçtan uca CRUD çalışır → Shared altyapının doğrulanması
-- [ ] **Migration stratejisi:** Her modül kendi `Migrations/` klasöründe, startup'ta sıralı migration çalıştırma (`app.MigrateDatabase<TContext>()`)
-- [ ] **Seed data altyapısı:** `ISeedDataProvider` interface, `Core/` (framework seeds) ve `Demo/` (geliştirme) ayrımı
+- [x] OpenTelemetry → Jaeger tracing (OTLP exporter, ASP.NET Core + HTTP instrumentation)
+- [x] API versioning (`Asp.Versioning`) — URL segment + header reader
+- [x] `DiagnosticsController.cs` — Walking Skeleton doğrulama (api/v1/diagnostics/ping + info)
+- [x] **Migration stratejisi:** `MigrateDatabaseAsync<TContext>()` extension
+- [x] **Seed data altyapısı:** `ISeedDataProvider` interface + `SeedDatabaseAsync()` extension
 
 **Çıktı:** CRUD çalışan Walking Skeleton, migration + seed altyapısı hazır, loglar Seq'e gider.
 

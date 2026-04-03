@@ -1,13 +1,17 @@
 using System.Reflection;
+using Asp.Versioning;
 using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Infrastructure.Auth;
 using EntApp.Shared.Infrastructure.Health;
 using EntApp.Shared.Infrastructure.Middleware;
 using EntApp.Shared.Infrastructure.Modules;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.RealTime;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 
 // ═══════════════════════════════════════════════════════════════
@@ -50,6 +54,26 @@ try
     builder.Services.AddSignalR();
     builder.Services.AddSingleton<IUserConnectionTracker, InMemoryUserConnectionTracker>();
     builder.Services.AddScoped<IEntityChangeNotifier, EntityChangeNotifier>();
+
+    // ── OpenTelemetry Tracing ────────────────────────────────
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService(
+                serviceName: "EntApp.WebAPI",
+                serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0"))
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                options.Filter = httpContext =>
+                    !httpContext.Request.Path.StartsWithSegments("/health");
+            })
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(
+                    builder.Configuration["OpenTelemetry:OtlpEndpoint"]
+                    ?? "http://localhost:4317");
+            }));
 
     // ── Health Checks ────────────────────────────────────────
     builder.Services
@@ -102,6 +126,18 @@ try
     // ── Rate Limiting ────────────────────────────────────────
     builder.Services.AddRateLimiter(RateLimitingConfiguration.Configure);
 
+    // ── API Versioning ───────────────────────────────────────
+    builder.Services
+        .AddApiVersioning(options =>
+        {
+            options.DefaultApiVersion = new ApiVersion(1, 0);
+            options.AssumeDefaultVersionWhenUnspecified = true;
+            options.ReportApiVersions = true;
+            options.ApiVersionReader = ApiVersionReader.Combine(
+                new UrlSegmentApiVersionReader(),
+                new HeaderApiVersionReader("X-Api-Version"));
+        });
+
     // ── Controllers ──────────────────────────────────────────
     builder.Services.AddControllers();
 
@@ -121,6 +157,16 @@ try
 
     // ── Log loaded modules ──────────────────────────────────
     app.LogLoadedModules();
+
+    // ── Database Migration (startup'ta) ─────────────────────
+    // Modül DbContext'leri eklendikçe migration buraya eklenir:
+    // await app.Services.MigrateDatabaseAsync<IAMDbContext>();
+
+    // ── Seed Data (dev ortamda) ─────────────────────────────
+    if (app.Environment.IsDevelopment())
+    {
+        await app.Services.SeedDatabaseAsync();
+    }
 
     // ── Exception Handling (en dış katman) ───────────────────
     app.UseMiddleware<ExceptionHandlingMiddleware>();
