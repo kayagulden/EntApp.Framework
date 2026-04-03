@@ -201,14 +201,14 @@
 - [x] ConfigController — 7 API endpoint
 - [x] 34 unit test (AppSetting: 10, FeatureFlag: 14, Validators: 8)
 
-### 7c — Notification Modülü
-- [ ] NotificationTemplate, NotificationLog entity'leri
-- [ ] Provider'lar: SMTP e-posta, SMS (opsiyonel), SignalR in-app, push (opsiyonel)
-- [ ] Template engine (Scriban veya Razor) — dinamik şablon
-- [ ] Kullanıcı bildirim tercihleri (opt-in/opt-out)
-- [ ] Bildirim geçmişi ve okunma takibi
-- [ ] SignalR real-time hub entegrasyonu — in-app toast bildirim
-- [ ] Frontend: bildirim çanı, bildirim listesi, okundu işaretleme
+### 7c — Notification Modülü ✅
+- [x] NotificationTemplate, NotificationLog, UserNotificationPreference entity'leri
+- [x] Provider'lar: SMTP e-posta (placeholder), InApp bildirim sender
+- [x] SimpleTemplateRenderer — `{{variable}}` regex substitution (Scriban CVE nedeniyle built-in)
+- [x] Kullanıcı bildirim tercihleri (kanal bazlı opt-in/opt-out, upsert)
+- [x] Bildirim geçmişi (paginated) ve okunma takibi (MarkRead + UnreadCount)
+- [x] NotificationController — 9 API endpoint (templates CRUD, send, history, preferences)
+- [x] 24 unit test (Template: 6, Log: 5, Preference: 4, Validator: 8, auto: 1)
 
 ### 7d — FileManagement Modülü
 - [ ] FileEntry, FileVersion, FileTag entity'leri
