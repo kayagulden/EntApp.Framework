@@ -30,26 +30,28 @@
 
 ---
 
-## Faz 2 — Shared.Kernel
+## Faz 2 — Shared.Kernel ✅
+
+> **Tamamlanma:** 2026-04-03
 
 **Hedef:** Tüm modüllerin paylaştığı temel yapı taşlarını oluştur.
 
-- [ ] `Shared.Kernel` class library projesi
-- [ ] `BaseEntity.cs` — Id (Guid), CreatedAt, UpdatedAt, IsDeleted (soft delete), **RowVersion** (optimistic concurrency)
-- [ ] `AuditableEntity.cs` — CreatedBy, ModifiedBy (BaseEntity'den türer)
-- [ ] `AggregateRoot.cs` — `_domainEvents` listesi, `AddDomainEvent()`, `ClearDomainEvents()`
-- [ ] `ITenantEntity.cs` — TenantId interface
-- [ ] `IDomainEvent.cs` — marker interface (MediatR `INotification`)
-- [ ] `Result<T>` — IsSuccess, IsFailure, Value, Error, Errors
-- [ ] `Error.cs` — Code, Message, Type (Validation, NotFound, Conflict, Unauthorized)
-- [ ] **`StronglyTypedId.cs`** — `EntityId<T>` base record struct (compile-time tip güvenliği)
-- [ ] Value Objects: `Money`, `DateRange`, `Address`, `Email`, `PhoneNumber`
-- [ ] Enums: `Status`, `Priority`
-- [ ] **`ISpecification<T>`** — Specification Pattern base interface + `SpecificationEvaluator`
-- [ ] Exceptions: `DomainException`, `NotFoundException`, `ConflictException`
-- [ ] Unit testler (xUnit) — Result, ValueObjects, BaseEntity, StronglyTypedId
+- [x] `Shared.Kernel` class library projesi
+- [x] `BaseEntity.cs` — Id (Guid), CreatedAt, UpdatedAt, IsDeleted (soft delete), **RowVersion** (optimistic concurrency)
+- [x] `AuditableEntity.cs` — CreatedBy, ModifiedBy (BaseEntity'den türer)
+- [x] `AggregateRoot.cs` — `_domainEvents` listesi, `AddDomainEvent()`, `ClearDomainEvents()`
+- [x] `ITenantEntity.cs` — TenantId interface
+- [x] `IDomainEvent.cs` — marker interface (MediatR `INotification`)
+- [x] `Result<T>` — IsSuccess, IsFailure, Value, Error, Errors
+- [x] `Error.cs` — Code, Message, Type (Validation, NotFound, Conflict, Unauthorized)
+- [x] **`StronglyTypedId.cs`** — `IEntityId` interface + `EntityId.New<T>()` / `From<T>()` factory
+- [x] Value Objects: `Money`, `DateRange`, `Address`, `Email`, `PhoneNumber`
+- [x] Enums: `Status`, `Priority`
+- [x] **`ISpecification<T>`** — Specification Pattern base interface + `SpecificationEvaluator`
+- [x] Exceptions: `DomainException`, `NotFoundException`, `ConflictException`
+- [x] Unit testler (xUnit) — 51 test, tümü geçti
 
-**Çıktı:** Tüm modüllerin referans edebileceği sıfır bağımlılıklı kernel paketi.
+**Çıktı:** Tüm modüllerin referans edebileceği sıfır bağımlılıklı kernel paketi (sadece MediatR.Contracts).
 
 ---
 
