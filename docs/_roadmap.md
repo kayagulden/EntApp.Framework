@@ -219,15 +219,16 @@
 - [x] FileController — 11 API endpoint
 - [x] 26 unit test (FileEntry: 15, FileTag: 2, Validators: 8, auto: 1)
 
-### 7e — MultiTenancy Modülü (UI & Yönetim)
+### 7e — MultiTenancy Modülü (UI & Yönetim) ✅
 
 > [!NOTE]
-> MultiTenancy **altyapısı** (ITenantEntity, TenantResolutionMiddleware, EF global filter) Faz 3'te zaten kurulmuştur. Bu fazda UI ve yönetim katmanı eklenir.
+> MultiTenancy **altyapısı** (ITenantEntity, TenantResolutionMiddleware, EF global filter) Faz 3'te zaten kurulmuştur. Bu fazda UI ve yönetim katmanı eklendi.
 
-- [ ] Tenant, TenantSettings entity'leri
-- [ ] Tenant CRUD API
-- [ ] **Tenant Bootstrapper:** `ITenantSeeder` interface, yeni tenant oluşturulduğunda modüllerin seed çalıştırması
-- [ ] Frontend: tenant yönetim ekranı
+- [x] Tenant (status lifecycle, plan, subdomain, connection string), TenantSetting entity'leri
+- [x] Tenant CRUD API — 11 endpoint (list, get by id/identifier, create, update, activate/suspend/deactivate, plan, subdomain, settings)
+- [x] **Tenant Bootstrapper:** `ITenantSeeder` interface — yeni tenant oluşturulduğunda modüllerin seed çalıştırması
+- [x] TenantController — 11 API endpoint
+- [x] 25 unit test (Tenant: 14, TenantSetting: 3, Validators: 7, auto: 1)
 
 ### 7f — Localization Modülü
 - [ ] Language, TranslationEntry entity'leri
