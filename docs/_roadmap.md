@@ -104,10 +104,10 @@
 - [x] `PermissionAuthorizationPolicyProvider.cs` — dinamik permission policy üretici
 - [x] `ModuleHealthCheckAdapter.cs` — modül bazlı health check
 
-### 3g — Shared.Infrastructure: RealTime
-- [ ] `EntAppHub.cs` — merkezi SignalR hub
-- [ ] `EntityChangeNotifier.cs` — entity değişikliğini push et
-- [ ] `UserConnectionTracker.cs` — hangi kullanıcı neyi izliyor
+### 3g — Shared.Infrastructure: RealTime ✅
+- [x] `EntAppHub.cs` — merkezi SignalR hub (JWT auth, group join/leave, connection tracking)
+- [x] `EntityChangeNotifier.cs` — entity değişikliğini push et (dual-group: entity + list)
+- [x] `UserConnectionTracker.cs` — in-memory kullanıcı bağlantı takibi (thread-safe, multi-tab)
 
 **Çıktı:** Tüm cross-cutting concern'ler çalışır durumda, unit testler yeşil.
 
