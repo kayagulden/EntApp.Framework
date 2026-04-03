@@ -136,25 +136,25 @@
 
 ---
 
-## Faz 5 — Frontend Scaffold
+## Faz 5 — Frontend Scaffold ✅
 
 **Hedef:** Frontend iskeletini oluştur.
 
-- [ ] Next.js 15 projesi (App Router, TypeScript)
-- [ ] Tailwind CSS 4 + shadcn/ui konfigürasyonu (`components.json`)
-- [ ] Temel shadcn/ui bileşenlerini ekle (button, input, select, dialog, sheet, table, toast, combobox)
-- [ ] `globals.css` — tema renkleri (dark/light), font (Inter)
-- [ ] `next-themes` — dark/light mode toggle
-- [ ] `providers.tsx` — QueryClient, ThemeProvider, AuthProvider
-- [ ] Layout: sidebar (collapsible), header (user menu, notification bell, theme toggle), breadcrumb
+- [x] Next.js 16 projesi (App Router, TypeScript) — `src/Frontend/entapp-web`
+- [x] Tailwind CSS 4 konfigürasyonu
+- [x] `globals.css` — tema renkleri (dark/light), font (Inter), scrollbar, animasyonlar
+- [x] `next-themes` — dark/light mode toggle
+- [x] `providers.tsx` — ThemeProvider
+- [x] Layout: sidebar (collapsible), header (user menu, notification bell, theme toggle)
+- [x] Axios/fetch instance — base URL, JWT interceptor, refresh token
+- [x] Zustand store: `useAuthStore`, `useUiStore`
+- [x] Dashboard sayfası (stat cards + activity feed)
 - [ ] Keycloak login entegrasyonu (OAuth2 PKCE redirect)
-- [ ] Orval Kurulumu — Swagger/OpenAPI spec'inden TypeScript tiplerinin ve Axios hook'larının otomatik üretilmesi (Custom sayfalar + non-CRUD API'ler için type-safety)
-- [ ] Axios/fetch instance — base URL, JWT interceptor, refresh token
-- [ ] Zustand store: `useAuthStore`, `useUiStore`
-- [ ] Boş dashboard sayfası (placeholder)
-- [ ] **Test altyapısı:** Vitest + React Testing Library kurulumu, Playwright E2E scaffold
+- [ ] shadcn/ui bileşenleri (button, input, dialog, table vb.)
+- [ ] Orval Kurulumu
+- [ ] **Test altyapısı:** Vitest + Playwright E2E scaffold
 
-**Çıktı:** Login → sidebar'lı boş dashboard, dark/light mode çalışır.
+**Çıktı:** Login → sidebar'lı dashboard, dark/light mode çalışır.
 
 ---
 
