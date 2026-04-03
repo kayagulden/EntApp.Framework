@@ -5,11 +5,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.*" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.*" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.*" />
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

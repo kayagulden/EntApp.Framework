@@ -113,19 +113,20 @@
 
 ---
 
-## Faz 4 — Host/WebAPI & Composition Root
+## Faz 4 — Host/WebAPI & Composition Root ✅
 
 **Hedef:** Walking Skeleton'ı tam işlevsel hale getir.
 
-- [ ] `Program.cs` — composition root (DI, middleware, auth, Serilog, Swagger/Scalar)
-- [ ] `ModuleRegistration.cs` — **IModuleInstaller convention-based auto-discovery** (assembly taraması ile otomatik kayıt)
-- [ ] `appsettings.json` — PostgreSQL, Redis, RabbitMQ, Keycloak, Seq bağlantı bilgileri
-- [ ] `appsettings.Development.json` — geliştirme ortamı override
-- [ ] Keycloak realm konfigürasyonu (realm, client, roles)
-- [ ] Swagger/Scalar endpoint çalışır durumda
-- [ ] Serilog → Seq entegrasyonu çalışır
+- [x] `Program.cs` — composition root (DI, middleware, Keycloak auth, Serilog, Swagger/Scalar)
+- [x] `ModuleRegistration.cs` — **IModuleInstaller convention-based auto-discovery** (assembly taraması ile otomatik kayıt)
+- [x] `IModuleInstaller.cs` — modül DI kurulum kontratı (Shared.Contracts)
+- [x] `appsettings.json` — PostgreSQL, Redis, RabbitMQ, Keycloak, Seq bağlantı bilgileri
+- [x] `appsettings.Development.json` — geliştirme ortamı override
+- [x] Keycloak realm konfigürasyonu (realm, client, roles)
+- [x] Swagger/Scalar endpoint çalışır durumda (JWT Bearer auth)
+- [x] Serilog → Seq entegrasyonu konfigüre
+- [x] `Dockerfile` — multi-stage build (non-root, healthcheck)
 - [ ] OpenTelemetry → Jaeger tracing çalışır
-- [ ] `Dockerfile` — multi-stage build
 - [ ] API versioning (`Asp.Versioning`) konfigürasyonu
 - [ ] **Walking Skeleton doğrulama:** Basit bir "Hello" entity ile uçtan uca CRUD çalışır → Shared altyapının doğrulanması
 - [ ] **Migration stratejisi:** Her modül kendi `Migrations/` klasöründe, startup'ta sıralı migration çalıştırma (`app.MigrateDatabase<TContext>()`)
