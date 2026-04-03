@@ -66,6 +66,15 @@ public class Customer : CustomerBase
 - Proje `Customer : CustomerBase` ile ekstra alanlar ekler → EF Core migration ile DB'ye yansır
 - Tip-güvenli, sorgulanabilir, raporlanabilir
 
+### Kalıtım Stratejisi: TPT (Table-Per-Type)
+
+Entity Framework Core tarafında bu kalıtım **TPT (Table-Per-Type)** stratejisi ile veritabanına yansıtılacaktır. 
+
+- **Nasıl Çalışır:** `CustomerBase` nesnesi `App_CustomerBase` adında bir tabloya, projeye özel `Customer` nesnesi ise sadece projeye özel alanları içeren `Proj_Customer` adında (ve `CustomerBase`'in PK'sine ForeignKey ile bağlı) ayrı bir tabloya dönüştürülür. Sorgularda EF Core bu iki tabloyu `JOIN` ile birleştirir.
+- **Neden TPH (Table-Per-Hierarchy) Değil?** TPH her şeyi tek bir `Customers` tablosuna koyar. Çok sayıda proje spesifik kolon eklendiğinde bu tablo NULL değerlerle dolar ve yönetimi zorlaşır. Ayrıca framework tarafına eklenecek yeni bir kolon, projeye özel kolonların da bulunduğu bu devasa tabloyu değiştirmek zorunda kalır.
+- **Neden TPC (Table-Per-Concrete-Type) Değil?** TPC, `CustomerBase` gibi temel sınıflar için tablo oluşturmaz, sadece `Customer` tablosu oluşturur. Bu okuma (read) performansını artırsa da, `CustomerBase` üzerinden yapılacak polimorfik sorgularda (Örn: "Tüm müşterileri getir") tüm alt tabloları `UNION ALL` ile birleştirmeye çalışacağı için ciddi performans kaybına yol açar. Ayrıca framework'ün merkezi olarak schema yönetmesini zorlaştırır.
+- **TPT'nin Avantajı:** Framework kendi tablolarından (`App_...`), projeler kendi tablolarından (`Proj_...`) sorumludur. Şema ayrımı (Separation of Concerns) kusursuz sağlanır, migration çatışmaları önlenir. Oluşabilecek JOIN maliyetleri ise CQRS yapısındaki Read (Query) modellerinin Dapper veya Materialized View'lar ile desteklenmesiyle kolayca aşılır.
+
 ---
 
 ## 4. Generic CRUD Altyapısı

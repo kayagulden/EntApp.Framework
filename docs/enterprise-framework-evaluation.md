@@ -23,7 +23,7 @@
 |--------|-----------|----------|
 | **Runtime** | .NET 9 (LTS) | 9.x |
 | **API** | ASP.NET Core (Controller + Minimal API) | — |
-| **ORM** | EF Core | 9.x |
+| **ORM** | EF Core (TPT Kalıtım Stratejisi) | 9.x |
 | **Veritabanı** | PostgreSQL | 16+ |
 | **Cache** | Redis | 7.x |
 | **Message Bus** | MassTransit + **Apache Kafka** | — |
@@ -774,6 +774,7 @@ Tüm framework seviyesi yönetim işlevlerinin tek yerden yapılabildiği dahili
 
 | Karar | Seçim | Gerekçe |
 |-------|-------|---------|
+| ORM Kalıtım Stratejisi | **TPT (Table-Per-Type)** | Çekirdek modül ve projenin kendi modüllerinin şema ayrılığı, migration çatışmalarını engelleme ve "orta seviye" kalıtıma (BaseEntity'ye alan ekleme) izin vermesi. |
 | Message Bus | **Kafka** (MassTransit transport) | Yüksek throughput, event replay, partition |
 | UI Library | **shadcn/ui** | Özelleştirilebilir, Radix primitives, Tailwind native |
 | Auth Server | **Keycloak** | Self-hosted, SSO/LDAP/MFA hazır, ücretsiz |
