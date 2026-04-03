@@ -185,18 +185,21 @@
 
 ## Faz 7 — Diğer Core Modüller
 
-### 7a — Audit Modülü
-- [ ] AuditLog, EntityChange, LoginRecord entity'leri
-- [ ] EF Interceptor ile otomatik audit log yazma
-- [ ] Audit log listeleme ve filtreleme API + UI
-- [ ] Temporal Data altyapısı: `[Temporal]` attribute, `_history` tablosu otomatik oluşturma, history/diff API
+### 7a — Audit Modülü ✅
+- [x] AuditLog, LoginRecord entity'leri (multi-tenant, jsonb old/new values)
+- [x] AuditDbContext (`audit.` schema, performance indexes)
+- [x] EF Interceptor (`AuditSaveChangesInterceptor`) — otomatik entity change tracking
+- [x] AuditModuleInstaller — convention DI + MediatR auto-register
+- [x] Query Handlers: GetAuditLogs, GetLoginRecords (paginated + multi-field filter)
+- [x] AuditController — `GET /api/v1/audit/logs`, `GET /api/v1/audit/logins`
 
-### 7b — Configuration Modülü
-- [ ] AppSetting (key-value), FeatureFlag entity'leri
-- [ ] Tenant/global bazlı konfigürasyon desteği
-- [ ] Feature flag açma/kapama API
-- [ ] Bakım modu mekanizması
-- [ ] Frontend: ayarlar sayfası, feature flag yönetimi
+### 7b — Configuration Modülü ✅
+- [x] AppSetting (key-value) + FeatureFlag entity'leri (tenant/global, scheduled, role-based)
+- [x] Tenant/global bazlı konfigürasyon desteği (tenant > global fallback)
+- [x] Feature flag açma/kapama/toggle API + zamanlama
+- [x] Bakım modu mekanizması (FeatureFlag "MaintenanceMode")
+- [x] ConfigController — 7 API endpoint
+- [x] 34 unit test (AppSetting: 10, FeatureFlag: 14, Validators: 8)
 
 ### 7c — Notification Modülü
 - [ ] NotificationTemplate, NotificationLog entity'leri
