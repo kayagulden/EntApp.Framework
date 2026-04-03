@@ -93,7 +93,7 @@
 - [x] `RequestLoggingMiddleware.cs` — HTTP request loglama
 - [x] `TenantResolutionMiddleware.cs` — header/subdomain/claim'den tenant belirleme
 - [x] `RateLimitingConfiguration.cs` — **ASP.NET Core Rate Limiter** (fixed/sliding window, IP partitioning)
-- [ ] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
+- [x] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
 
 ### 3f — Shared.Infrastructure: Auth & Health
 - [ ] `KeycloakTokenService.cs` — Keycloak JWT doğrulama

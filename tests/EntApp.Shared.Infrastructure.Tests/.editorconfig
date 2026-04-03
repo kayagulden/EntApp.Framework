@@ -1,0 +1,3 @@
+# CA2007: test projelerde ConfigureAwait gereksiz
+[*.cs]
+dotnet_diagnostic.CA2007.severity = none

@@ -42,8 +42,23 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         var cachedData = await _cache.GetStringAsync(cacheKey, cancellationToken);
         if (cachedData is not null)
         {
-            _logger.LogDebug("[CACHE:HIT] {CacheKey}", cacheKey);
-            return JsonSerializer.Deserialize<TResponse>(cachedData)!;
+            try
+            {
+                var cached = JsonSerializer.Deserialize<TResponse>(cachedData);
+                if (cached is not null)
+                {
+                    _logger.LogDebug("[CACHE:HIT] {CacheKey}", cacheKey);
+                    return cached;
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "[CACHE:DESERIALIZE_ERROR] {CacheKey} — falling back to handler.", cacheKey);
+            }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogWarning(ex, "[CACHE:DESERIALIZE_ERROR] {CacheKey} — type not supported, falling back to handler.", cacheKey);
+            }
         }
 
         // Cache'de yok — handler'ı çalıştır
