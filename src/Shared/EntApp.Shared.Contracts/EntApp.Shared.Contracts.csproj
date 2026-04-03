@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EntApp.Shared.Contracts</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Shared.Kernel\EntApp.Shared.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -59,22 +59,22 @@
 
 **Hedef:** Modüller arası kontratları ve ortak altyapıyı oluştur.
 
-### 3a — Shared.Contracts
-- [ ] `Shared.Contracts` class library projesi
-- [ ] `IIntegrationEvent.cs` — modüller arası event kontratı + **IdempotencyKey** (Guid)
-- [ ] `ICurrentUser.cs` — UserId, UserName, Roles, Permissions
-- [ ] `ICurrentTenant.cs` — TenantId, TenantName
-- [ ] `IEventBus.cs` — `PublishAsync<T>(T @event)` abstraction
-- [ ] `IUnitOfWork.cs` — `SaveChangesAsync()`, `BeginTransactionAsync()`
-- [ ] Ortak DTO'lar: `UserInfoDto`, `TenantInfoDto`, `PagedResult<T>`, `LookupDto`
+### 3a — Shared.Contracts ✅
+- [x] `Shared.Contracts` class library projesi
+- [x] `IIntegrationEvent.cs` — modüller arası event kontratı + **IdempotencyKey** (Guid)
+- [x] `ICurrentUser.cs` — UserId, UserName, Roles, Permissions
+- [x] `ICurrentTenant.cs` — TenantId, TenantName
+- [x] `IEventBus.cs` — `PublishAsync<T>(T @event)` abstraction
+- [x] `IUnitOfWork.cs` — `SaveChangesAsync()`, `BeginTransactionAsync()`
+- [x] Ortak DTO'lar: `UserInfoDto`, `TenantInfoDto`, `PagedResult<T>`, `PagedRequest`, `LookupDto`
 
-### 3b — Shared.Infrastructure: Persistence
-- [ ] `Shared.Infrastructure` class library projesi
-- [ ] `BaseDbContext.cs` — audit fields otomatik set, soft delete filter, tenant filter, domain event dispatch (pre-commit), **AsSplitQuery varsayılan** (TPT JOIN performansı)
-- [ ] `OutboxMessage.cs` entity + `OutboxProcessor.cs` — integration event'leri Outbox'tan publish
-- [ ] `ProcessedEventStore.cs` — idempotency: işlenmiş event'leri filtrele
-- [ ] **Soft Delete + Unique Index:** PostgreSQL partial index ile `WHERE is_deleted = false` unique constraint desteği
-- [ ] EF Core interceptors: `AuditableEntityInterceptor`, `SoftDeleteInterceptor`, `DomainEventDispatchInterceptor` (**iki aşamalı dispatch:** `IDomainEvent` = pre-commit, `IPostCommitDomainEvent` = post-commit)
+### 3b — Shared.Infrastructure: Persistence ✅
+- [x] `Shared.Infrastructure` class library projesi
+- [x] `BaseDbContext.cs` — audit fields otomatik set, soft delete filter, tenant filter, domain event dispatch (pre-commit), **AsSplitQuery varsayılan** (TPT JOIN performansı)
+- [x] `OutboxMessage.cs` entity + `OutboxProcessor.cs` — integration event'leri Outbox'tan publish
+- [x] `ProcessedEventStore.cs` — idempotency: işlenmiş event'leri filtrele
+- [x] **Soft Delete + Unique Index:** PostgreSQL partial index ile `WHERE is_deleted = false` unique constraint desteği
+- [x] EF Core interceptors: `AuditableEntityInterceptor`, `SoftDeleteInterceptor`, `DomainEventDispatchInterceptor` (**iki aşamalı dispatch:** `IDomainEvent` = pre-commit, `IPostCommitDomainEvent` = post-commit)
 
 ### 3c — Shared.Infrastructure: Pipeline Behaviors
 - [ ] `ValidationBehavior.cs` — FluentValidation entegrasyonu

@@ -1,0 +1,4 @@
+# CA2007: ASP.NET Core uygulamalarında ConfigureAwait gereksiz
+# (SynchronizationContext yok). Library olarak da ASP.NET Core'da kullanılacak.
+[*.cs]
+dotnet_diagnostic.CA2007.severity = none
