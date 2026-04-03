@@ -2,7 +2,7 @@
 
 > **Tarih:** 2026-03-28  
 > **Temel:** EntApp.Framework (Technical Framework + Core Modüller)  
-> **Modül detayları:** [delivery-platform-modules.md](file:///C:/Users/kaya/.gemini/antigravity/brain/b44af52e-bfc8-46ce-a6eb-44bfbbc2913a/delivery-platform-modules.md)  
+> **Modül detayları:** [delivery-platform-modules.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-modules.md)  
 > **Ön koşul:** EntApp.Framework `_roadmap.md` **Faz 1–10** tamamlanmış olmalı, ardından bu roadmap başlar.
 
 ---

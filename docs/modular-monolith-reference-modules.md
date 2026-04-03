@@ -222,7 +222,7 @@
 ### 18. Integration Hub
 - REST API gateway (iç ve dış API'ler)
 - Webhook yönetimi (inbound/outbound)
-- Message queue entegrasyonu (RabbitMQ, Kafka)
+- Message queue entegrasyonu (RabbitMQ, ileride Kafka)
 - ERP entegrasyonu (SAP, Logo, Netsis)
 - E-devlet entegrasyonları (e-fatura, KPS, SGK)
 - Banka entegrasyonları

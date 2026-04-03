@@ -32,6 +32,9 @@ Backend (metadata sağlayıcı)              Frontend (render engine)
 └───────────────────────┘                 └──────────────────────┘
 ```
 
+> [!NOTE]
+> **Orval vs Dynamic UI:** Orval (OpenAPI → TypeScript) **Custom (Level 4) sayfalar** ve non-CRUD API'ler için tip güvenliği sağlar. Dynamic UI ise **Auto-generated (Level 1-3)** CRUD ekranları için metadata API'den runtime tip alır. `useDynamicCrud.ts` hook'u Orval ile üretilen Axios instance'ı kullanır, ancak metadata'yı kendi endpoint'inden alır.
+
 ---
 
 ## 3. Backend — Entity Metadata Tanımı
@@ -112,6 +115,20 @@ Yukarıdaki entity'lerin ekranda nasıl görüneceği (Etiketler, sıra, gizlili
 }
 ```
 
+### UI Konfigürasyon Fallback Mekanizması
+
+Bir entity için `DynamicUIConfigs` kaydı yoksa sistem otomatik çalışmaya devam eder:
+
+```
+Fallback Sırası:
+1. DB/JSON konfigürasyonu (admin düzenlemiş) → varsa bunu kullan
+2. Convention-based otomatik → property adından label, property sırasından order, 
+   string/number ise showInList: true
+3. Attribute'tan gelen → [DynamicField] parametreleri override olarak
+```
+
+Bu sayede yeni bir entity eklendiğinde hiçbir konfigürasyon yapmadan çalışan bir ekran elde edilir. Admin panelden ince ayar yapmak isteğinde DB konfigürasyonu oluşturulur.
+
 ### Metadata API Endpoint (Birleştirilmiş Sonuç)
 
 ```
@@ -177,7 +194,8 @@ DynamicPage (route: /dynamic/:entityName)
 │   └── DynamicDetailTable   (master-detail alt tablo)
 │       ├── inline edit (satır içi düzenleme)
 │       └── satır ekle/sil
-└── DynamicFilters           (gelişmiş filtreleme paneli)
+├── DynamicFilters           (gelişmiş filtreleme paneli)
+└── DynamicBulkActions       (toplu işlem: seçili satırları sil, durum değiştir, dışa aktar)
 ```
 
 ### Field Type → Component Mapping

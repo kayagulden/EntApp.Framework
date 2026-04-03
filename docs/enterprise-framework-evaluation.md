@@ -21,7 +21,7 @@
 
 | Katman | Teknoloji | Versiyon |
 |--------|-----------|----------|
-| **Runtime** | .NET 9 (LTS) | 9.x |
+| **Runtime** | .NET 9 (STS) | 9.x |
 | **API** | ASP.NET Core (Controller + Minimal API) | — |
 | **ORM** | EF Core (TPT Kalıtım Stratejisi) | 9.x |
 | **Veritabanı** | PostgreSQL | 16+ |
@@ -236,21 +236,25 @@ Request ──► [1] ValidationBehavior      (Command + Query — FluentValidat
 | | Domain Event | Integration Event |
 |---|---|---|
 | **Kapsam** | Modül-içi | Modüller-arası |
-| **Transport** | MediatR `INotification` | MassTransit → Kafka |
+| **Transport** | MediatR `INotification` | MassTransit → RabbitMQ (başlangıç) / Kafka (ölçeklenme) |
 | **Transaction** | Aynı transaction | Outbox → ayrı transaction |
-| **Fail** | Rollback | Retry + dead-letter topic |
+| **Fail** | Rollback | Retry + dead-letter queue |
 | **Tanım yeri** | `Module.Domain/Events/` | `Shared.Contracts/Events/` |
 
 **Yaşam döngüsü:**
 ```
 Handler: entity.AddDomainEvent(new OrderCreatedEvent(...))
   → SaveChangesAsync()
-    → EF Interceptor: domain event'leri topla → _mediator.Publish()
-      → DomainEventHandler (aynı modül)
+    → EF Interceptor (pre-commit): domain event'leri topla → _mediator.Publish()
+      → DomainEventHandler (aynı modül, aynı transaction)
         → Gerekirse: _eventBus.Publish(IntegrationEvent)
           → Outbox tablosuna yaz (aynı tx)
-            → OutboxProcessor → Kafka publish
+    → SaveChangesAsync (post-commit):
+      → OutboxProcessor → RabbitMQ publish (arka plan worker)
 ```
+
+> [!NOTE]
+> **Domain Event Dispatch Zamanlaması:** Domain event'ler **pre-commit** aşamasında dispatch edilir (aynı transaction). Bu sayede domain event handler'daki işlemler başarısız olursa tüm transaction rollback olur. Integration event'ler ise Outbox'a yazılıp **post-commit** aşamasında arka plan worker ile publish edilir.
 
 **Örnekler:**
 
@@ -265,9 +269,12 @@ Handler: entity.AddDomainEvent(new OrderCreatedEvent(...))
 > [!CAUTION]
 > Domain event handler'ı **asla başka modülün DB'sine yazmamalı**. Modül sınırı geçilecekse → Integration Event.
 
-### 2.5. ✅ Outbox Pattern (Kafka ile)
+### 2.5. ✅ Outbox Pattern
 
-Integration event'ler doğrudan Kafka'ya yayınlanmaz. Önce aynı transaction içinde `OutboxMessage` tablosuna yazılır, ardından arka plan worker ile Kafka'ya publish edilir. Bu, **at-least-once delivery** garantisi sağlar.
+Integration event'ler doğrudan message bus'a yayınlanmaz. Önce aynı transaction içinde `OutboxMessage` tablosuna yazılır, ardından arka plan worker ile RabbitMQ'ya (ileride Kafka'ya) publish edilir. Bu, **at-least-once delivery** garantisi sağlar.
+
+> [!IMPORTANT]
+> **Idempotency:** At-least-once delivery, aynı event'in birden fazla tüketilmesine neden olabilir. Tüm `IIntegrationEvent`'ler `Guid IdempotencyKey` taşır. Consumer tarafında `ProcessedEvents` tablosu ile daha önce işlenmiş event'ler filtrelenir.
 
 ```
 OutboxMessages tablosu (her modülün kendi şemasında):
@@ -316,14 +323,16 @@ EntApp.Framework/
 ├── src/
 │   ├── Shared/
 │   │   ├── Shared.Kernel/
-│   │   │   ├── BaseEntity.cs            (Id, CreatedAt, UpdatedAt, IsDeleted, _domainEvents)
+│   │   │   ├── BaseEntity.cs            (Id, CreatedAt, UpdatedAt, IsDeleted, RowVersion, _domainEvents)
 │   │   │   ├── AuditableEntity.cs       (CreatedBy, ModifiedBy)
 │   │   │   ├── AggregateRoot.cs         (domain event yönetimi)
 │   │   │   ├── ITenantEntity.cs         (TenantId)
 │   │   │   ├── IDomainEvent.cs          (marker: INotification)
 │   │   │   ├── Result.cs               (Result<T>, Error)
+│   │   │   ├── StronglyTypedId.cs       (EntityId<T> base record struct)
 │   │   │   ├── ValueObjects/            (Money, DateRange, Address, Email, PhoneNumber)
 │   │   │   ├── Enums/                   (Status, Priority vb.)
+│   │   │   ├── Specifications/          (ISpecification<T>, SpecificationEvaluator)
 │   │   │   └── Exceptions/             (DomainException, NotFoundException)
 │   │   │
 │   │   ├── Shared.Contracts/
@@ -344,8 +353,9 @@ EntApp.Framework/
 │   │   │
 │   │   └── Shared.Infrastructure/
 │   │       ├── Persistence/
-│   │       │   ├── BaseDbContext.cs      (audit, soft delete, tenant filter, domain event dispatch)
-│   │       │   └── OutboxProcessor.cs   (integration event → Kafka publish)
+│   │       │   ├── BaseDbContext.cs      (audit, soft delete, tenant filter, domain event dispatch, AsSplitQuery)
+│   │       │   ├── OutboxProcessor.cs   (integration event → RabbitMQ publish)
+│   │       │   └── ProcessedEventStore.cs (idempotency — işlenmiş event filtresi)
 │   │       ├── Behaviors/               (MediatR pipeline)
 │   │       │   ├── ValidationBehavior.cs
 │   │       │   ├── LoggingBehavior.cs
@@ -360,11 +370,12 @@ EntApp.Framework/
 │   │       │   ├── RedisCacheService.cs
 │   │       │   └── CacheKeyBuilder.cs
 │   │       ├── EventBus/
-│   │       │   ├── KafkaEventBus.cs     (MassTransit + Kafka transport)
+│   │       │   ├── RabbitMqEventBus.cs   (MassTransit + RabbitMQ transport)
 │   │       │   └── InMemoryEventBus.cs  (geliştirme/test)
 │   │       ├── Middleware/
 │   │       │   ├── TenantResolutionMiddleware.cs
-│   │       │   ├── ExceptionHandlingMiddleware.cs
+│   │       │   ├── ExceptionHandlingMiddleware.cs  (RFC 7807 ProblemDetails)
+│   │       │   ├── RateLimitingMiddleware.cs
 │   │       │   ├── AuditMiddleware.cs
 │   │       │   └── RequestLoggingMiddleware.cs
 │   │       ├── HealthChecks/
@@ -450,7 +461,7 @@ EntApp.Framework/
 │   └── Host/
 │       └── WebAPI/
 │           ├── Program.cs               (composition root)
-│           ├── ModuleRegistration.cs     (tüm modülleri DI'ya register)
+│           ├── ModuleRegistration.cs     (IModuleInstaller convention-based auto-discovery)
 │           ├── appsettings.json
 │           ├── appsettings.Development.json
 │           ├── appsettings.Production.json
@@ -490,8 +501,10 @@ EntApp.Framework/
 │   └── Shared/TestHelpers/
 │
 ├── database/
-│   ├── Migrations/                      (modül başına alt klasör)
+│   ├── Migrations/                      (modül başına alt klasör: IAM/, CRM/, ...)
 │   ├── Seeds/
+│   │   ├── Core/                        (framework seeds — roller, yetkiler, ülkeler)
+│   │   └── Demo/                        (geliştirme ortamı demo verileri)
 │   └── Scripts/
 │
 ├── docs/
@@ -573,8 +586,8 @@ MerchantManagement ──► Finance, Reporting, Workflow, Calendar
 |----|-------|
 | Shared.Kernel | BaseEntity, AggregateRoot, Result, ValueObjects, IDomainEvent |
 | Shared.Contracts | IIntegrationEvent, IEventBus, ICurrentUser, ICurrentTenant, IUnitOfWork |
-| Shared.Infrastructure | BaseDbContext, Behaviors (5 adet), Middleware (4 adet), KafkaEventBus, RedisCacheService, OutboxProcessor |
-| Host/WebAPI | Program.cs, ModuleRegistration, Docker Compose (Postgres, Redis, Kafka, Keycloak, Seq, Jaeger) |
+| Shared.Infrastructure | BaseDbContext (AsSplitQuery), Behaviors (5 adet), Middleware (5 adet, RFC 7807 + RateLimiting), RabbitMqEventBus, RedisCacheService, OutboxProcessor + ProcessedEventStore |
+| Host/WebAPI | Program.cs, ModuleRegistration (IModuleInstaller auto-discovery), Docker Compose (Postgres, Redis, RabbitMQ, Keycloak, Seq, Jaeger) |
 | Frontend scaffold | Next.js 15 + shadcn/ui + Tailwind + providers + layout (sidebar, header) |
 
 ### Faz 2 — Core Modules (4-6 hafta)
@@ -765,9 +778,10 @@ Tüm framework seviyesi yönetim işlevlerinin tek yerden yapılabildiği dahili
 | **Prompt Yönetimi** | AI prompt şablonları düzenleme, versiyon karşılaştırma |
 | **Background Jobs** | Hangfire dashboard embed, job durumu izleme |
 | **AI İstatistikleri** | Token kullanımı, maliyet raporu, provider bazlı dağılım |
-| **System Health** | Modül bazlı health check, DB/Redis/Kafka bağlantı durumu |
+| **System Health** | Modül bazlı health check, DB/Redis/RabbitMQ bağlantı durumu |
 | **Audit Viewer** | Kullanıcı aktivite logları, entity change history |
 | **Cache Yönetimi** | Redis cache temizleme, cache hit/miss oranları |
+| **UI Konfigürasyon** | DynamicUIConfigs yönetimi — entity ekran düzeni, kolon sırası, etiketler |
 
 ---
 
@@ -785,11 +799,19 @@ Tüm framework seviyesi yönetim işlevlerinin tek yerden yapılabildiği dahili
 | API Docs | **Scalar** (OpenAPI) | Swagger UI'dan modern, dark mode, interaktif |
 | Multi-Tenancy | **Row-level** (TenantId) | Basit başlangıç, EF Global Filter |
 | Workflow | **Elsa 3.x** | .NET native, NuGet ile gömülü |
-| Event Delivery | **Outbox Pattern** | At-least-once, Kafka ile atomic publish |
+| Event Delivery | **Outbox Pattern** | At-least-once, RabbitMQ ile atomic publish, idempotency key ile tekrar koruması |
 | Error Handling | **Result Pattern** | Exception yerine explicit hata yönetimi |
+| Error Response | **RFC 7807 ProblemDetails** | Standart hata response formatı, ASP.NET Core built-in desteği |
 | Logging | **Serilog + Seq** | Structured, searchable, centralized |
 | Reverse Proxy | **YARP** | .NET native, konfigürasyon-tabanlı |
 | Real-time | **SignalR** | Entity change push, bildirimler |
 | Change History | **Temporal Data** | Entity versiyon geçmişi |
 | API Versioning | **Asp.Versioning** | URL + header based, Sunset header |
 | Scaffolding | **dotnet new template** | Modül boilerplate otomatik üretimi |
+| Strongly Typed ID | **EntityId\<T\> record struct** | Compile-time tip güvenliği, CustomerId ≠ OrderId |
+| Concurrency Control | **RowVersion (EF xmin)** | Optimistic concurrency, aynı anda düzenleme çakışma koruması |
+| Specification Pattern | **Ardalis.Specification** | Sorgu mantığını handler'dan ayırma, yeniden kullanılabilir sorgular |
+| Query Splitting | **AsSplitQuery (varsayılan)** | TPT JOIN performans optimizasyonu |
+| Rate Limiting | **ASP.NET Core Rate Limiter** | Fixed/sliding window + token bucket, tenant bazlı limit |
+| Frontend Test | **Vitest + RTL + Playwright** | Unit, component ve E2E test kapsamı |
+| Module Discovery | **IModuleInstaller convention** | Yeni modül DI'ya otomatik register, elle registration gereksiz |

@@ -1,7 +1,7 @@
 # EntApp.Framework — AI Entegrasyon Stratejisi
 
 > **Tarih:** 2026-03-28  
-> **Bağımlılık:** [Mimari Spesifikasyon](file:///C:/Users/kaya/.gemini/antigravity/brain/b44af52e-bfc8-46ce-a6eb-44bfbbc2913a/enterprise-framework-evaluation.md), [Business Framework](file:///C:/Users/kaya/.gemini/antigravity/brain/b44af52e-bfc8-46ce-a6eb-44bfbbc2913a/business-framework-layer.md)  
+> **Bağımlılık:** [Mimari Spesifikasyon](file:///c:/Users/kaya/projects/EntApp.Framework/docs/enterprise-framework-evaluation.md), [Business Framework](file:///c:/Users/kaya/projects/EntApp.Framework/docs/business-framework-layer.md)  
 > **Durum:** Tasarım tartışması
 
 ---

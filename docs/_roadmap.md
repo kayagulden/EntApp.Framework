@@ -2,19 +2,19 @@
 
 > **Tarih:** 2026-03-28  
 > **Kaynak dokümanlar:**  
-> - [Mimari Spesifikasyon](file:///c:/Users/kaya/projects/EntApp.Framework/enterprise-framework-evaluation.md)  
-> - [Business Framework](file:///c:/Users/kaya/projects/EntApp.Framework/business-framework-layer.md)  
-> - [AI Entegrasyon](file:///c:/Users/kaya/projects/EntApp.Framework/ai-integration-strategy.md)  
-> - [Dinamik UI](file:///c:/Users/kaya/projects/EntApp.Framework/dynamic-ui-generation.md)  
+> - [Mimari Spesifikasyon](file:///c:/Users/kaya/projects/EntApp.Framework/docs/enterprise-framework-evaluation.md)  
+> - [Business Framework](file:///c:/Users/kaya/projects/EntApp.Framework/docs/business-framework-layer.md)  
+> - [AI Entegrasyon](file:///c:/Users/kaya/projects/EntApp.Framework/docs/ai-integration-strategy.md)  
+> - [Dinamik UI](file:///c:/Users/kaya/projects/EntApp.Framework/docs/dynamic-ui-generation.md)  
 > **İlke:** Küçük fazlar, her faz kendi başına çalışıp test edilebilir
 
 ---
 
-## Faz 1 — Solution Yapısı & Docker Compose
+## Faz 1 — Solution Yapısı, Docker Compose & Walking Skeleton
 
-**Hedef:** Proje iskeletini oluştur, geliştirme ortamını ayağa kaldır.
+**Hedef:** Proje iskeletini oluştur, geliştirme ortamını ayağa kaldır, uçtan uca çalışan minimal bir API ile altyapıyı kanıtla.
 
-- [ ] .NET 9 solution oluştur (`EntApp.sln`)
+- [ ] .NET 9 (STS) solution oluştur (`EntApp.sln`)
 - [ ] `Directory.Build.props` — global paket versiyonları, C# 13, nullable enable
 - [ ] `.editorconfig` — kod formatlama kuralları
 - [ ] Klasör yapısı: `src/`, `tests/`, `database/`, `docs/`, `frontend/`
@@ -22,8 +22,9 @@
 - [ ] `docker-compose.override.yml` — geliştirme ortamı ayarları (port, volume)
 - [ ] Docker Compose ile tüm servisleri ayağa kaldır ve test et
 - [ ] `.gitignore`, `README.md`
+- [ ] **Walking Skeleton:** Host/WebAPI projesi oluştur, minimal `Program.cs`, `/health` endpoint çalışır
 
-**Çıktı:** `docker-compose up` ile tüm altyapı servislerinin çalışır hali.
+**Çıktı:** `docker-compose up` ile tüm altyapı servisleri + boş API ayağa kalkar, `/health` çalışır.
 
 ---
 
@@ -32,17 +33,19 @@
 **Hedef:** Tüm modüllerin paylaştığı temel yapı taşlarını oluştur.
 
 - [ ] `Shared.Kernel` class library projesi
-- [ ] `BaseEntity.cs` — Id (Guid), CreatedAt, UpdatedAt, IsDeleted (soft delete)
+- [ ] `BaseEntity.cs` — Id (Guid), CreatedAt, UpdatedAt, IsDeleted (soft delete), **RowVersion** (optimistic concurrency)
 - [ ] `AuditableEntity.cs` — CreatedBy, ModifiedBy (BaseEntity'den türer)
 - [ ] `AggregateRoot.cs` — `_domainEvents` listesi, `AddDomainEvent()`, `ClearDomainEvents()`
 - [ ] `ITenantEntity.cs` — TenantId interface
 - [ ] `IDomainEvent.cs` — marker interface (MediatR `INotification`)
 - [ ] `Result<T>` — IsSuccess, IsFailure, Value, Error, Errors
 - [ ] `Error.cs` — Code, Message, Type (Validation, NotFound, Conflict, Unauthorized)
+- [ ] **`StronglyTypedId.cs`** — `EntityId<T>` base record struct (compile-time tip güvenliği)
 - [ ] Value Objects: `Money`, `DateRange`, `Address`, `Email`, `PhoneNumber`
 - [ ] Enums: `Status`, `Priority`
+- [ ] **`ISpecification<T>`** — Specification Pattern base interface + `SpecificationEvaluator`
 - [ ] Exceptions: `DomainException`, `NotFoundException`, `ConflictException`
-- [ ] Unit testler (xUnit) — Result, ValueObjects, BaseEntity
+- [ ] Unit testler (xUnit) — Result, ValueObjects, BaseEntity, StronglyTypedId
 
 **Çıktı:** Tüm modüllerin referans edebileceği sıfır bağımlılıklı kernel paketi.
 
@@ -54,7 +57,7 @@
 
 ### 3a — Shared.Contracts
 - [ ] `Shared.Contracts` class library projesi
-- [ ] `IIntegrationEvent.cs` — modüller arası event kontratı
+- [ ] `IIntegrationEvent.cs` — modüller arası event kontratı + **IdempotencyKey** (Guid)
 - [ ] `ICurrentUser.cs` — UserId, UserName, Roles, Permissions
 - [ ] `ICurrentTenant.cs` — TenantId, TenantName
 - [ ] `IEventBus.cs` — `PublishAsync<T>(T @event)` abstraction
@@ -63,8 +66,10 @@
 
 ### 3b — Shared.Infrastructure: Persistence
 - [ ] `Shared.Infrastructure` class library projesi
-- [ ] `BaseDbContext.cs` — audit fields otomatik set, soft delete filter, tenant filter, domain event dispatch
+- [ ] `BaseDbContext.cs` — audit fields otomatik set, soft delete filter, tenant filter, domain event dispatch (pre-commit), **AsSplitQuery varsayılan** (TPT JOIN performansı)
 - [ ] `OutboxMessage.cs` entity + `OutboxProcessor.cs` — integration event'leri Outbox'tan publish
+- [ ] `ProcessedEventStore.cs` — idempotency: işlenmiş event'leri filtrele
+- [ ] **Soft Delete + Unique Index:** PostgreSQL partial index ile `WHERE is_deleted = false` unique constraint desteği
 - [ ] EF Core interceptors: `AuditableEntityInterceptor`, `SoftDeleteInterceptor`, `DomainEventDispatchInterceptor`
 
 ### 3c — Shared.Infrastructure: Pipeline Behaviors
@@ -75,15 +80,16 @@
 - [ ] `CachingBehavior.cs` — `ICacheableQuery<T>` marker ile Redis cache
 
 ### 3d — Shared.Infrastructure: EventBus & Cache
-- [ ] `RabbitMQEventBus.cs` — MassTransit + RabbitMQ transport (Başlangıç)
+- [ ] `RabbitMqEventBus.cs` — MassTransit + RabbitMQ transport (Başlangıç)
 - [ ] `InMemoryEventBus.cs` — geliştirme/test ortamı için
 - [ ] `ICacheService.cs`, `RedisCacheService.cs`, `CacheKeyBuilder.cs`
 
 ### 3e — Shared.Infrastructure: Middleware
-- [ ] `ExceptionHandlingMiddleware.cs` — global hata yakalama, Result dönüş
+- [ ] `ExceptionHandlingMiddleware.cs` — global hata yakalama, **RFC 7807 ProblemDetails** standart format
 - [ ] `RequestLoggingMiddleware.cs` — HTTP request loglama
 - [ ] `TenantResolutionMiddleware.cs` — header/subdomain/claim'den tenant belirleme
-- [ ] `AuditMiddleware.cs` — hassas işlem loglama
+- [ ] `RateLimitingMiddleware.cs` — **ASP.NET Core Rate Limiter** (fixed/sliding window, token bucket, tenant bazlı)
+- [ ] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
 
 ### 3f — Shared.Infrastructure: Auth & Health
 - [ ] `KeycloakTokenService.cs` — Keycloak JWT doğrulama
@@ -101,23 +107,23 @@
 
 ## Faz 4 — Host/WebAPI & Composition Root
 
-**Hedef:** Uygulamayı ayağa kaldıracak ana proje.
+**Hedef:** Walking Skeleton'ı tam işlevsel hale getir.
 
-- [ ] `Host/WebAPI` projesi — ASP.NET Core Web API
 - [ ] `Program.cs` — composition root (DI, middleware, auth, Serilog, Swagger/Scalar)
-- [ ] `ModuleRegistration.cs` — modülleri tek yerden register etme mekanizması
+- [ ] `ModuleRegistration.cs` — **IModuleInstaller convention-based auto-discovery** (assembly taraması ile otomatik kayıt)
 - [ ] `appsettings.json` — PostgreSQL, Redis, RabbitMQ, Keycloak, Seq bağlantı bilgileri
 - [ ] `appsettings.Development.json` — geliştirme ortamı override
 - [ ] Keycloak realm konfigürasyonu (realm, client, roles)
 - [ ] Swagger/Scalar endpoint çalışır durumda
-- [ ] Health check endpoint (`/health`)
 - [ ] Serilog → Seq entegrasyonu çalışır
 - [ ] OpenTelemetry → Jaeger tracing çalışır
 - [ ] `Dockerfile` — multi-stage build
 - [ ] API versioning (`Asp.Versioning`) konfigürasyonu
-- [ ] **Walking Skeleton:** Temel altyapının çalıştığını kanıtlamak için basit bir uçtan uca (End-to-End) API modülünün devreye alınması.
+- [ ] **Walking Skeleton doğrulama:** Basit bir "Hello" entity ile uçtan uca CRUD çalışır → Shared altyapının doğrulanması
+- [ ] **Migration stratejisi:** Her modül kendi `Migrations/` klasöründe, startup'ta sıralı migration çalıştırma (`app.MigrateDatabase<TContext>()`)
+- [ ] **Seed data altyapısı:** `ISeedDataProvider` interface, `Core/` (framework seeds) ve `Demo/` (geliştirme) ayrımı
 
-**Çıktı:** Boş bir API ayağa kalkar, `/health`, `/swagger` endpointleri çalışır, loglar Seq'e gider.
+**Çıktı:** CRUD çalışan Walking Skeleton, migration + seed altyapısı hazır, loglar Seq'e gider.
 
 ---
 
@@ -133,10 +139,11 @@
 - [ ] `providers.tsx` — QueryClient, ThemeProvider, AuthProvider
 - [ ] Layout: sidebar (collapsible), header (user menu, notification bell, theme toggle), breadcrumb
 - [ ] Keycloak login entegrasyonu (OAuth2 PKCE redirect)
-- [ ] Orval Kurulumu — Swagger/OpenAPI spec'inden TypeScript tiplerinin ve Axios hook'larının otomatik üretilmesi (Type-safety)
+- [ ] Orval Kurulumu — Swagger/OpenAPI spec'inden TypeScript tiplerinin ve Axios hook'larının otomatik üretilmesi (Custom sayfalar + non-CRUD API'ler için type-safety)
 - [ ] Axios/fetch instance — base URL, JWT interceptor, refresh token
 - [ ] Zustand store: `useAuthStore`, `useUiStore`
 - [ ] Boş dashboard sayfası (placeholder)
+- [ ] **Test altyapısı:** Vitest + React Testing Library kurulumu, Playwright E2E scaffold
 
 **Çıktı:** Login → sidebar'lı boş dashboard, dark/light mode çalışır.
 
@@ -199,12 +206,15 @@
 - [ ] Dosya önizleme (PDF, resim)
 - [ ] Versiyon yönetimi, metadata, soft delete + geri yükleme
 
-### 7e — MultiTenancy Modülü
+### 7e — MultiTenancy Modülü (UI & Yönetim)
+
+> [!NOTE]
+> MultiTenancy **altyapısı** (ITenantEntity, TenantResolutionMiddleware, EF global filter) Faz 3'te zaten kurulmuştur. Bu fazda UI ve yönetim katmanı eklenir.
+
 - [ ] Tenant, TenantSettings entity'leri
 - [ ] Tenant CRUD API
-- [ ] `TenantResolutionMiddleware` — header/subdomain/claim'den tenant çözme
-- [ ] EF Core global query filter (`TenantId == currentTenant`)
 - [ ] **Tenant Bootstrapper:** `ITenantSeeder` interface, yeni tenant oluşturulduğunda modüllerin seed çalıştırması
+- [ ] Frontend: tenant yönetim ekranı
 
 ### 7f — Localization Modülü
 - [ ] Language, TranslationEntry entity'leri
@@ -455,11 +465,11 @@
 
 | Faz | Başlık | Tahmini Süre |
 |-----|--------|-------------|
-| 1 | Solution & Docker Compose | 1 gün |
-| 2 | Shared.Kernel | 2-3 gün |
-| 3 | Shared.Contracts & Infrastructure | 1-2 hafta |
-| 4 | Host/WebAPI | 2-3 gün |
-| 5 | Frontend Scaffold | 3-4 gün |
+| 1 | Solution & Docker Compose & Walking Skeleton | 1-2 gün |
+| 2 | Shared.Kernel (+ StronglyTypedId, RowVersion, Specification) | 2-3 gün |
+| 3 | Shared.Contracts & Infrastructure (+ MultiTenancy altyapısı, RFC 7807, Rate Limiting) | 1-2 hafta |
+| 4 | Host/WebAPI (+ Migration stratejisi, Seed altyapısı) | 2-3 gün |
+| 5 | Frontend Scaffold (+ Vitest/Playwright, Orval) | 3-4 gün |
 | 6 | IAM Modülü | 1-2 hafta |
 | 7 | Diğer Core Modüller (6 modül) | 3-4 hafta |
 | 8 | Dynamic UI Engine | 2-3 hafta |
