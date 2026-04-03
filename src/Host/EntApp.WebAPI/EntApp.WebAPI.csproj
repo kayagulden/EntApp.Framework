@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\Modules\Audit\EntApp.Modules.Audit.Infrastructure\EntApp.Modules.Audit.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Configuration\EntApp.Modules.Configuration.Infrastructure\EntApp.Modules.Configuration.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Notification\EntApp.Modules.Notification.Infrastructure\EntApp.Modules.Notification.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\FileManagement\EntApp.Modules.FileManagement.Infrastructure\EntApp.Modules.FileManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

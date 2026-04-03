@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Modules.FileManagement.Domain\EntApp.Modules.FileManagement.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Contracts\EntApp.Shared.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.*" />
+    <PackageReference Include="MediatR" Version="12.*" />
+  </ItemGroup>
+</Project>

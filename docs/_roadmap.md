@@ -210,12 +210,14 @@
 - [x] NotificationController — 9 API endpoint (templates CRUD, send, history, preferences)
 - [x] 24 unit test (Template: 6, Log: 5, Preference: 4, Validator: 8, auto: 1)
 
-### 7d — FileManagement Modülü
-- [ ] FileEntry, FileVersion, FileTag entity'leri
-- [ ] Storage provider abstraction: local disk, S3, Azure Blob
-- [ ] Dosya yükleme/indirme API
-- [ ] Dosya önizleme (PDF, resim)
-- [ ] Versiyon yönetimi, metadata, soft delete + geri yükleme
+### 7d — FileManagement Modülü ✅
+- [x] FileEntry (soft delete, versioning, tagging, preview), FileVersion, FileTag entity'leri
+- [x] Storage provider abstraction: LocalDisk + MinIO/S3 (config-driven switch)
+- [x] Dosya yükleme/indirme API (100MB limit, IFormFile)
+- [x] Dosya önizleme (pdf, png, jpg, webp, svg, gif, bmp)
+- [x] Versiyon yönetimi, metadata güncelleme, tag CRUD, soft delete + geri yükleme
+- [x] FileController — 11 API endpoint
+- [x] 26 unit test (FileEntry: 15, FileTag: 2, Validators: 8, auto: 1)
 
 ### 7e — MultiTenancy Modülü (UI & Yönetim)
 
