@@ -95,10 +95,14 @@
 - [x] `RateLimitingConfiguration.cs` — **ASP.NET Core Rate Limiter** (fixed/sliding window, IP partitioning)
 - [x] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
 
-### 3f — Shared.Infrastructure: Auth & Health
-- [ ] `KeycloakTokenService.cs` — Keycloak JWT doğrulama
-- [ ] `PermissionAuthorizationHandler.cs` — policy-based RBAC
-- [ ] `ModuleHealthCheck.cs` — modül bazlı health check
+### 3f — Shared.Infrastructure: Auth & Health ✅
+- [x] `KeycloakAuthenticationExtensions.cs` — Keycloak JWT doğrulama + realm_access role mapping
+- [x] `HttpContextCurrentUser.cs` — ICurrentUser implementasyonu (JWT claims)
+- [x] `HttpContextCurrentTenant.cs` — ICurrentTenant implementasyonu
+- [x] `PermissionAuthorizationHandler.cs` — policy-based RBAC
+- [x] `HasPermissionAttribute.cs` — endpoint dekoratörü
+- [x] `PermissionAuthorizationPolicyProvider.cs` — dinamik permission policy üretici
+- [x] `ModuleHealthCheckAdapter.cs` — modül bazlı health check
 
 ### 3g — Shared.Infrastructure: RealTime
 - [ ] `EntAppHub.cs` — merkezi SignalR hub
