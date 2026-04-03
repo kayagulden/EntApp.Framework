@@ -76,12 +76,12 @@
 - [x] **Soft Delete + Unique Index:** PostgreSQL partial index ile `WHERE is_deleted = false` unique constraint desteği
 - [x] EF Core interceptors: `AuditableEntityInterceptor`, `SoftDeleteInterceptor`, `DomainEventDispatchInterceptor` (**iki aşamalı dispatch:** `IDomainEvent` = pre-commit, `IPostCommitDomainEvent` = post-commit)
 
-### 3c — Shared.Infrastructure: Pipeline Behaviors
-- [ ] `ValidationBehavior.cs` — FluentValidation entegrasyonu
-- [ ] `LoggingBehavior.cs` — request/response Serilog ile loglama
-- [ ] `PerformanceBehavior.cs` — >500ms süren sorgulara warning log
-- [ ] `TransactionBehavior.cs` — Command'lar için begin/commit/rollback + **`ITransactionless` opt-out** mekanizması
-- [ ] `CachingBehavior.cs` — `ICacheableQuery<T>` marker ile Redis cache
+### 3c — Shared.Infrastructure: Pipeline Behaviors ✅
+- [x] `ValidationBehavior.cs` — FluentValidation entegrasyonu
+- [x] `LoggingBehavior.cs` — request/response Serilog ile loglama
+- [x] `PerformanceBehavior.cs` — >500ms süren sorgulara warning log
+- [x] `TransactionBehavior.cs` — Command'lar için begin/commit/rollback + **`ITransactionless` opt-out** mekanizması
+- [x] `CachingBehavior.cs` — `ICacheableQuery` marker ile IDistributedCache
 
 ### 3d — Shared.Infrastructure: EventBus & Cache
 - [ ] `RabbitMqEventBus.cs` — MassTransit + RabbitMQ transport (Başlangıç)
