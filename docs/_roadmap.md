@@ -83,16 +83,16 @@
 - [x] `TransactionBehavior.cs` — Command'lar için begin/commit/rollback + **`ITransactionless` opt-out** mekanizması
 - [x] `CachingBehavior.cs` — `ICacheableQuery` marker ile IDistributedCache
 
-### 3d — Shared.Infrastructure: EventBus & Cache
-- [ ] `RabbitMqEventBus.cs` — MassTransit + RabbitMQ transport (Başlangıç)
-- [ ] `InMemoryEventBus.cs` — geliştirme/test ortamı için
-- [ ] `ICacheService.cs`, `RedisCacheService.cs`, `CacheKeyBuilder.cs`
+### 3d — Shared.Infrastructure: EventBus & Cache ✅
+- [x] `InMemoryEventBus.cs` — MediatR doğrudan publish (dev/test)
+- [x] `OutboxEventBus.cs` — Outbox tablosuna yazma (production)
+- [x] `ICacheService.cs`, `DistributedCacheService.cs`, `CacheKeyBuilder.cs`
 
-### 3e — Shared.Infrastructure: Middleware
-- [ ] `ExceptionHandlingMiddleware.cs` — global hata yakalama, **RFC 7807 ProblemDetails** standart format
-- [ ] `RequestLoggingMiddleware.cs` — HTTP request loglama
-- [ ] `TenantResolutionMiddleware.cs` — header/subdomain/claim'den tenant belirleme
-- [ ] `RateLimitingMiddleware.cs` — **ASP.NET Core Rate Limiter** (fixed/sliding window, token bucket, tenant bazlı)
+### 3e — Shared.Infrastructure: Middleware ✅
+- [x] `ExceptionHandlingMiddleware.cs` — global hata yakalama, **RFC 7807 ProblemDetails** standart format
+- [x] `RequestLoggingMiddleware.cs` — HTTP request loglama
+- [x] `TenantResolutionMiddleware.cs` — header/subdomain/claim'den tenant belirleme
+- [x] `RateLimitingConfiguration.cs` — **ASP.NET Core Rate Limiter** (fixed/sliding window, IP partitioning)
 - [ ] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
 
 ### 3f — Shared.Infrastructure: Auth & Health
