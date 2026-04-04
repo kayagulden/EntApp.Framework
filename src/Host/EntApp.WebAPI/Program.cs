@@ -8,6 +8,8 @@ using EntApp.Shared.Infrastructure.Middleware;
 using EntApp.Shared.Infrastructure.Modules;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.RealTime;
+using EntApp.Shared.Contracts.Messaging;
+using EntApp.Shared.Infrastructure.Messaging;
 using EntApp.Modules.AI.Infrastructure.Endpoints;
 using EntApp.Modules.Workflow.Infrastructure.Endpoints;
 using EntApp.Modules.CRM.Infrastructure.Endpoints;
@@ -150,6 +152,9 @@ try
 
     // ── Controllers ──────────────────────────────────────────
     builder.Services.AddControllers();
+
+    // ── Event Bus ────────────────────────────────────────────
+    builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 
     // ── Module Auto-Discovery ────────────────────────────────
     // Yeni modül assembly'leri buraya eklenir

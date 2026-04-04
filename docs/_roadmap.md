@@ -446,7 +446,7 @@
 - [x] Vade takibi: vadesi geçmiş fatura endpoint'i
 - [x] Bakiye özeti: hesap tipi bazlı toplamlar
 - [x] `FinanceDbContext` — schema: `fin`, 4 tablo, 7 index
-- [ ] Integration Events — sonraki fazda
+- [x] Integration Events — **Faz 12e'de** tamamlandı ✅
 
 ### 11d — Inventory ✅
 
@@ -476,8 +476,8 @@
 - [x] Workflow entegrasyonu hazır (WorkflowInstanceId)
 - [x] Satış dashboard endpoint'i (günlük/aylık gelir, durum bazlı sayılar)
 - [x] `SalesDbContext` — schema: `sales`, 3 tablo, 4 index
-- [ ] Inventory ile stok düşümü (Integration Event) — sonraki fazda
-- [ ] Finance ile fatura oluşturma (Integration Event) — sonraki fazda
+- [x] Inventory ile stok düşümü (Integration Event) — **Faz 12e'de** tamamlandı ✅
+- [x] Finance ile fatura oluşturma (Integration Event) — **Faz 12e'de** tamamlandı ✅
 
 ### 12b — Procurement ✅
 
@@ -514,6 +514,23 @@
 - [x] `EntApp.IntegrationTests` projesi — InMemory DbContext, 8/8 test geçti
 
 **Çıktı:** Tüm iş modülleri arası event akışları çalışır, testler geçer ✅
+
+### 12e — Cross-Module Integration Events ✅
+
+> **Tamamlanma:** 2026-04-05
+
+- [x] **Integration Event altyapısı:** `IIntegrationEvent` + `IntegrationEvent` base record + `IEventBus` (mevcut)
+- [x] **Event bus:** `InMemoryEventBus` (MediatR Notifications) → DI'a kayıtlı
+- [x] **Sales → Inventory:** `OrderConfirmedEvent` → `OrderConfirmedStockHandler` (otomatik stok düşümü)
+- [x] **Sales → Inventory:** `OrderCancelledEvent` → `OrderCancelledStockHandler` (stok iadesi)
+- [x] **Sales → Finance:** `OrderConfirmedEvent` → `OrderConfirmedInvoiceHandler` (otomatik fatura + cari hesap)
+- [x] **Finance event'leri:** `InvoiceApprovedEvent`, `PaymentReceivedEvent` event'leri tanımlı
+- [x] **HR event'leri:** `LeaveApprovedEvent`, `LeaveRejectedEvent` event'leri tanımlı
+- [x] **Procurement → Inventory:** `GoodsReceivedEvent` → `GoodsReceivedStockHandler` (stok girişi)
+- [x] Sales Confirm/Cancel endpoint'leri event publish ediyor
+- [x] Mevcut 8 integration testi geçiyor (build: 0 hata)
+
+**Çıktı:** Modüller arası event tabanlı iletişim altyapısı çalışır, sipariş→stok→fatura otomatik akar ✅
 
 ---
 

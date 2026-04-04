@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="..\EntApp.Modules.Finance.Application\EntApp.Modules.Finance.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Sales\EntApp.Modules.Sales.Application\EntApp.Modules.Sales.Application.csproj" />
   </ItemGroup>
 </Project>

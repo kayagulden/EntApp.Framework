@@ -1,6 +1,8 @@
 using EntApp.Modules.Sales.Domain.Entities;
 using EntApp.Modules.Sales.Domain.Enums;
+using EntApp.Modules.Sales.Application.IntegrationEvents;
 using EntApp.Modules.Sales.Infrastructure.Persistence;
+using EntApp.Shared.Contracts.Messaging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -91,12 +93,22 @@ public static class SalesEndpoints
         }).WithName("CreateOrder");
 
         // ── Status transitions ───────────────────────────
-        orders.MapPost("/{id:guid}/confirm", async (Guid id, SalesDbContext db) =>
+        orders.MapPost("/{id:guid}/confirm", async (Guid id, SalesDbContext db, IEventBus eventBus) =>
         {
-            var order = await db.Orders.FindAsync(id);
+            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
             if (order is null) return Results.NotFound();
             order.Confirm();
             await db.SaveChangesAsync();
+
+            // Integration Event: Inventory stok düşümü + Finance fatura oluşturma
+            await eventBus.PublishAsync(new OrderConfirmedEvent(
+                order.Id, order.OrderNumber, order.CustomerId, order.CustomerName,
+                order.Currency, order.GrandTotal,
+                order.Items.Select(i => new OrderConfirmedEvent.OrderLineDto(
+                    i.ProductId, i.ProductName, i.ProductSKU,
+                    i.Quantity, i.UnitPrice, i.TaxRate,
+                    i.LineTotal, i.TaxAmount, i.DiscountAmount)).ToList()));
+
             return Results.Ok(new { order.Id, Status = order.Status.ToString() });
         }).WithName("ConfirmOrder");
 
@@ -118,12 +130,19 @@ public static class SalesEndpoints
             return Results.Ok(new { order.Id, Status = order.Status.ToString() });
         }).WithName("DeliverOrder");
 
-        orders.MapPost("/{id:guid}/cancel", async (Guid id, SalesDbContext db) =>
+        orders.MapPost("/{id:guid}/cancel", async (Guid id, SalesDbContext db, IEventBus eventBus) =>
         {
-            var order = await db.Orders.FindAsync(id);
+            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
             if (order is null) return Results.NotFound();
             order.Cancel();
             await db.SaveChangesAsync();
+
+            // Integration Event: Inventory stok iadesi
+            await eventBus.PublishAsync(new OrderCancelledEvent(
+                order.Id, order.OrderNumber,
+                order.Items.Select(i => new OrderCancelledEvent.CancelledLineDto(
+                    i.ProductId, i.Quantity)).ToList()));
+
             return Results.Ok(new { order.Id, Status = order.Status.ToString() });
         }).WithName("CancelOrder");
 
