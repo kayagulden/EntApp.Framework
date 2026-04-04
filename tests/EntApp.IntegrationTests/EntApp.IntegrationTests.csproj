@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>EntApp.IntegrationTests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CA2007;CA1062</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+    <PackageReference Include="xunit" Version="2.*" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.*">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="7.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Sales\EntApp.Modules.Sales.Infrastructure\EntApp.Modules.Sales.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\CRM\EntApp.Modules.CRM.Infrastructure\EntApp.Modules.CRM.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\HR\EntApp.Modules.HR.Infrastructure\EntApp.Modules.HR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Finance\EntApp.Modules.Finance.Infrastructure\EntApp.Modules.Finance.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Inventory\EntApp.Modules.Inventory.Infrastructure\EntApp.Modules.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Procurement\EntApp.Modules.Procurement.Infrastructure\EntApp.Modules.Procurement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\TaskManagement\EntApp.Modules.TaskManagement.Infrastructure\EntApp.Modules.TaskManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workflow\EntApp.Modules.Workflow.Infrastructure\EntApp.Modules.Workflow.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

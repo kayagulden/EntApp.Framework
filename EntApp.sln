@@ -163,6 +163,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.Modules.TaskManageme
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.Modules.TaskManagement.Infrastructure", "src\Modules\TaskManagement\EntApp.Modules.TaskManagement.Infrastructure\EntApp.Modules.TaskManagement.Infrastructure.csproj", "{49A11CA3-47AE-48FB-ADC5-DFB8B174DAED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.IntegrationTests", "tests\EntApp.IntegrationTests\EntApp.IntegrationTests.csproj", "{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -881,6 +883,18 @@ Global
 		{49A11CA3-47AE-48FB-ADC5-DFB8B174DAED}.Release|x64.Build.0 = Release|Any CPU
 		{49A11CA3-47AE-48FB-ADC5-DFB8B174DAED}.Release|x86.ActiveCfg = Release|Any CPU
 		{49A11CA3-47AE-48FB-ADC5-DFB8B174DAED}.Release|x86.Build.0 = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|x64.Build.0 = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Debug|x86.Build.0 = Debug|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|x64.ActiveCfg = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|x64.Build.0 = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|x86.ActiveCfg = Release|Any CPU
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -964,5 +978,6 @@ Global
 		{CF4FAC77-A31E-491E-AABD-62307E61640F} = {0E41558D-A8A7-64A4-DE87-71B03A4ACEC8}
 		{7A24DC92-5AD7-4038-B36A-34BD7412D7F8} = {0E41558D-A8A7-64A4-DE87-71B03A4ACEC8}
 		{49A11CA3-47AE-48FB-ADC5-DFB8B174DAED} = {0E41558D-A8A7-64A4-DE87-71B03A4ACEC8}
+		{0D2C8476-527B-434E-BA7B-9520DBE5A5FF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

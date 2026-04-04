@@ -503,12 +503,17 @@
 - [x] Süre takibi (time entry)
 - [x] `TaskManagementDbContext` — schema: `pm`, 4 tablo, 6 index
 
-### 12d — Modüller Arası Entegrasyon Testleri
-- [ ] Sales → Inventory → Finance saga test
-- [ ] HR izin → Workflow onay → Notification test
-- [ ] CRM → Sales sipariş akışı test
+### 12d — Modüller Arası Entegrasyon Testleri ✅
 
-**Çıktı:** Tüm iş modülleri arası event akışları çalışır, saga testleri geçer.
+> **Tamamlanma:** 2026-04-04
+
+- [x] Sales → Inventory → Finance saga test (2 test: sipariş→stok düşüm→fatura, iptal senaryosu)
+- [x] HR izin → Workflow onay → Bakiye test (3 test: onay+bakiye, red, org chart)
+- [x] CRM → Sales sipariş akışı test (2 test: kazanılan fırsat→sipariş, kayıp fırsat)
+- [x] Procurement 3-way matching test (1 test: PO→teslim→fatura eşleştirme)
+- [x] `EntApp.IntegrationTests` projesi — InMemory DbContext, 8/8 test geçti
+
+**Çıktı:** Tüm iş modülleri arası event akışları çalışır, testler geçer ✅
 
 ---
 
