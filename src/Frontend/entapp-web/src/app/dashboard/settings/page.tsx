@@ -1,11 +1,15 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Settings, Globe, Bell, Palette } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   return (
     <div className="space-y-6">
@@ -28,7 +32,7 @@ export default function SettingsPage() {
                 onClick={() => setTheme(t)}
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  theme === t
+                  mounted && theme === t
                     ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
                     : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
                 )}

@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\Modules\FileManagement\EntApp.Modules.FileManagement.Infrastructure\EntApp.Modules.FileManagement.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\MultiTenancy\EntApp.Modules.MultiTenancy.Infrastructure\EntApp.Modules.MultiTenancy.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Localization\EntApp.Modules.Localization.Infrastructure\EntApp.Modules.Localization.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\AI\EntApp.Modules.AI.Infrastructure\EntApp.Modules.AI.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

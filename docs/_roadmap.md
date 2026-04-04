@@ -326,12 +326,17 @@
 
 ## Faz 9 — AI Module
 
-### 9a — AI Altyapısı
-- [ ] `AI.Domain` — AiModel, PromptTemplate, EmbeddingDocument, AiUsageLog entity'leri
-- [ ] `AI.Application` — ILlmService, IEmbeddingService, IRagService, IPromptManager, IDocumentProcessor interfaces
-- [ ] Microsoft Semantic Kernel entegrasyonu
-- [ ] Provider'lar: `OpenAiProvider`, `AnthropicProvider`, `AzureOpenAiProvider`, `OllamaProvider`
-- [ ] `appsettings.json` ile provider seçimi ve fallback
+### 9a — AI Altyapısı ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `AI.Domain` — AiModel, PromptTemplate, EmbeddingDocument, AiUsageLog entity'leri
+- [x] `AI.Application` — ILlmService, IEmbeddingService, IRagService, IPromptManager, IDocumentProcessor interfaces
+- [x] Microsoft Semantic Kernel entegrasyonu
+- [x] Multi-provider: config-driven OpenAI / AzureOpenAI seçimi, Anthropic / Ollama hazır
+- [x] `appsettings.json` ile provider seçimi (`AiSettings:DefaultProvider`)
+- [x] `SemanticKernelLlmService` — chat completion + AiUsageLog maliyet takibi
+- [x] `ScribanPromptManager` — DB'den template + Scriban render
 
 ### 9b — Embedding & Vector Search
 - [ ] PostgreSQL pgvector extension kurulumu

@@ -148,14 +148,16 @@ try
         builder.Configuration,
         typeof(EntApp.Shared.Infrastructure.Modules.ModuleRegistration).Assembly,
         typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
-        typeof(EntApp.Modules.Configuration.Infrastructure.ConfigModuleInstaller).Assembly
+        typeof(EntApp.Modules.Configuration.Infrastructure.ConfigModuleInstaller).Assembly,
+        typeof(EntApp.Modules.AI.Infrastructure.AiModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
     // [DynamicEntity] attribute'ü olan entity'ler için otomatik metadata + CRUD
     builder.Services.AddDynamicCrud(
         typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
-        typeof(EntApp.Modules.Configuration.Domain.Entities.Country).Assembly
+        typeof(EntApp.Modules.Configuration.Domain.Entities.Country).Assembly,
+        typeof(EntApp.Modules.AI.Domain.Entities.AiModel).Assembly
     );
 
     // Dynamic entity → DbContext eşleştirmesi
@@ -164,6 +166,12 @@ try
         typeof(EntApp.Modules.Configuration.Domain.Entities.Country),
         typeof(EntApp.Modules.Configuration.Domain.Entities.City),
         typeof(EntApp.Modules.Configuration.Domain.Entities.Currency)
+    );
+
+    builder.Services.AddDynamicDbContext<
+        EntApp.Modules.AI.Infrastructure.Persistence.AiDbContext>(
+        typeof(EntApp.Modules.AI.Domain.Entities.AiModel),
+        typeof(EntApp.Modules.AI.Domain.Entities.PromptTemplate)
     );
 
     // ═════════════════════════════════════════════════════════
