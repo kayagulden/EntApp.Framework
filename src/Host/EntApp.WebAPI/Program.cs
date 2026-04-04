@@ -11,6 +11,8 @@ using EntApp.Shared.Infrastructure.RealTime;
 using EntApp.Modules.AI.Infrastructure.Endpoints;
 using EntApp.Modules.Workflow.Infrastructure.Endpoints;
 using EntApp.Modules.CRM.Infrastructure.Endpoints;
+using EntApp.Modules.HR.Infrastructure.Endpoints;
+using EntApp.Modules.Finance.Infrastructure.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -248,6 +250,8 @@ try
     app.MapUsageEndpoints();
     app.MapWorkflowEndpoints();
     app.MapCrmEndpoints();
+    app.MapHrEndpoints();
+    app.MapFinanceEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();

@@ -33,6 +33,8 @@
     <ProjectReference Include="..\..\Modules\AI\EntApp.Modules.AI.Infrastructure\EntApp.Modules.AI.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Workflow\EntApp.Modules.Workflow.Infrastructure\EntApp.Modules.Workflow.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\CRM\EntApp.Modules.CRM.Infrastructure\EntApp.Modules.CRM.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\HR\EntApp.Modules.HR.Infrastructure\EntApp.Modules.HR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Finance\EntApp.Modules.Finance.Infrastructure\EntApp.Modules.Finance.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

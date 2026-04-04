@@ -422,19 +422,31 @@
 - [ ] Integration Events — sonraki fazda
 - [ ] Dynamic UI ile ekranlar — sonraki fazda
 
-### 11b — HR
-- [ ] `EmployeeBase`, `LeaveRequestBase`, `AttendanceBase` entity'leri
-- [ ] Personel CRUD, organizasyon şeması
-- [ ] İzin talebi + Workflow modülü ile onay akışı entegrasyonu
-- [ ] Puantaj kaydı
-- [ ] Integration Events: `EmployeeTerminatedIntegrationEvent`
+### 11b — HR ✅
 
-### 11c — Finance
-- [ ] `AccountBase`, `InvoiceBase`, `InvoiceItemBase`, `PaymentBase` entity'leri
-- [ ] Cari hesap yönetimi, bakiye hesaplama
-- [ ] Fatura oluşturma (satış/satın alma)
-- [ ] Ödeme kaydı, vade takibi
-- [ ] Integration Events: `InvoiceApprovedIntegrationEvent`, `PaymentReceivedIntegrationEvent`
+> **Tamamlanma:** 2026-04-04
+
+- [x] `EmployeeBase`, `LeaveRequestBase`, `AttendanceBase` entity'leri
+- [x] Personel CRUD + arama/filtreleme (14 API endpoint)
+- [x] Organizasyon şeması (self-referencing ManagerId + org-chart endpoint)
+- [x] İzin talebi + onay/red + bakiye kontrolü
+- [x] Puantaj kaydı (giriş/çıkış, çalışma saati, fazla mesai otomatik hesaplama)
+- [x] `HrDbContext` — schema: `hr`, 3 tablo, 4 index
+- [x] Workflow entegrasyonu hazır (WorkflowInstanceId alanı)
+- [ ] Integration Events — sonraki fazda
+
+### 11c — Finance ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `AccountBase`, `InvoiceBase`, `InvoiceItemBase`, `PaymentBase` entity'leri
+- [x] Cari hesap yönetimi + bakiye hesaplama (otomatik güncelleme)
+- [x] Fatura oluşturma (satış/satın alma) + kalem bazlı KDV/indirim
+- [x] Ödeme kaydı + faturaya otomatik ödeme bağlama
+- [x] Vade takibi: vadesi geçmiş fatura endpoint'i
+- [x] Bakiye özeti: hesap tipi bazlı toplamlar
+- [x] `FinanceDbContext` — schema: `fin`, 4 tablo, 7 index
+- [ ] Integration Events — sonraki fazda
 
 ### 11d — Inventory
 - [ ] `ProductBase`, `WarehouseBase`, `StockMovementBase` entity'leri

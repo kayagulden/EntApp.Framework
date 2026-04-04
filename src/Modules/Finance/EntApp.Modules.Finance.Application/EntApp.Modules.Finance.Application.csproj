@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>EntApp.Modules.Finance.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.*" />
+    <PackageReference Include="MediatR.Contracts" Version="2.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Modules.Finance.Domain\EntApp.Modules.Finance.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Contracts\EntApp.Shared.Contracts.csproj" />
+  </ItemGroup>
+</Project>
