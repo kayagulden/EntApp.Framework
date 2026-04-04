@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>EntApp.Modules.CRM.Infrastructure</RootNamespace>
+    <NoWarn>$(NoWarn);CA2007;CA1062</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Modules.CRM.Application\EntApp.Modules.CRM.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
