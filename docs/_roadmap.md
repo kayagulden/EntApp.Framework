@@ -409,13 +409,18 @@
 
 **Hedef:** En çok kullanılan iş modüllerinin generic core'unu oluştur.
 
-### 11a — CRM
-- [ ] `CustomerBase`, `ContactBase`, `OpportunityBase`, `ActivityBase` entity'leri
-- [ ] Temel CRUD + arama/filtreleme
-- [ ] Müşteri segmentasyonu (enum tabanlı)
-- [ ] Fırsat aşama geçişi (pipeline)
-- [ ] Integration Events: `CustomerCreatedIntegrationEvent`, `OpportunityWonIntegrationEvent`
-- [ ] Dynamic UI ile ekranlar (override mekanizması hazır)
+### 11a — CRM ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `CustomerBase`, `ContactBase`, `OpportunityBase`, `ActivityBase` entity'leri
+- [x] Temel CRUD + arama/filtreleme (14 API endpoint)
+- [x] Müşteri segmentasyonu (Standard → Enterprise)
+- [x] Fırsat aşama geçişi (Lead → ClosedWon/Lost pipeline)
+- [x] Pipeline özet endpoint'i (`/api/crm/opportunities/pipeline`)
+- [x] `CrmDbContext` — schema: `crm`, 4 tablo, 7 index
+- [ ] Integration Events — sonraki fazda
+- [ ] Dynamic UI ile ekranlar — sonraki fazda
 
 ### 11b — HR
 - [ ] `EmployeeBase`, `LeaveRequestBase`, `AttendanceBase` entity'leri
