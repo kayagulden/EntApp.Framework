@@ -26,6 +26,10 @@ interface DynamicTableProps {
   onDeleteClick: (id: string) => void;
   canEdit: boolean;
   canDelete: boolean;
+  /** SignalR: yeni/güncellenen satır ID → highlight animasyonu */
+  highlightId?: string | null;
+  /** SignalR: silinen satır ID → fade-out animasyonu */
+  deletingId?: string | null;
 }
 
 /**
@@ -44,6 +48,8 @@ export function DynamicTable({
   onDeleteClick,
   canEdit,
   canDelete,
+  highlightId,
+  deletingId,
 }: DynamicTableProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -153,9 +159,11 @@ export function DynamicTable({
                     <tr
                       key={rowId}
                       className={cn(
-                        "transition-colors duration-150",
+                        "transition-all duration-300",
                         "hover:bg-[var(--color-bg)]/30",
-                        idx % 2 === 0 ? "bg-transparent" : "bg-[var(--color-bg)]/10"
+                        idx % 2 === 0 ? "bg-transparent" : "bg-[var(--color-bg)]/10",
+                        highlightId === rowId && "animate-row-highlight",
+                        deletingId === rowId && "animate-row-delete"
                       )}
                     >
                       {visibleFields.map((field) => (

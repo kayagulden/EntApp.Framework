@@ -295,10 +295,15 @@
 - [x] Frontend: `DynamicExport.tsx` — format seçimi dialogu + şablon indirme
 - [x] Toolbar entegrasyonu (Dışa Aktar + İçe Aktar butonları)
 
-### 8d — Real-time Entegrasyon
-- [ ] `DynamicTable` SignalR subscribe — yeni kayıt geldiğinde tablo otomatik yenilenir
-- [ ] Entity silme → satır soluklaşıp kaybolma animasyonu
-- [ ] Bildirim badge güncelleme (real-time)
+### 8d — Real-time Entegrasyon ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `DynamicCrudEndpointBuilder` → Create/Update/Delete → `IEntityChangeNotifier` push
+- [x] `EntAppHub` anonymous erişim (dev)
+- [x] `useSignalR.ts` hook — connect, JoinGroup, EntityChanged listener
+- [x] `DynamicTable` — yeni kayıt: yeşil highlight, silme: fade-out animasyonu
+- [x] `next.config.ts` — `/hubs/**` WebSocket proxy
 
 ### 8e — Test & Demo ✅
 

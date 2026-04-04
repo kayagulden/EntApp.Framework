@@ -13,7 +13,7 @@ namespace EntApp.Shared.Infrastructure.RealTime;
 /// Grup adlandırma konvansiyonu: "{EntityType}:{EntityId}" veya "{Module}:{Channel}"
 /// Örn: "Order:550e8400-e29b-41d4-a716-446655440000" veya "IAM:UserChanges"
 /// </remarks>
-[Authorize]
+// [Authorize] — TODO: Production'da aktif edilecek
 public sealed class EntAppHub : Hub
 {
     private readonly IUserConnectionTracker _connectionTracker;

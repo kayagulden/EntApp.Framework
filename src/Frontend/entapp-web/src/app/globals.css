@@ -138,3 +138,26 @@ body {
 .animate-slide-in-right {
   animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ── SignalR Real-time Row Animations ─────────────── */
+
+@keyframes row-highlight {
+  0% { background-color: rgba(16, 185, 129, 0.25); }
+  50% { background-color: rgba(16, 185, 129, 0.1); }
+  100% { background-color: transparent; }
+}
+
+@keyframes row-delete {
+  0% { opacity: 1; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(0); }
+}
+
+.animate-row-highlight {
+  animation: row-highlight 2s ease-out;
+}
+
+.animate-row-delete {
+  animation: row-delete 0.4s ease-in forwards;
+  transform-origin: center;
+  overflow: hidden;
+}

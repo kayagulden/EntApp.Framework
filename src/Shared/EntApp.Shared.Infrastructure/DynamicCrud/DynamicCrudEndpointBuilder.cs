@@ -4,6 +4,7 @@ using EntApp.Shared.Contracts.Common;
 using EntApp.Shared.Infrastructure.DynamicCrud.Export;
 using EntApp.Shared.Infrastructure.DynamicCrud.Import;
 using EntApp.Shared.Infrastructure.DynamicCrud.Models;
+using EntApp.Shared.Infrastructure.RealTime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -154,11 +155,20 @@ public static class DynamicCrudEndpointBuilder
         string entityName,
         JsonElement body,
         IDynamicCrudService crudService,
+        IEntityChangeNotifier notifier,
         CancellationToken ct)
     {
         try
         {
             var id = await crudService.CreateAsync(entityName, body, ct);
+
+            // SignalR push — liste izleyenlerine bildirim
+            _ = notifier.NotifyGroupAsync(
+                $"{entityName}:list",
+                "EntityChanged",
+                new EntityChangePayload(entityName, id.ToString(), ChangeType.Created, body),
+                ct);
+
             return Results.Created($"/api/v1/dynamic/{entityName}/{id}", new { id });
         }
         catch (KeyNotFoundException)
@@ -172,11 +182,19 @@ public static class DynamicCrudEndpointBuilder
         Guid id,
         JsonElement body,
         IDynamicCrudService crudService,
+        IEntityChangeNotifier notifier,
         CancellationToken ct)
     {
         try
         {
             await crudService.UpdateAsync(entityName, id, body, ct);
+
+            _ = notifier.NotifyGroupAsync(
+                $"{entityName}:list",
+                "EntityChanged",
+                new EntityChangePayload(entityName, id.ToString(), ChangeType.Updated, body),
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
@@ -189,11 +207,19 @@ public static class DynamicCrudEndpointBuilder
         string entityName,
         Guid id,
         IDynamicCrudService crudService,
+        IEntityChangeNotifier notifier,
         CancellationToken ct)
     {
         try
         {
             await crudService.DeleteAsync(entityName, id, ct);
+
+            _ = notifier.NotifyGroupAsync(
+                $"{entityName}:list",
+                "EntityChanged",
+                new EntityChangePayload(entityName, id.ToString(), ChangeType.Deleted, null),
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)

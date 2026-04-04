@@ -8,6 +8,7 @@ import {
   useDynamicUpdate,
   useDynamicDelete,
 } from "@/lib/hooks/use-dynamic-crud";
+import { useSignalR, type EntityChangePayload } from "@/lib/hooks/use-signalr";
 import { DynamicToolbar } from "./DynamicToolbar";
 import { DynamicTable } from "./DynamicTable";
 import { DynamicForm } from "./DynamicForm";
@@ -37,6 +38,8 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // ── Data Fetching ────────────────────────────────────
   const { data: metadata, isLoading: metaLoading, error: metaError } =
@@ -59,6 +62,31 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
   const createMutation = useDynamicCreate(entityName);
   const updateMutation = useDynamicUpdate(entityName);
   const deleteMutation = useDynamicDelete(entityName);
+
+  // ── SignalR Real-time ─────────────────────────────────
+  const handleEntityChanged = useCallback(
+    (payload: EntityChangePayload) => {
+      if (payload.changeType === "Deleted") {
+        // Fade-out animasyonu başlat, sonra refetch
+        setDeletingId(payload.entityId);
+        setTimeout(() => {
+          refetch();
+          setDeletingId(null);
+        }, 500);
+      } else {
+        // Created/Updated → refetch + highlight
+        refetch();
+        setHighlightId(payload.entityId);
+        setTimeout(() => setHighlightId(null), 2000);
+      }
+    },
+    [refetch]
+  );
+
+  useSignalR({
+    entityName,
+    onEntityChanged: handleEntityChanged,
+  });
 
   // ── Handlers ─────────────────────────────────────────
   const handleSortChange = useCallback(
@@ -187,6 +215,8 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
         onDeleteClick={handleDeleteClick}
         canEdit={metadata.actions.edit}
         canDelete={metadata.actions.delete}
+        highlightId={highlightId}
+        deletingId={deletingId}
       />
 
       <DynamicForm
