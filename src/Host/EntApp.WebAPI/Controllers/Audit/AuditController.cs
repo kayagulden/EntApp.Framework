@@ -33,7 +33,7 @@ public class AuditController : ControllerBase
     {
         var result = await _mediator.Send(
             new GetAuditLogsQuery(page, pageSize, entityType, action, userId, fromDate, toDate), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Login kayıtları (sayfalanmış + filtreleme).</summary>
@@ -50,6 +50,6 @@ public class AuditController : ControllerBase
     {
         var result = await _mediator.Send(
             new GetLoginRecordsQuery(page, pageSize, userId, loginResult, fromDate, toDate), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 }

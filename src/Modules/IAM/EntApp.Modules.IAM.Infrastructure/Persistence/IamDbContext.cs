@@ -43,7 +43,7 @@ public sealed class IamDbContext : DbContext
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
             entity.Ignore(e => e.FullName);
-            entity.Ignore(e => e.DomainEvents);
+
 
             entity.HasOne(e => e.Organization)
                 .WithMany()
@@ -65,7 +65,7 @@ public sealed class IamDbContext : DbContext
             entity.HasIndex(e => e.Name).IsUnique();
             entity.Property(e => e.DisplayName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Ignore(e => e.DomainEvents);
+
         });
 
         // ── Permission ──────────────────────────────────────
@@ -106,7 +106,7 @@ public sealed class IamDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Code).HasMaxLength(20).IsRequired();
             entity.HasIndex(e => e.Code).IsUnique();
-            entity.Ignore(e => e.DomainEvents);
+
 
             entity.HasOne(e => e.Parent)
                 .WithMany(e => e.Children)
@@ -121,7 +121,7 @@ public sealed class IamDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Code).HasMaxLength(20).IsRequired();
-            entity.Ignore(e => e.DomainEvents);
+
 
             entity.HasOne(e => e.Organization)
                 .WithMany(o => o.Departments)

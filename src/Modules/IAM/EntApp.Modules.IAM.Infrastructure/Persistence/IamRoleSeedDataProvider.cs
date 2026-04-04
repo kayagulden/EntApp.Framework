@@ -1,5 +1,7 @@
 using EntApp.Modules.IAM.Domain.Entities;
 using EntApp.Shared.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntApp.Modules.IAM.Infrastructure.Persistence;
 

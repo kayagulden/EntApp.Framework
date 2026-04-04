@@ -1,5 +1,5 @@
 using EntApp.Modules.Configuration.Infrastructure.Persistence;
-using EntApp.Shared.Infrastructure.Modularity;
+using EntApp.Shared.Contracts.Modules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +8,8 @@ namespace EntApp.Modules.Configuration.Infrastructure;
 
 public class ConfigModuleInstaller : IModuleInstaller
 {
+    public string ModuleName => "Configuration";
+
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");

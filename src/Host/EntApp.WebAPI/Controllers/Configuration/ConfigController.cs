@@ -30,7 +30,7 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetAppSettingsQuery(group, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Tek ayar — key ile.</summary>
@@ -42,7 +42,7 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetAppSettingByKeyQuery(key, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Ayar oluştur/güncelle (upsert).</summary>
@@ -53,7 +53,7 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Error);
     }
 
     // ─── Feature Flags ──────────────────────────────
@@ -66,7 +66,7 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetFeatureFlagsQuery(tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Feature flag aktif mi?</summary>
@@ -78,7 +78,7 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new IsFeatureEnabledQuery(name, tenantId), ct);
-        return result.IsSuccess ? Ok(new { enabled = result.Value }) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(new { enabled = result.Value }) : StatusCode(500, result.Error);
     }
 
     /// <summary>Yeni feature flag oluştur.</summary>
@@ -91,7 +91,7 @@ public class ConfigController : ControllerBase
         var result = await _mediator.Send(command, ct);
         return result.IsSuccess
             ? Created($"/api/v1/config/flags/{result.Value}", new { id = result.Value })
-            : BadRequest(result.Errors);
+            : BadRequest(result.Error);
     }
 
     /// <summary>Feature flag toggle (aç/kapa).</summary>
@@ -100,7 +100,7 @@ public class ConfigController : ControllerBase
     public async Task<IActionResult> ToggleFlag(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new ToggleFeatureFlagCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Feature flag zamanlama ayarla.</summary>
@@ -112,6 +112,6 @@ public class ConfigController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { FlagId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 }

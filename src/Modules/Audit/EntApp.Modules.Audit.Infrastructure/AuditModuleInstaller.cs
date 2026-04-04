@@ -1,6 +1,6 @@
 using EntApp.Modules.Audit.Infrastructure.Interceptors;
 using EntApp.Modules.Audit.Infrastructure.Persistence;
-using EntApp.Shared.Infrastructure.Modularity;
+using EntApp.Shared.Contracts.Modules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +9,8 @@ namespace EntApp.Modules.Audit.Infrastructure;
 
 public class AuditModuleInstaller : IModuleInstaller
 {
+    public string ModuleName => "Audit";
+
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -19,7 +21,6 @@ public class AuditModuleInstaller : IModuleInstaller
 
         services.AddScoped<AuditSaveChangesInterceptor>();
 
-        // MediatR handler'larını otomatik kaydet
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(AuditModuleInstaller).Assembly));
     }

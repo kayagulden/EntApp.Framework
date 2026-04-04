@@ -204,7 +204,7 @@ public sealed class GetHistoryHandler : IRequestHandler<GetNotificationHistoryQu
                 l.TemplateCode, l.Subject, l.Body, l.Status.ToString(), l.ErrorMessage, l.SentAt, l.ReadAt))
             .ToListAsync(ct);
 
-        return Result<PagedResult<NotificationLogDto>>.Success(new PagedResult<NotificationLogDto>(items, total, req.Page, req.PageSize));
+        return Result<PagedResult<NotificationLogDto>>.Success(new PagedResult<NotificationLogDto> { Items = items, TotalCount = total, PageNumber = req.Page, PageSize = req.PageSize });
     }
 }
 

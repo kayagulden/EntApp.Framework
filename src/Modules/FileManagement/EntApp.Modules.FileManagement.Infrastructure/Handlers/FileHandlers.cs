@@ -26,7 +26,7 @@ public sealed class UploadFileHandler : IRequestHandler<UploadFileCommand, Resul
         _db.Files.Add(file);
         await _db.SaveChangesAsync(ct);
 
-        return Result<FileEntryDto>.Success(MapToDto(file));
+        return Result<FileEntryDto>.Success(FileMappers.MapToDto(file));
     }
 }
 
@@ -145,12 +145,12 @@ public sealed class GetFilesHandler : IRequestHandler<GetFilesQuery, Result<Page
         if (!string.IsNullOrWhiteSpace(req.Tag)) query = query.Where(f => f.Tags.Any(t => t.Name == req.Tag.ToLowerInvariant()));
 
         var total = await query.CountAsync(ct);
-        var items = await query.OrderByDescending(f => f.CreatedDate)
+        var items = await query.OrderByDescending(f => f.CreatedAt)
             .Skip((req.Page - 1) * req.PageSize).Take(req.PageSize)
             .ToListAsync(ct);
 
-        var dtos = items.Select(MapToDto).ToList();
-        return Result<PagedResult<FileEntryDto>>.Success(new PagedResult<FileEntryDto>(dtos, total, req.Page, req.PageSize));
+        var dtos = items.Select(FileMappers.MapToDto).ToList();
+        return Result<PagedResult<FileEntryDto>>.Success(new PagedResult<FileEntryDto> { Items = dtos, TotalCount = total, PageNumber = req.Page, PageSize = req.PageSize });
     }
 }
 
@@ -164,7 +164,7 @@ public sealed class GetFileByIdHandler : IRequestHandler<GetFileByIdQuery, Resul
     {
         var file = await _db.Files.AsNoTracking().Include(f => f.Tags).FirstOrDefaultAsync(f => f.Id == req.FileId, ct);
         if (file is null) return Result<FileEntryDto>.Failure(Error.NotFound("File.NotFound", "Dosya bulunamadı."));
-        return Result<FileEntryDto>.Success(MapToDto(file));
+        return Result<FileEntryDto>.Success(FileMappers.MapToDto(file));
     }
 }
 
@@ -211,13 +211,11 @@ public sealed class DownloadFileHandler : IRequestHandler<DownloadFileQuery, Res
 }
 
 // ─── Helper ─────────────────────────────────────────
-file static class HandlerExtensions
+internal static class FileMappers
 {
-    // Intentionally empty — MapToDto is defined below as a static method
+    public static FileEntryDto MapToDto(FileEntry f) => new(
+        f.Id, f.FileName, f.OriginalFileName, f.ContentType,
+        f.SizeInBytes, f.Description, f.Category,
+        f.CurrentVersion, f.IsPreviewable(), f.IsDeleted,
+        f.TenantId, f.Tags.Select(t => t.Name).ToList());
 }
-
-static file FileEntryDto MapToDto(FileEntry f) => new(
-    f.Id, f.FileName, f.OriginalFileName, f.ContentType,
-    f.SizeInBytes, f.Description, f.Category,
-    f.CurrentVersion, f.IsPreviewable(), f.IsDeleted,
-    f.TenantId, f.Tags.Select(t => t.Name).ToList());

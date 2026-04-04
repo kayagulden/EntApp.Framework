@@ -33,7 +33,7 @@ public class FileController : ControllerBase
             stream, file.FileName, file.ContentType, file.Length,
             description, category, tenantId), ct);
 
-        return result.IsSuccess ? Created($"/api/v1/files/{result.Value.Id}", result.Value) : BadRequest(result.Errors);
+        return result.IsSuccess ? Created($"/api/v1/files/{result.Value.Id}", result.Value) : BadRequest(result.Error);
     }
 
     /// <summary>Yeni versiyon yükle.</summary>
@@ -44,7 +44,7 @@ public class FileController : ControllerBase
     {
         await using var stream = file.OpenReadStream();
         var result = await _mediator.Send(new UploadNewVersionCommand(id, stream, file.FileName, file.Length, changeNote), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Dosyaları listele (sayfalanmış + filtre).</summary>
@@ -57,7 +57,7 @@ public class FileController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetFilesQuery(page, pageSize, category, tag, includeDeleted, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Dosya detayı.</summary>
@@ -66,7 +66,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetFileByIdQuery(id), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Dosya versiyonları.</summary>
@@ -75,7 +75,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> GetVersions(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetFileVersionsQuery(id), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Dosya indir (opsiyonel versiyon).</summary>
@@ -84,7 +84,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> Download(Guid id, [FromQuery] int? version = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new DownloadFileQuery(id, version), ct);
-        if (!result.IsSuccess) return NotFound(result.Errors);
+        if (!result.IsSuccess) return NotFound(result.Error);
         return File(result.Value.Stream, result.Value.ContentType, result.Value.FileName);
     }
 
@@ -94,7 +94,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new SoftDeleteFileCommand(id), ct);
-        return result.IsSuccess ? NoContent() : NotFound(result.Errors);
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 
     /// <summary>Silinen dosyayı geri yükle.</summary>
@@ -103,7 +103,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new RestoreFileCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Tag ekle.</summary>
@@ -112,7 +112,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> AddTag(Guid id, [FromBody] AddTagCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { FileId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Tag kaldır.</summary>
@@ -121,7 +121,7 @@ public class FileController : ControllerBase
     public async Task<IActionResult> RemoveTag(Guid id, string tagName, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new RemoveTagCommand(id, tagName), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Metadata güncelle.</summary>
@@ -130,6 +130,6 @@ public class FileController : ControllerBase
     public async Task<IActionResult> UpdateMetadata(Guid id, [FromBody] UpdateFileMetadataCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { FileId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 }

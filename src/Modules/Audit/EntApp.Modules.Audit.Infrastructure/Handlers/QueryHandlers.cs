@@ -50,7 +50,7 @@ public sealed class GetAuditLogsHandler : IRequestHandler<GetAuditLogsQuery, Res
             .ToListAsync(ct);
 
         return Result<PagedResult<AuditLogDto>>.Success(
-            new PagedResult<AuditLogDto>(items, total, request.Page, request.PageSize));
+            new PagedResult<AuditLogDto> { Items = items, TotalCount = total, PageNumber = request.Page, PageSize = request.PageSize });
     }
 }
 
@@ -91,6 +91,6 @@ public sealed class GetLoginRecordsHandler : IRequestHandler<GetLoginRecordsQuer
             .ToListAsync(ct);
 
         return Result<PagedResult<LoginRecordDto>>.Success(
-            new PagedResult<LoginRecordDto>(items, total, request.Page, request.PageSize));
+            new PagedResult<LoginRecordDto> { Items = items, TotalCount = total, PageNumber = request.Page, PageSize = request.PageSize });
     }
 }

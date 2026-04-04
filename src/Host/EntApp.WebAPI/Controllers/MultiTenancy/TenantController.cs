@@ -26,7 +26,7 @@ public class TenantController : ControllerBase
         CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTenantsQuery(page, pageSize, status, plan), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Tenant detayı (ID ile).</summary>
@@ -35,7 +35,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTenantByIdQuery(id), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Tenant detayı (identifier ile).</summary>
@@ -44,7 +44,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> GetByIdentifier(string identifier, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTenantByIdentifierQuery(identifier), ct);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Yeni tenant oluştur (+ ITenantSeeder bootstrap).</summary>
@@ -53,7 +53,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateTenantCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Created($"/api/v1/tenants/{result.Value}", new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Created($"/api/v1/tenants/{result.Value}", new { id = result.Value }) : BadRequest(result.Error);
     }
 
     /// <summary>Tenant bilgilerini güncelle.</summary>
@@ -62,7 +62,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTenantCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { TenantId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Tenant'ı aktifleştir.</summary>
@@ -71,7 +71,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new ActivateTenantCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Tenant'ı askıya al.</summary>
@@ -80,7 +80,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> Suspend(Guid id, [FromQuery] string? reason = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new SuspendTenantCommand(id, reason), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Tenant'ı deaktif et.</summary>
@@ -89,7 +89,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new DeactivateTenantCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Plan değiştir.</summary>
@@ -98,7 +98,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> ChangePlan(Guid id, [FromBody] ChangePlanCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { TenantId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Subdomain ayarla.</summary>
@@ -107,7 +107,7 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> SetSubdomain(Guid id, [FromBody] SetSubdomainCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { TenantId = id }, ct);
-        return result.IsSuccess ? Ok() : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok() : BadRequest(result.Error);
     }
 
     /// <summary>Tenant ayarı ekle/güncelle.</summary>
@@ -116,6 +116,6 @@ public class TenantController : ControllerBase
     public async Task<IActionResult> UpsertSetting(Guid id, [FromBody] UpsertTenantSettingCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { TenantId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 }

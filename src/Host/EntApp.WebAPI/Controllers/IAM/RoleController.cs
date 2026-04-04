@@ -25,7 +25,7 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> GetRoles(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetRolesQuery(), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Yeni rol oluştur.</summary>
@@ -38,6 +38,6 @@ public class RoleController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return result.IsSuccess
             ? Created($"/api/v1/iam/roles/{result.Value}", new { id = result.Value })
-            : BadRequest(result.Errors);
+            : BadRequest(result.Error);
     }
 }

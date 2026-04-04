@@ -1,5 +1,5 @@
 using EntApp.Modules.Localization.Infrastructure.Persistence;
-using EntApp.Shared.Infrastructure.Modularity;
+using EntApp.Shared.Contracts.Modules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +8,8 @@ namespace EntApp.Modules.Localization.Infrastructure;
 
 public class LocalizationModuleInstaller : IModuleInstaller
 {
+    public string ModuleName => "Localization";
+
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");

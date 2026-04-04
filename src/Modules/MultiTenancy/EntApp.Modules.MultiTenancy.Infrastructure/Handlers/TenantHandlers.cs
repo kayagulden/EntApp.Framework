@@ -184,7 +184,7 @@ public sealed class GetTenantsHandler : IRequestHandler<GetTenantsQuery, Result<
             .Select(t => new TenantSummaryDto(t.Id, t.Name, t.Identifier, t.Status.ToString(), t.Plan, t.AdminEmail))
             .ToListAsync(ct);
 
-        return Result<PagedResult<TenantSummaryDto>>.Success(new PagedResult<TenantSummaryDto>(items, total, req.Page, req.PageSize));
+        return Result<PagedResult<TenantSummaryDto>>.Success(new PagedResult<TenantSummaryDto> { Items = items, TotalCount = total, PageNumber = req.Page, PageSize = req.PageSize });
     }
 }
 
@@ -198,7 +198,7 @@ public sealed class GetTenantByIdHandler : IRequestHandler<GetTenantByIdQuery, R
     {
         var tenant = await _db.Tenants.AsNoTracking().Include(t => t.Settings).FirstOrDefaultAsync(t => t.Id == req.TenantId, ct);
         if (tenant is null) return Result<TenantDto>.Failure(Error.NotFound("Tenant.NotFound", "Tenant bulunamadı."));
-        return Result<TenantDto>.Success(MapToDto(tenant));
+        return Result<TenantDto>.Success(TenantMappers.MapToDto(tenant));
     }
 }
 
@@ -213,18 +213,16 @@ public sealed class GetTenantByIdentifierHandler : IRequestHandler<GetTenantById
         var tenant = await _db.Tenants.AsNoTracking().Include(t => t.Settings)
             .FirstOrDefaultAsync(t => t.Identifier == req.Identifier.ToLowerInvariant(), ct);
         if (tenant is null) return Result<TenantDto>.Failure(Error.NotFound("Tenant.NotFound", "Tenant bulunamadı."));
-        return Result<TenantDto>.Success(MapToDto(tenant));
+        return Result<TenantDto>.Success(TenantMappers.MapToDto(tenant));
     }
 }
 
 // ─── Helper ─────────────────────────────────────────
-file static class Mapper
+internal static class TenantMappers
 {
-    // Intentionally empty
+    public static TenantDto MapToDto(Tenant t) => new(
+        t.Id, t.Name, t.Identifier, t.DisplayName, t.Description, t.Subdomain,
+        t.Status.ToString(), t.Plan, t.AdminEmail, t.LogoUrl,
+        t.ActivatedAt, t.SuspendedAt,
+        t.Settings.Select(s => new TenantSettingDto(s.Id, s.Key, s.Value)).ToList());
 }
-
-static file TenantDto MapToDto(Tenant t) => new(
-    t.Id, t.Name, t.Identifier, t.DisplayName, t.Description, t.Subdomain,
-    t.Status.ToString(), t.Plan, t.AdminEmail, t.LogoUrl,
-    t.ActivatedAt, t.SuspendedAt,
-    t.Settings.Select(s => new TenantSettingDto(s.Id, s.Key, s.Value)).ToList());

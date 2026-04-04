@@ -124,7 +124,7 @@ try
     });
 
     // ── Rate Limiting ────────────────────────────────────────
-    builder.Services.AddRateLimiter(RateLimitingConfiguration.Configure);
+    builder.Services.AddRateLimitingPolicies();
 
     // ── API Versioning ───────────────────────────────────────
     builder.Services

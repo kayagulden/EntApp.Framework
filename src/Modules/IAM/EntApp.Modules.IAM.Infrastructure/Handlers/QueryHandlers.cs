@@ -105,7 +105,7 @@ public sealed class GetUsersPagedHandler : IRequestHandler<GetUsersPagedQuery, R
             .ToList();
 
         return Result<PagedResult<UserDto>>.Success(
-            new PagedResult<UserDto>(items, totalCount, request.Page, request.PageSize));
+            new PagedResult<UserDto> { Items = items, TotalCount = totalCount, PageNumber = request.Page, PageSize = request.PageSize });
     }
 }
 

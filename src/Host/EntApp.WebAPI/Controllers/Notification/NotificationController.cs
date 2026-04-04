@@ -24,7 +24,7 @@ public class NotificationController : ControllerBase
     public async Task<IActionResult> GetTemplates([FromQuery] string? channel = null, [FromQuery] Guid? tenantId = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTemplatesQuery(channel, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpPost("templates")]
@@ -32,7 +32,7 @@ public class NotificationController : ControllerBase
     public async Task<IActionResult> CreateTemplate([FromBody] CreateTemplateCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Created($"/api/v1/notifications/templates/{result.Value}", new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Created($"/api/v1/notifications/templates/{result.Value}", new { id = result.Value }) : BadRequest(result.Error);
     }
 
     [HttpPut("templates/{id:guid}")]
@@ -40,7 +40,7 @@ public class NotificationController : ControllerBase
     public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateTemplateCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command with { TemplateId = id }, ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     // ─── Send ───────────────────────────────────────
@@ -50,7 +50,7 @@ public class NotificationController : ControllerBase
     public async Task<IActionResult> Send([FromBody] SendNotificationCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Error);
     }
 
     // ─── History ────────────────────────────────────
@@ -63,21 +63,21 @@ public class NotificationController : ControllerBase
         [FromQuery] string? status = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetNotificationHistoryQuery(page, pageSize, userId, channel, status), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpPost("{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new MarkNotificationReadCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount([FromQuery] Guid userId, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetUnreadCountQuery(userId), ct);
-        return result.IsSuccess ? Ok(new { count = result.Value }) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(new { count = result.Value }) : StatusCode(500, result.Error);
     }
 
     // ─── Preferences ────────────────────────────────
@@ -86,13 +86,13 @@ public class NotificationController : ControllerBase
     public async Task<IActionResult> GetPreferences([FromQuery] Guid userId, [FromQuery] Guid? tenantId = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetUserPreferencesQuery(userId, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpPut("preferences")]
     public async Task<IActionResult> UpdatePreference([FromBody] UpdatePreferenceCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Ok() : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok() : BadRequest(result.Error);
     }
 }

@@ -1,7 +1,7 @@
 using EntApp.Modules.FileManagement.Application.Abstractions;
 using EntApp.Modules.FileManagement.Infrastructure.Persistence;
 using EntApp.Modules.FileManagement.Infrastructure.Storage;
-using EntApp.Shared.Infrastructure.Modularity;
+using EntApp.Shared.Contracts.Modules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +12,8 @@ namespace EntApp.Modules.FileManagement.Infrastructure;
 
 public class FileModuleInstaller : IModuleInstaller
 {
+    public string ModuleName => "FileManagement";
+
     public void Install(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -20,7 +22,6 @@ public class FileModuleInstaller : IModuleInstaller
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", FileDbContext.Schema)));
 
-        // Storage Provider — config'e göre seçim
         var provider = configuration.GetValue<string>("FileStorage:Provider") ?? "LocalDisk";
 
         if (provider.Equals("MinIO", StringComparison.OrdinalIgnoreCase) ||
@@ -37,7 +38,6 @@ public class FileModuleInstaller : IModuleInstaller
                 var builder = new MinioClient()
                     .WithEndpoint(endpoint)
                     .WithCredentials(accessKey, secretKey);
-
                 if (useSsl) builder = builder.WithSSL();
                 return builder.Build();
             });
@@ -50,7 +50,6 @@ public class FileModuleInstaller : IModuleInstaller
         }
         else
         {
-            // LocalDisk (varsayılan)
             var basePath = configuration.GetValue<string>("FileStorage:BasePath") ?? "uploads";
             services.AddSingleton<IStorageProvider>(sp =>
                 new LocalDiskStorageProvider(basePath, sp.GetRequiredService<ILogger<LocalDiskStorageProvider>>()));

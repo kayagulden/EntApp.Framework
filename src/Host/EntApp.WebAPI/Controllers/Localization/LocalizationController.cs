@@ -24,7 +24,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> GetLanguages([FromQuery] bool activeOnly = true, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetLanguagesQuery(activeOnly), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpPost("languages")]
@@ -32,7 +32,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> CreateLanguage([FromBody] CreateLanguageCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Created($"/api/v1/localization/languages", new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Created($"/api/v1/localization/languages", new { id = result.Value }) : BadRequest(result.Error);
     }
 
     [HttpPost("languages/{id:guid}/set-default")]
@@ -40,7 +40,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> SetDefault(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new SetDefaultLanguageCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     [HttpPost("languages/{id:guid}/toggle")]
@@ -48,7 +48,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> Toggle(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new ToggleLanguageCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     // ─── Translations ───────────────────────────────
@@ -60,7 +60,7 @@ public class LocalizationController : ControllerBase
         [FromQuery] Guid? tenantId = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTranslationsQuery(languageCode, ns, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Frontend için flat JSON map: { "common.hello": "Merhaba" }</summary>
@@ -71,7 +71,7 @@ public class LocalizationController : ControllerBase
         [FromQuery] Guid? tenantId = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTranslationMapQuery(languageCode, ns, tenantId), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpGet("translations/by-key/{key}")]
@@ -79,7 +79,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> GetByKey(string key, [FromQuery] string? ns = null, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new GetTranslationsByKeyQuery(key, ns), ct);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     [HttpPut("translations")]
@@ -87,7 +87,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> UpsertTranslation([FromBody] UpsertTranslationCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(result.Error);
     }
 
     [HttpPost("translations/bulk")]
@@ -95,7 +95,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> BulkUpsert([FromBody] BulkUpsertTranslationsCommand command, CancellationToken ct = default)
     {
         var result = await _mediator.Send(command, ct);
-        return result.IsSuccess ? Ok(new { count = result.Value }) : BadRequest(result.Errors);
+        return result.IsSuccess ? Ok(new { count = result.Value }) : BadRequest(result.Error);
     }
 
     [HttpPost("translations/{id:guid}/verify")]
@@ -103,7 +103,7 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> Verify(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new VerifyTranslationCommand(id), ct);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     [HttpDelete("translations/{id:guid}")]
@@ -111,6 +111,6 @@ public class LocalizationController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         var result = await _mediator.Send(new DeleteTranslationCommand(id), ct);
-        return result.IsSuccess ? NoContent() : NotFound(result.Errors);
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 }

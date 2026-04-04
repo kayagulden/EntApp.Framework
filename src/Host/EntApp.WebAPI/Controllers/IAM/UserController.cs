@@ -31,7 +31,7 @@ public class UserController : ControllerBase
     {
         var result = await _mediator.Send(
             new GetUsersPagedQuery(page, pageSize, search, status), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Kullanıcı detayı.</summary>
@@ -40,7 +40,7 @@ public class UserController : ControllerBase
     public async Task<IActionResult> GetUser(Guid id, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetUserByIdQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     /// <summary>Yeni kullanıcı oluştur.</summary>
@@ -53,7 +53,7 @@ public class UserController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetUser), new { id = result.Value }, new { id = result.Value })
-            : BadRequest(result.Errors);
+            : BadRequest(result.Error);
     }
 
     /// <summary>Kullanıcı güncelle.</summary>
@@ -70,7 +70,7 @@ public class UserController : ControllerBase
         }
 
         var result = await _mediator.Send(command, cancellationToken);
-        return result.IsSuccess ? NoContent() : NotFound(result.Errors);
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 
     /// <summary>Kullanıcıya rol ata.</summary>
@@ -83,7 +83,7 @@ public class UserController : ControllerBase
     {
         var result = await _mediator.Send(
             new AssignRoleCommand(userId, roleId), cancellationToken);
-        return result.IsSuccess ? Ok() : NotFound(result.Errors);
+        return result.IsSuccess ? Ok() : NotFound(result.Error);
     }
 
     /// <summary>Kullanıcıyı deaktif et.</summary>
@@ -92,6 +92,6 @@ public class UserController : ControllerBase
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new DeactivateUserCommand(id), cancellationToken);
-        return result.IsSuccess ? NoContent() : NotFound(result.Errors);
+        return result.IsSuccess ? NoContent() : NotFound(result.Error);
     }
 }

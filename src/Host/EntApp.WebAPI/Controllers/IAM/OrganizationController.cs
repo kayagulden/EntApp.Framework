@@ -25,7 +25,7 @@ public class OrganizationController : ControllerBase
     public async Task<IActionResult> GetTree(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetOrganizationTreeQuery(), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Errors);
+        return result.IsSuccess ? Ok(result.Value) : StatusCode(500, result.Error);
     }
 
     /// <summary>Yeni organizasyon oluştur.</summary>
@@ -38,6 +38,6 @@ public class OrganizationController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return result.IsSuccess
             ? Created($"/api/v1/iam/organizations/{result.Value}", new { id = result.Value })
-            : BadRequest(result.Errors);
+            : BadRequest(result.Error);
     }
 }
