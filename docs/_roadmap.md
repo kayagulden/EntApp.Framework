@@ -479,11 +479,16 @@
 - [ ] Inventory ile stok düşümü (Integration Event) — sonraki fazda
 - [ ] Finance ile fatura oluşturma (Integration Event) — sonraki fazda
 
-### 12b — Procurement
-- [ ] `SupplierBase`, `PurchaseRequestBase`, `PurchaseOrderBase` entity'leri
-- [ ] Satın alma talebi + onay akışı
-- [ ] Sipariş oluşturma, tedarikçi yönetimi
-- [ ] Fatura eşleştirme (3-way matching)
+### 12b — Procurement ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `SupplierBase`, `PurchaseRequestBase`, `PurchaseOrderBase` entity'leri
+- [x] Tedarikçi yönetimi + değerlendirme (rating)
+- [x] Satın alma talebi + onay/red akışı (Workflow entegrasyonu hazır)
+- [x] Satın alma siparişi + kısmi/tam teslim alma
+- [x] 3-way matching: PO ↔ Teslim ↔ Fatura eşleştirme
+- [x] `ProcurementDbContext` — schema: `proc`, 3 tablo, 4 index
 
 ### 12c — Task Management
 - [ ] `ProjectBase`, `TaskItemBase`, `CommentBase` entity'leri

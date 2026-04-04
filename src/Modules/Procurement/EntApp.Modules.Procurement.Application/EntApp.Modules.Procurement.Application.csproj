@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>EntApp.Modules.Procurement.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.*" />
+    <PackageReference Include="MediatR.Contracts" Version="2.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EntApp.Modules.Procurement.Domain\EntApp.Modules.Procurement.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Contracts\EntApp.Shared.Contracts.csproj" />
+  </ItemGroup>
+</Project>
