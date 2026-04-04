@@ -1,8 +1,27 @@
 "use client";
 
 import { Layers } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("admin@entapp.dev");
+  const [password, setPassword] = useState("admin123");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Dev mode — cookie set edip dashboard'a yönlendir
+    document.cookie = "dev-auth=true; path=/; max-age=86400";
+    
+    // Kısa bir bekleme ile UX hissi
+    await new Promise(r => setTimeout(r, 500));
+    router.push("/dashboard");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
       <div className="w-full max-w-sm mx-4">
@@ -17,24 +36,58 @@ export default function LoginPage() {
 
         {/* Login Card */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xl">
-          <form action="/api/auth/signin/keycloak" method="POST">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                E-posta
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--color-border)] 
+                           bg-[var(--color-bg)] text-[var(--color-text)] text-sm
+                           focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
+                           transition-all duration-200"
+                placeholder="admin@entapp.dev"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                Şifre
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--color-border)] 
+                           bg-[var(--color-bg)] text-[var(--color-text)] text-sm
+                           focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
+                           transition-all duration-200"
+                placeholder="••••••••"
+              />
+            </div>
+
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-3 h-11 rounded-lg
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 h-11 rounded-lg
                          bg-indigo-500 hover:bg-indigo-600 text-white font-medium text-sm
                          transition-all duration-200 shadow-md shadow-indigo-500/20 
-                         hover:shadow-lg hover:shadow-indigo-500/30"
+                         hover:shadow-lg hover:shadow-indigo-500/30 disabled:opacity-60"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-              Keycloak ile Giriş Yap
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                "Giriş Yap"
+              )}
             </button>
           </form>
 
           <div className="mt-4 text-center">
             <p className="text-xs text-[var(--color-text-muted)]">
-              Keycloak SSO ile güvenli oturum açma
+              Dev Mode — herhangi bir bilgi ile giriş yapabilirsiniz
             </p>
           </div>
         </div>
