@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.Json;
 using EntApp.Shared.Contracts.Common;
+using EntApp.Shared.Infrastructure.DynamicCrud.Export;
+using EntApp.Shared.Infrastructure.DynamicCrud.Import;
 using EntApp.Shared.Infrastructure.DynamicCrud.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -56,6 +58,25 @@ public static class DynamicCrudEndpointBuilder
         group.MapGet("/{entityName}/lookup", Lookup)
             .WithName("DynamicCrud_Lookup")
             .WithDescription("Lookup arama (dropdown/combobox)");
+
+        // ── Import/Export Endpoints ──────────────────────────
+        group.MapGet("/{entityName}/export", ExportData)
+            .WithName("DynamicCrud_Export")
+            .WithDescription("Entity verilerini Excel/CSV olarak indir");
+
+        group.MapGet("/{entityName}/import-template", DownloadTemplate)
+            .WithName("DynamicCrud_ImportTemplate")
+            .WithDescription("Boş import şablonu indir");
+
+        group.MapPost("/{entityName}/import/preview", ImportPreview)
+            .WithName("DynamicCrud_ImportPreview")
+            .WithDescription("Import dosyasını parse et ve önizleme döndür")
+            .DisableAntiforgery();
+
+        group.MapPost("/{entityName}/import", ImportData)
+            .WithName("DynamicCrud_Import")
+            .WithDescription("Dosyadan toplu veri aktar")
+            .DisableAntiforgery();
 
         return app;
     }
@@ -191,6 +212,116 @@ public static class DynamicCrudEndpointBuilder
         try
         {
             var result = await crudService.LookupAsync(entityName, search, take, ct);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = $"Entity '{entityName}' not found." });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  IMPORT / EXPORT HANDLERS
+    // ═══════════════════════════════════════════════════════════
+
+    private static async Task<IResult> ExportData(
+        string entityName,
+        IDynamicExportService exportService,
+        string format = "xlsx",
+        CancellationToken ct = default)
+    {
+        try
+        {
+            byte[] data;
+            string contentType;
+            string fileName;
+
+            if (format.Equals("csv", StringComparison.OrdinalIgnoreCase))
+            {
+                data = await exportService.ExportToCsvAsync(entityName, ct);
+                contentType = "text/csv";
+                fileName = $"{entityName}.csv";
+            }
+            else
+            {
+                data = await exportService.ExportToExcelAsync(entityName, ct);
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                fileName = $"{entityName}.xlsx";
+            }
+
+            return Results.File(data, contentType, fileName);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = $"Entity '{entityName}' not found." });
+        }
+    }
+
+    private static IResult DownloadTemplate(
+        string entityName,
+        Export.ExportTemplateBuilder templateBuilder)
+    {
+        try
+        {
+            var data = templateBuilder.BuildTemplate(entityName);
+            return Results.File(data,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"{entityName}_template.xlsx");
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = $"Entity '{entityName}' not found." });
+        }
+    }
+
+    private static async Task<IResult> ImportPreview(
+        string entityName,
+        IFormFile file,
+        IDynamicImportService importService,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var preview = await importService.ParseFileAsync(
+                entityName, stream, file.ContentType, ct);
+            return Results.Ok(preview);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = $"Entity '{entityName}' not found." });
+        }
+    }
+
+    private static async Task<IResult> ImportData(
+        string entityName,
+        IFormFile file,
+        IDynamicImportService importService,
+        HttpRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Kolon eşleştirmesi JSON olarak mapping query param'dan gelir
+            var mappingJson = request.Query["mapping"].FirstOrDefault();
+            Dictionary<int, string> columnMapping;
+
+            if (!string.IsNullOrEmpty(mappingJson))
+            {
+                columnMapping = JsonSerializer.Deserialize<Dictionary<int, string>>(mappingJson) ?? new();
+            }
+            else
+            {
+                // Mapping yoksa, önce parse edip auto-map yap
+                using var previewStream = file.OpenReadStream();
+                var preview = await importService.ParseFileAsync(
+                    entityName, previewStream, file.ContentType, ct);
+                columnMapping = preview.SuggestedMapping;
+            }
+
+            using var stream = file.OpenReadStream();
+            var result = await importService.ImportAsync(
+                entityName, stream, file.ContentType, columnMapping, ct);
             return Results.Ok(result);
         }
         catch (KeyNotFoundException)

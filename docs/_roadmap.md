@@ -281,16 +281,21 @@
 - [ ] Otomatik sidebar menu (meta/menu endpoint'inden)
 - [ ] Override mekanizmaları: config, fieldOverrides, detailOverrides
 
-### 8c — Import/Export Engine
-- [ ] `DynamicExportService.cs` — entity → Excel (ClosedXML), CSV (CsvHelper), PDF (QuestPDF)
-- [ ] `DynamicImportService.cs` — Excel/CSV parse + validate + bulk insert
-- [ ] `ColumnMapper.cs` — Excel kolon → entity field otomatik eşleştirme
-- [ ] `ExportTemplateBuilder.cs` — boş import şablonu üretimi
-- [ ] `GET /api/{entity}/export?format=xlsx`
-- [ ] `GET /api/{entity}/import-template`
-- [ ] `POST /api/{entity}/import`
-- [ ] Frontend: `DynamicImport.tsx` — 3 adımlı wizard (dosya yükle → kolon eşle → önizle + aktar)
-- [ ] Frontend: `DynamicExport.tsx` — format seçimi dialogu
+### 8c — Import/Export Engine ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `DynamicExportService.cs` — entity → Excel (ClosedXML), CSV (CsvHelper)
+- [x] `DynamicImportService.cs` — Excel/CSV parse + validate + bulk insert
+- [x] `ColumnMapper.cs` — Excel kolon → entity field otomatik eşleştirme
+- [x] `ExportTemplateBuilder.cs` — boş import şablonu üretimi (hint row dahil)
+- [x] `GET /api/v1/dynamic/{entity}/export?format=xlsx|csv`
+- [x] `GET /api/v1/dynamic/{entity}/import-template`
+- [x] `POST /api/v1/dynamic/{entity}/import/preview`
+- [x] `POST /api/v1/dynamic/{entity}/import`
+- [x] Frontend: `DynamicImport.tsx` — 3 adımlı wizard (dosya yükle → kolon eşle → sonuç)
+- [x] Frontend: `DynamicExport.tsx` — format seçimi dialogu + şablon indirme
+- [x] Toolbar entegrasyonu (Dışa Aktar + İçe Aktar butonları)
 
 ### 8d — Real-time Entegrasyon
 - [ ] `DynamicTable` SignalR subscribe — yeni kayıt geldiğinde tablo otomatik yenilenir
@@ -528,3 +533,13 @@
 
 > [!NOTE]
 > Süre tahminleri AI-assisted geliştirme ile hesaplanmıştır. Fazlar sıralıdır ancak bazı fazlar paralel çalışabilir (örn: Faz 5 frontend, Faz 3 backend ile eş zamanlı).
+
+---
+
+## ❌ Not Planned
+
+Aşağıdaki özellikler değerlendirilmiş ancak çeşitli nedenlerle kapsam dışı bırakılmıştır.
+
+| Özellik | Neden | Alternatif |
+|---------|-------|-----------|
+| **PDF Export (QuestPDF)** | Community lisansı ticari kullanımda kısıtlı (yıllık gelir >1M$ → ücretli). Layout karmaşıklığı MVP için gereksiz. | Excel export yeterli. İhtiyaç doğarsa iTextSharp veya wkhtmltopdf değerlendirilebilir. |

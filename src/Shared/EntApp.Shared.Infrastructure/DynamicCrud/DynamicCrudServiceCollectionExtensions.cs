@@ -1,4 +1,6 @@
 using System.Reflection;
+using EntApp.Shared.Infrastructure.DynamicCrud.Export;
+using EntApp.Shared.Infrastructure.DynamicCrud.Import;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,6 +39,11 @@ public static class DynamicCrudServiceCollectionExtensions
 
         // Scoped CRUD service
         services.AddScoped<IDynamicCrudService, DynamicCrudService>();
+
+        // Scoped Export/Import services
+        services.AddScoped<IDynamicExportService, DynamicExportService>();
+        services.AddScoped<ExportTemplateBuilder>();
+        services.AddScoped<IDynamicImportService, DynamicImportService>();
 
         return services;
     }

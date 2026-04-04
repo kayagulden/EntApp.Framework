@@ -11,6 +11,8 @@ import {
 import { DynamicToolbar } from "./DynamicToolbar";
 import { DynamicTable } from "./DynamicTable";
 import { DynamicForm } from "./DynamicForm";
+import { DynamicExport } from "./DynamicExport";
+import { DynamicImport } from "./DynamicImport";
 import { AlertTriangle, Database } from "lucide-react";
 import type { PagedRequest } from "@/types/dynamic";
 
@@ -20,7 +22,7 @@ interface DynamicPageProps {
 
 /**
  * Dynamic CRUD orchestrator.
- * Metadata'yı fetch edip toolbar, table ve form'u koordine eder.
+ * Metadata'yı fetch edip toolbar, table, form, export ve import'u koordine eder.
  */
 export function DynamicPage({ entityName }: DynamicPageProps) {
   // ── State ────────────────────────────────────────────
@@ -30,9 +32,9 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(
-    null
-  );
+  const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // ── Data Fetching ────────────────────────────────────
   const { data: metadata, isLoading: metaLoading, error: metaError } =
@@ -152,6 +154,8 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
         onSearchChange={handleSearchChange}
         onCreateClick={handleCreateClick}
         onRefresh={() => refetch()}
+        onExportClick={() => setExportOpen(true)}
+        onImportClick={() => setImportOpen(true)}
         canCreate={metadata.actions.create}
         isLoading={listLoading}
       />
@@ -176,14 +180,27 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
         mode={formMode}
         initialData={editingRow ?? undefined}
         isOpen={formOpen}
-        isSubmitting={
-          createMutation.isPending || updateMutation.isPending
-        }
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => {
           setFormOpen(false);
           setEditingRow(null);
         }}
         onSubmit={handleFormSubmit}
+      />
+
+      <DynamicExport
+        entityName={entityName}
+        title={metadata.title}
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+      />
+
+      <DynamicImport
+        entityName={entityName}
+        title={metadata.title}
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onComplete={() => refetch()}
       />
     </div>
   );
