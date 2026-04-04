@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.*" />
     <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="Scriban" Version="5.*" />
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
   <ItemGroup>

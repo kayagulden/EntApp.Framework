@@ -242,6 +242,8 @@ try
 
     // ── AI Endpoints ─────────────────────────────────────────
     app.MapAiEndpoints();
+    app.MapPromptEndpoints();
+    app.MapUsageEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();

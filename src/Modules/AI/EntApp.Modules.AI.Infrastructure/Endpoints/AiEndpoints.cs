@@ -100,6 +100,70 @@ public static class AiEndpoints
         .WithName("SearchSimilar")
         .WithSummary("Semantic search — query → benzer dokümanlar");
 
+        // ── RAG ──────────────────────────────────────────
+        group.MapPost("/rag", async (Application.DTOs.RagRequest req, HttpContext ctx) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Query))
+                return Results.BadRequest(new { error = "Query is required." });
+
+            var ragService = ctx.RequestServices.GetService<IRagService>();
+            if (ragService is null)
+                return Results.Problem("RAG service not configured. Please set an API key.", statusCode: 501);
+
+            var response = await ragService.QueryAsync(req);
+            return Results.Ok(response);
+        })
+        .WithName("RagQuery")
+        .WithSummary("RAG — soru sor, bağlam dokümanlarıyla zenginleştirilmiş yanıt al");
+
+        // ── Ingest ───────────────────────────────────────
+        group.MapPost("/ingest", async (HttpRequest httpReq, HttpContext ctx, PgVectorStore store) =>
+        {
+            var form = await httpReq.ReadFormAsync();
+            var file = form.Files.FirstOrDefault();
+            if (file is null || file.Length == 0)
+                return Results.BadRequest(new { error = "File is required." });
+
+            var embeddingService = ctx.RequestServices.GetService<IEmbeddingService>();
+            if (embeddingService is null)
+                return Results.Problem("Embedding service not configured. Please set an API key.", statusCode: 501);
+
+            var docProcessor = ctx.RequestServices.GetRequiredService<IDocumentProcessor>();
+
+            var moduleName = form["moduleName"].FirstOrDefault() ?? "General";
+            var sourceType = form["sourceType"].FirstOrDefault() ?? Path.GetExtension(file.FileName)?.TrimStart('.') ?? "File";
+            var sourceId = form["sourceId"].FirstOrDefault();
+
+            // Parse & chunk
+            using var stream = file.OpenReadStream();
+            var chunks = await docProcessor.ProcessAsync(stream, file.FileName);
+
+            if (chunks.Count == 0)
+                return Results.Ok(new IngestResponse(0, file.FileName, "No text extracted."));
+
+            // Embed & store
+            var texts = chunks.Select(c => c.Content).ToList();
+            var embeddings = await embeddingService.EmbedBatchAsync(texts);
+
+            var docs = chunks.Select((chunk, i) => EmbeddingDocument.Create(
+                moduleName: moduleName,
+                sourceType: sourceType,
+                content: chunk.Content,
+                chunkIndex: chunk.Index,
+                tokenCount: chunk.TokenCount,
+                embedding: new Vector(embeddings[i]),
+                sourceId: sourceId,
+                metadata: $"{{\"fileName\":\"{file.FileName}\"}}")
+            ).ToList();
+
+            await store.StoreBatchAsync(docs);
+
+            return Results.Ok(new IngestResponse(docs.Count, file.FileName, "Ingested successfully."));
+        })
+        .WithName("IngestDocument")
+        .WithSummary("Dosya yükle → parse → chunk → embed → pgvector'e kaydet")
+        .DisableAntiforgery();
+
         return app;
     }
 }
@@ -135,3 +199,8 @@ public sealed record SearchResultItem(
 public sealed record SearchResponse(
     IReadOnlyList<SearchResultItem> Results,
     string Query);
+
+public sealed record IngestResponse(
+    int ChunkCount,
+    string FileName,
+    string Message);

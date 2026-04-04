@@ -78,11 +78,19 @@ public sealed class AiModuleInstaller : IModuleInstaller
         services.AddScoped<ILlmService, SemanticKernelLlmService>();
         services.AddScoped<IPromptManager, ScribanPromptManager>();
         services.AddScoped<PgVectorStore>();
+        services.AddSingleton<TextChunker>();
+        services.AddScoped<IDocumentProcessor, DocumentProcessor>();
 
-        // Embedding servisleri sadece API key yapılandırılmışsa kaydet
+        // ── Cost Control (9e) ────────────────────────────────
+        services.AddSingleton<AiRateLimiter>();
+        services.AddSingleton<ModelRouter>();
+        services.AddSingleton<AiResponseCache>();
+
+        // Embedding + RAG servisleri sadece API key yapılandırılmışsa kaydet
         if (embeddingConfigured)
         {
             services.AddScoped<IEmbeddingService, SemanticKernelEmbeddingService>();
+            services.AddScoped<IRagService, RagService>();
         }
     }
 }

@@ -338,32 +338,48 @@
 - [x] `SemanticKernelLlmService` — chat completion + AiUsageLog maliyet takibi
 - [x] `ScribanPromptManager` — DB'den template + Scriban render
 
-### 9b — Embedding & Vector Search
-- [ ] PostgreSQL pgvector extension kurulumu
-- [ ] `PgVectorStore.cs` — embedding CRUD + similarity search
-- [ ] `EmbeddingDocument` tablosu: tenant_id, module_name, content, embedding, metadata
-- [ ] Embedding API: `POST /api/ai/embed`, `POST /api/ai/search`
+### 9b — Embedding & Vector Search ✅
 
-### 9c — RAG Pipeline
-- [ ] `DocumentProcessor` — PDF, Office → düz metin çıkarma
-- [ ] Doküman chunking (metin parçalama)
-- [ ] Chunk → embedding → pgvector'e kaydet
-- [ ] RAG: query embedding → benzer chunk bul → LLM'e context olarak ver → yanıt üret
-- [ ] `POST /api/ai/rag` endpoint
+> **Tamamlanma:** 2026-04-04
 
-### 9d — Prompt Management
-- [ ] PromptTemplate CRUD API
-- [ ] Versiyonlama (aynı key, farklı version)
-- [ ] Şablon engine (Scriban) — `{{variable}}` desteği
-- [ ] Frontend: prompt düzenleme ekranı (Admin Panel'e entegre)
+- [x] PostgreSQL pgvector extension kurulumu (`pgvector/pgvector:pg16`, v0.8.2)
+- [x] `PgVectorStore.cs` — embedding CRUD + cosine similarity search (HNSW index)
+- [x] `EmbeddingDocument` tablosu: tenant_id, module_name, content, embedding(`vector(1536)`), metadata
+- [x] Embedding API: `POST /api/ai/embed`, `POST /api/ai/search`, `POST /api/ai/store`
+- [x] `SemanticKernelEmbeddingService` — `IEmbeddingGenerator` impl + usage logging
 
-### 9e — Maliyet Kontrolü
-- [ ] `AiUsageLog` — her LLM çağrısı: modül, token sayısı, maliyet, süre
-- [ ] Rate limiting (modül/tenant bazlı)
-- [ ] Model routing: basit iş → küçük model, karmaşık → büyük model
-- [ ] LLM response caching (Redis)
+### 9c — RAG Pipeline ✅
 
-**Çıktı:** LLM abstraction, embedding/search, RAG, prompt yönetimi çalışır.
+> **Tamamlanma:** 2026-04-04
+
+- [x] `DocumentProcessor` — PDF (PdfPig), TXT, MD → düz metin çıkarma
+- [x] `TextChunker` — paragraf/cümle bazlı chunking (500 token, 50 overlap)
+- [x] Chunk → embedding → pgvector'e kaydet (`POST /api/ai/ingest`)
+- [x] RAG: query embedding → benzer chunk bul → LLM'e context olarak ver → yanıt üret
+- [x] `POST /api/ai/rag` endpoint
+- [x] `POST /api/ai/ingest` endpoint (dosya yükleme)
+
+### 9d — Prompt Management ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] PromptTemplate CRUD API (`/api/ai/prompts`)
+- [x] Versiyonlama (aynı key, otomatik versiyon artışı)
+- [x] Şablon engine (Scriban) — `{{variable}}` desteği
+- [x] Render/test endpoint'leri (DB'den + inline)
+- [ ] Frontend: prompt düzenleme ekranı (Admin Panel'e entegre) — sonraki fazda
+
+### 9e — Maliyet Kontrolü ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `AiUsageLog` — her LLM/Embedding çağrısı: modül, token sayısı, maliyet, süre
+- [x] Usage Dashboard API: `/api/ai/usage/summary`, `/daily`, `/logs`
+- [x] Rate limiting — `AiRateLimiter` (sliding window, tenant/modül bazlı, configurable)
+- [x] Model routing — `ModelRouter` (basit iş → LiteModel, karmaşık → ChatModel)
+- [x] LLM response caching — `AiResponseCache` (IDistributedCache/Redis)
+
+**Çıktı:** LLM abstraction, embedding/search, RAG, prompt yönetimi, maliyet kontrolü çalışır.
 
 ---
 
