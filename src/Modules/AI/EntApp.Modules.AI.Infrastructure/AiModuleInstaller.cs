@@ -82,6 +82,7 @@ public sealed class AiModuleInstaller : IModuleInstaller
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
 
         // ── Cost Control (9e) ────────────────────────────────
+        services.AddDistributedMemoryCache(); // Redis'e geçilebilir
         services.AddSingleton<AiRateLimiter>();
         services.AddSingleton<ModelRouter>();
         services.AddSingleton<AiResponseCache>();
