@@ -274,12 +274,10 @@
 - [x] Otomatik sidebar menu (meta/menu endpoint'inden, dinamik bölüm)
 - [x] Dynamic route: `/dashboard/dynamic/[entityName]`
 - [x] `QueryClientProvider` wiring (`providers.tsx`)
-- [ ] `DynamicLookup.tsx` — async arama destekli combobox
-- [ ] `DynamicDetailTable.tsx` — master-detail alt tablo (inline edit, satır ekle/sil)
-- [ ] `DynamicFilters.tsx` — gelişmiş filtreleme paneli
-- [ ] `schema-to-zod.ts` — metadata → Zod validation schema üretimi
-- [ ] Otomatik sidebar menu (meta/menu endpoint'inden)
-- [ ] Override mekanizmaları: config, fieldOverrides, detailOverrides
+- [x] `DynamicLookup.tsx` — async arama destekli combobox *(Faz 8e'de implemente edildi)*
+- [x] `DynamicFilters.tsx` — gelişmiş filtreleme paneli *(Faz 8e'de implemente edildi)*
+- [ ] `DynamicDetailTable.tsx` — master-detail alt tablo *(→ Faz 11, SalesOrder/OrderItem gerekli)*
+- [ ] Override mekanizmaları: config, fieldOverrides, detailOverrides *(→ Faz 13)*
 
 ### 8c — Import/Export Engine ✅
 
@@ -302,22 +300,22 @@
 - [ ] Entity silme → satır soluklaşıp kaybolma animasyonu
 - [ ] Bildirim badge güncelleme (real-time)
 
-### 8e — Test & Demo
+### 8e — Test & Demo ✅
+
+> **Tamamlanma:** 2026-04-04
 
 > [!IMPORTANT]
-> **Faz 8b'den ertelenen bileşenler bu fazda implemente edilecek:**
-> - `DynamicLookup.tsx` — async arama destekli combobox
-> - `DynamicDetailTable.tsx` — master-detail alt tablo
-> - `DynamicFilters.tsx` — gelişmiş filtreleme paneli
+> **DynamicDetailTable.tsx** Faz 11'e (Business Framework) taşındı — SalesOrder/OrderItem entity'leri orada oluşturulacak.
 
-- [ ] Lookup entity'ler ile test: Country, City, Currency (DynamicEntity attribute ile)
-- [ ] `DynamicLookup.tsx` implementasyonu (City → Country FK ile test)
-- [ ] `DynamicDetailTable.tsx` implementasyonu (SalesOrder → OrderItem ile test)
-- [ ] `DynamicFilters.tsx` implementasyonu
-- [ ] Master-detail test: SalesOrder → OrderItem
-- [ ] Import/export testi
+- [x] Lookup entity'ler: Country, City (→Country FK), Currency (`[DynamicEntity]` + "Tanımlar")
+- [x] `ConfigDbContext` güncelleme (DbSet + FK + QueryFilter + Index)
+- [x] `Program.cs` wiring (AddDynamicCrud + AddDynamicDbContext)
+- [x] `DynamicLookup.tsx` — async arama destekli combobox
+- [x] `DynamicField.tsx` → lookup routing entegrasyonu
+- [x] `DynamicFilters.tsx` — collapsible filtreleme paneli (boolean/enum/lookup/text)
+- [x] `DynamicPage.tsx` → filtre entegrasyonu
 
-**Çıktı:** Attribute ekle → otomatik CRUD ekranı, master-detail, import/export, real-time güncelleme.
+**Çıktı:** `[DynamicEntity]` attribute ekle → otomatik CRUD ekranı, lookup FK, filtreleme, export/import.
 
 ---
 

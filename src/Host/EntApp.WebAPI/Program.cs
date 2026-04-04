@@ -154,8 +154,16 @@ try
     // ── Dynamic CRUD Engine ──────────────────────────────────
     // [DynamicEntity] attribute'ü olan entity'ler için otomatik metadata + CRUD
     builder.Services.AddDynamicCrud(
-        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly
-        // Yeni modül assembly'leri eklendikçe buraya da eklenir
+        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Configuration.Domain.Entities.Country).Assembly
+    );
+
+    // Dynamic entity → DbContext eşleştirmesi
+    builder.Services.AddDynamicDbContext<
+        EntApp.Modules.Configuration.Infrastructure.Persistence.ConfigDbContext>(
+        typeof(EntApp.Modules.Configuration.Domain.Entities.Country),
+        typeof(EntApp.Modules.Configuration.Domain.Entities.City),
+        typeof(EntApp.Modules.Configuration.Domain.Entities.Currency)
     );
 
     // ═════════════════════════════════════════════════════════

@@ -11,6 +11,9 @@ public class ConfigDbContext : DbContext
 
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<Country> Countries => Set<Country>();
+    public DbSet<City> Cities => Set<City>();
+    public DbSet<Currency> Currencies => Set<Currency>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,5 +47,45 @@ public class ConfigDbContext : DbContext
             // Name + TenantId unique
             e.HasIndex(x => new { x.Name, x.TenantId }).IsUnique();
         });
+
+        // ── Dynamic Entity: Country ─────────────────────────
+        modelBuilder.Entity<Country>(e =>
+        {
+            e.ToTable("Countries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(3).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.PhoneCode).HasMaxLength(5);
+            e.HasQueryFilter(x => !x.IsDeleted);
+            e.HasIndex(x => x.Code).IsUnique();
+        });
+
+        // ── Dynamic Entity: City ────────────────────────────
+        modelBuilder.Entity<City>(e =>
+        {
+            e.ToTable("Cities");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.PlateCode).HasMaxLength(10);
+            e.HasOne(x => x.Country)
+                .WithMany()
+                .HasForeignKey(x => x.CountryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(x => !x.IsDeleted);
+            e.HasIndex(x => new { x.Name, x.CountryId }).IsUnique();
+        });
+
+        // ── Dynamic Entity: Currency ────────────────────────
+        modelBuilder.Entity<Currency>(e =>
+        {
+            e.ToTable("Currencies");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(3).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Symbol).HasMaxLength(5);
+            e.HasQueryFilter(x => !x.IsDeleted);
+            e.HasIndex(x => x.Code).IsUnique();
+        });
     }
 }
+

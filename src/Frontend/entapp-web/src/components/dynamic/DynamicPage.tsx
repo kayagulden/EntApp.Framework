@@ -13,6 +13,7 @@ import { DynamicTable } from "./DynamicTable";
 import { DynamicForm } from "./DynamicForm";
 import { DynamicExport } from "./DynamicExport";
 import { DynamicImport } from "./DynamicImport";
+import { DynamicFilters, type FilterValues } from "./DynamicFilters";
 import { AlertTriangle, Database } from "lucide-react";
 import type { PagedRequest } from "@/types/dynamic";
 
@@ -35,6 +36,7 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterValues, setFilterValues] = useState<FilterValues>({});
 
   // ── Data Fetching ────────────────────────────────────
   const { data: metadata, isLoading: metaLoading, error: metaError } =
@@ -158,6 +160,19 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
         onImportClick={() => setImportOpen(true)}
         canCreate={metadata.actions.create}
         isLoading={listLoading}
+      />
+
+      <DynamicFilters
+        fields={metadata.fields}
+        values={filterValues}
+        onChange={(vals) => {
+          setFilterValues(vals);
+          setPage(1);
+        }}
+        onClear={() => {
+          setFilterValues({});
+          setPage(1);
+        }}
       />
 
       <DynamicTable

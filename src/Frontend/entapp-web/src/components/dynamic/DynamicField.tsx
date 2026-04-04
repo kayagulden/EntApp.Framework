@@ -2,6 +2,7 @@
 
 import type { FieldMetadata } from "@/types/dynamic";
 import { cn } from "@/lib/utils";
+import { DynamicLookup } from "./DynamicLookup";
 
 interface DynamicFieldProps {
   field: FieldMetadata;
@@ -158,7 +159,28 @@ export function DynamicField({
           </div>
         );
 
-      // string, lookup, file — default: text input
+      case "lookup":
+        return field.lookup ? (
+          <DynamicLookup
+            entityName={field.lookup.entity}
+            value={(value as string) || null}
+            onChange={(v) => onChange(v ?? "")}
+            placeholder={`${field.label} seçiniz...`}
+            disabled={isDisabled}
+            error={error}
+          />
+        ) : (
+          <input
+            type="text"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={isDisabled}
+            placeholder={field.label}
+            className={baseInputClass}
+          />
+        );
+
+      // string, file — default: text input
       default:
         return (
           <input
