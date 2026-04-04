@@ -298,7 +298,17 @@
 - [ ] Bildirim badge güncelleme (real-time)
 
 ### 8e — Test & Demo
+
+> [!IMPORTANT]
+> **Faz 8b'den ertelenen bileşenler bu fazda implemente edilecek:**
+> - `DynamicLookup.tsx` — async arama destekli combobox
+> - `DynamicDetailTable.tsx` — master-detail alt tablo
+> - `DynamicFilters.tsx` — gelişmiş filtreleme paneli
+
 - [ ] Lookup entity'ler ile test: Country, City, Currency (DynamicEntity attribute ile)
+- [ ] `DynamicLookup.tsx` implementasyonu (City → Country FK ile test)
+- [ ] `DynamicDetailTable.tsx` implementasyonu (SalesOrder → OrderItem ile test)
+- [ ] `DynamicFilters.tsx` implementasyonu
 - [ ] Master-detail test: SalesOrder → OrderItem
 - [ ] Import/export testi
 
@@ -429,6 +439,9 @@
 ---
 
 ## Faz 13 — Admin Panel
+
+> [!IMPORTANT]
+> **Faz 8b'den ertelenen:** Override mekanizmaları (config, fieldOverrides, detailOverrides) bu fazda `DynamicUIConfigs` DB tablosu ile birlikte implemente edilecek.
 
 - [ ] Admin Panel modülü (ayrı frontend route: `/admin`)
 - [ ] **Tenant Yönetimi:** tenant CRUD, konfigürasyon, deaktif etme
