@@ -9,6 +9,7 @@ using EntApp.Shared.Infrastructure.Modules;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.RealTime;
 using EntApp.Modules.AI.Infrastructure.Endpoints;
+using EntApp.Modules.Workflow.Infrastructure.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -244,6 +245,7 @@ try
     app.MapAiEndpoints();
     app.MapPromptEndpoints();
     app.MapUsageEndpoints();
+    app.MapWorkflowEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();

@@ -383,17 +383,23 @@
 
 ---
 
-## Faz 10 — Workflow & Approval Engine
+## Faz 10 — Workflow & Approval Engine ✅
 
-- [ ] Elsa Workflows 3.x NuGet entegrasyonu
-- [ ] `Workflow.Domain` — WorkflowDefinition, WorkflowInstance, ApprovalStep entity'leri
-- [ ] Basit onay akışı tanımlama API (sıralı, paralel)
-- [ ] Yetki bazlı onay zinciri
-- [ ] Zaman aşımı ve eskalasyon
-- [ ] Workflow geçmişi ve takip
-- [ ] Dinamik form desteği (onay adımında form gösterme)
-- [ ] Frontend: onay bekleyen görevler listesi, onay/red formu
-- [ ] `ApprovalCompletedIntegrationEvent` — diğer modüllere bildirim
+> **Tamamlanma:** 2026-04-04
+
+- [x] Hafif onay motoru (Elsa yerine kendi state machine çözümü)
+- [x] `Workflow.Domain` — WorkflowDefinition, WorkflowInstance, ApprovalStep entity'leri
+- [x] `Workflow.Application` — IWorkflowEngine interface
+- [x] `WorkflowEngine` — state machine (Sequential, Parallel, AnyOne) + eskalasyon
+- [x] `WorkflowDbContext` — schema: `wf`, 3 tablo, 4 index
+- [x] Basit onay akışı tanımlama API (sıralı, paralel, any-one)
+- [x] Yetki bazlı onay zinciri (userId/role assignment)
+- [x] Zaman aşımı (dueDate) ve eskalasyon desteği
+- [x] Workflow geçmişi ve takip (`/api/workflows/{id}`)
+- [x] 13 API endpoint (definition CRUD, start, approve, reject, escalate, cancel, pending)
+- [ ] Dinamik form desteği — sonraki fazda
+- [ ] Frontend: onay bekleyen görevler listesi — sonraki fazda
+- [ ] `ApprovalCompletedIntegrationEvent` — sonraki fazda
 
 **Çıktı:** Basit onay akışları oluşturulup çalıştırılabilir.
 
