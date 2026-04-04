@@ -419,7 +419,7 @@
 - [x] Fırsat aşama geçişi (Lead → ClosedWon/Lost pipeline)
 - [x] Pipeline özet endpoint'i (`/api/crm/opportunities/pipeline`)
 - [x] `CrmDbContext` — schema: `crm`, 4 tablo, 7 index
-- [ ] Integration Events — sonraki fazda
+- [x] Integration Events — **Faz 12e'de** tamamlandı ✅
 - [ ] Dynamic UI ile ekranlar — sonraki fazda
 
 ### 11b — HR ✅
@@ -433,7 +433,7 @@
 - [x] Puantaj kaydı (giriş/çıkış, çalışma saati, fazla mesai otomatik hesaplama)
 - [x] `HrDbContext` — schema: `hr`, 3 tablo, 4 index
 - [x] Workflow entegrasyonu hazır (WorkflowInstanceId alanı)
-- [ ] Integration Events — sonraki fazda
+- [x] Integration Events — **Faz 12e'de** tamamlandı ✅
 
 ### 11c — Finance ✅
 
@@ -525,7 +525,10 @@
 - [x] **Sales → Inventory:** `OrderCancelledEvent` → `OrderCancelledStockHandler` (stok iadesi)
 - [x] **Sales → Finance:** `OrderConfirmedEvent` → `OrderConfirmedInvoiceHandler` (otomatik fatura + cari hesap)
 - [x] **Finance event'leri:** `InvoiceApprovedEvent`, `PaymentReceivedEvent` event'leri tanımlı
-- [x] **HR event'leri:** `LeaveApprovedEvent`, `LeaveRejectedEvent` event'leri tanımlı
+- [x] **CRM → Finance/Sales:** `CustomerCreatedEvent`, `OpportunityWonEvent`, `OpportunityLostEvent`
+- [x] CRM CreateCustomer/AdvanceStage endpoint'leri event publish ediyor
+- [x] **HR → Notification:** `LeaveApprovedEvent`, `LeaveRejectedEvent` event'leri + endpoint wiring
+- [x] HR Approve/Reject endpoint'leri event publish ediyor
 - [x] **Procurement → Inventory:** `GoodsReceivedEvent` → `GoodsReceivedStockHandler` (stok girişi)
 - [x] Sales Confirm/Cancel endpoint'leri event publish ediyor
 - [x] Mevcut 8 integration testi geçiyor (build: 0 hata)

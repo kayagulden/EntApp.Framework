@@ -1,6 +1,8 @@
 using EntApp.Modules.CRM.Domain.Entities;
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Application.IntegrationEvents;
 using EntApp.Modules.CRM.Infrastructure.Persistence;
+using EntApp.Shared.Contracts.Messaging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -42,7 +44,7 @@ public static class CrmEndpoints
             return c is null ? Results.NotFound() : Results.Ok(c);
         }).WithName("GetCustomer");
 
-        customers.MapPost("/", async (CreateCustomerRequest req, CrmDbContext db) =>
+        customers.MapPost("/", async (CreateCustomerRequest req, CrmDbContext db, IEventBus eventBus) =>
         {
             Enum.TryParse<CustomerType>(req.CustomerType, out var type);
             Enum.TryParse<CustomerSegment>(req.Segment, out var segment);
@@ -50,6 +52,11 @@ public static class CrmEndpoints
                 req.Phone, req.Address, req.City, req.Country, req.TaxNumber, segment);
             db.Customers.Add(customer);
             await db.SaveChangesAsync();
+
+            await eventBus.PublishAsync(new CustomerCreatedEvent(
+                customer.Id, customer.Name, customer.CustomerType.ToString(),
+                customer.Email, customer.TaxNumber));
+
             return Results.Created($"/api/crm/customers/{customer.Id}", new { customer.Id, customer.Name });
         }).WithName("CreateCustomer");
 
@@ -111,14 +118,23 @@ public static class CrmEndpoints
             return Results.Created($"/api/crm/opportunities/{opp.Id}", new { opp.Id, opp.Title });
         }).WithName("CreateOpportunity");
 
-        opps.MapPost("/{id:guid}/advance", async (Guid id, AdvanceStageRequest req, CrmDbContext db) =>
+        opps.MapPost("/{id:guid}/advance", async (Guid id, AdvanceStageRequest req, CrmDbContext db, IEventBus eventBus) =>
         {
-            var opp = await db.Opportunities.FindAsync(id);
+            var opp = await db.Opportunities.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == id);
             if (opp is null) return Results.NotFound();
             if (!Enum.TryParse<OpportunityStage>(req.Stage, out var stage))
                 return Results.BadRequest(new { error = "Invalid stage." });
             opp.AdvanceStage(stage);
             await db.SaveChangesAsync();
+
+            if (stage == OpportunityStage.ClosedWon)
+                await eventBus.PublishAsync(new OpportunityWonEvent(
+                    opp.Id, opp.Title, opp.CustomerId, opp.Customer.Name,
+                    opp.EstimatedValue, opp.Currency));
+            else if (stage == OpportunityStage.ClosedLost)
+                await eventBus.PublishAsync(new OpportunityLostEvent(
+                    opp.Id, opp.Title, opp.CustomerId, opp.LostReason));
+
             return Results.Ok(new { opp.Id, Stage = opp.Stage.ToString(), opp.Probability });
         }).WithName("AdvanceOpportunityStage");
 

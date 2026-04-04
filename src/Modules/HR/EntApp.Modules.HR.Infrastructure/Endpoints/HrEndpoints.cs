@@ -1,6 +1,8 @@
 using EntApp.Modules.HR.Domain.Entities;
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Application.IntegrationEvents;
 using EntApp.Modules.HR.Infrastructure.Persistence;
+using EntApp.Shared.Contracts.Messaging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -104,21 +106,32 @@ public static class HrEndpoints
                 new { request.Id, request.TotalDays, Status = request.Status.ToString() });
         }).WithName("CreateLeaveRequest");
 
-        leave.MapPost("/{id:guid}/approve", async (Guid id, LeaveActionRequest req, HrDbContext db) =>
+        leave.MapPost("/{id:guid}/approve", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
         {
-            var lr = await db.LeaveRequests.FindAsync(id);
+            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id == id);
             if (lr is null) return Results.NotFound();
             lr.Approve(req.UserId, req.Comment);
             await db.SaveChangesAsync();
+
+            await eventBus.PublishAsync(new LeaveApprovedEvent(
+                lr.Id, lr.EmployeeId, lr.Employee.FullName,
+                lr.LeaveType.ToString(), lr.StartDate, lr.EndDate,
+                lr.TotalDays, req.UserId));
+
             return Results.Ok(new { lr.Id, Status = lr.Status.ToString() });
         }).WithName("ApproveLeave");
 
-        leave.MapPost("/{id:guid}/reject", async (Guid id, LeaveActionRequest req, HrDbContext db) =>
+        leave.MapPost("/{id:guid}/reject", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
         {
-            var lr = await db.LeaveRequests.FindAsync(id);
+            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id == id);
             if (lr is null) return Results.NotFound();
             lr.Reject(req.UserId, req.Comment);
             await db.SaveChangesAsync();
+
+            await eventBus.PublishAsync(new LeaveRejectedEvent(
+                lr.Id, lr.EmployeeId, lr.Employee.FullName,
+                lr.LeaveType.ToString(), req.UserId, req.Comment));
+
             return Results.Ok(new { lr.Id, Status = lr.Status.ToString() });
         }).WithName("RejectLeave");
 
