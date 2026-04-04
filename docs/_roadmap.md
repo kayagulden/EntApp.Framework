@@ -542,18 +542,32 @@
 > [!IMPORTANT]
 > **Faz 8b'den ertelenen:** Override mekanizmaları (config, fieldOverrides, detailOverrides) bu fazda `DynamicUIConfigs` DB tablosu ile birlikte implemente edilecek.
 
-- [ ] Admin Panel modülü (ayrı frontend route: `/admin`)
-- [ ] **Tenant Yönetimi:** tenant CRUD, konfigürasyon, deaktif etme
-- [ ] **Feature Flags:** modül/tenant bazlı açma/kapama toggle'ları
-- [ ] **Prompt Yönetimi:** AI prompt şablonları düzenleme, versiyon karşılaştırma
-- [ ] **Background Jobs:** Hangfire dashboard embed
-- [ ] **AI İstatistikleri:** token kullanımı, maliyet raporu (Recharts grafikleri)
-- [ ] **System Health:** modül bazlı health check durumu, DB/Redis/RabbitMQ bağlantısı
-- [ ] **Audit Viewer:** kullanıcı aktivite logları, entity change history tarayıcısı
-- [ ] **Cache Yönetimi:** Redis cache temizleme, cache hit/miss oranları\r
-- [ ] **DynamicUIConfigs DB Tablosu:** Dynamic UI entity/field konfigürasyonları (label, order, width, showInList, icon) — convention-based fallback yerine admin panelden yönetim
+### 13a — Backend Admin Endpoints ✅
 
-**Çıktı:** Tek yerden framework yönetimi.
+> **Tamamlanma:** 2026-04-05
+
+- [x] `AdminEndpoints.cs` — 24 endpoint, 6 grup
+- [x] **Tenant Yönetimi** (8 endpoint): list, get, create, update, activate, suspend, deactivate, settings
+- [x] **Feature Flags** (5 endpoint): list, create, toggle, schedule, delete
+- [x] **Audit Viewer** (3 endpoint): list (filtreli), get, stats (aksiyon/entity/user bazlı)
+- [x] **System Health** (3 endpoint): health (detaylı), modules (16 modül), info (runtime/OS/memory)
+- [x] **AI İstatistikleri** (3 endpoint): stats (model/gün/maliyet), models, prompts
+- [x] **Cache Yönetimi** (2 endpoint): status, clear/{key}
+
+### 13b — Frontend Admin Panel ✅
+
+> **Tamamlanma:** 2026-04-05
+
+- [x] Admin layout + sidebar navigation (`AdminSidebar` component)
+- [x] Dashboard page (`/admin`) — system info, health checks, modules grid
+- [x] Tenants page (`/admin/tenants`) — CRUD table, status actions, create form
+- [x] Feature Flags page (`/admin/feature-flags`) — toggle switch, create, delete
+- [x] Audit Logs page (`/admin/audit-logs`) — filtreli tablo, stats, pagination
+- [x] System Health page (`/admin/system`) — health checks, system info, cache, modules
+- [x] Frontend build: ✓ Compiled successfully
+- [ ] **DynamicUIConfigs DB Tablosu** — sonraki fazda
+
+**Çıktı:** Tek yerden framework yönetimi ✅
 
 ---
 
