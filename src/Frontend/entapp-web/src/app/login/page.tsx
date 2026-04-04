@@ -45,6 +45,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                suppressHydrationWarning
                 className="w-full h-10 px-3 rounded-lg border border-[var(--color-border)] 
                            bg-[var(--color-bg)] text-[var(--color-text)] text-sm
                            focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
@@ -61,6 +62,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                suppressHydrationWarning
                 className="w-full h-10 px-3 rounded-lg border border-[var(--color-border)] 
                            bg-[var(--color-bg)] text-[var(--color-text)] text-sm
                            focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500

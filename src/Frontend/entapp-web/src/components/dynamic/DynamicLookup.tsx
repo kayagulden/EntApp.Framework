@@ -75,11 +75,11 @@ export function DynamicLookup({
     async (searchTerm: string) => {
       setLoading(true);
       try {
-        const { data } = await apiClient.get<LookupOption[]>(
+        const { data } = await apiClient.get<Array<{ id: string; text: string }>>(
           `${DYNAMIC_API_BASE}/${entityName}/lookup`,
           { params: { search: searchTerm || undefined, take: 20 } }
         );
-        setOptions(data);
+        setOptions(data.map((d) => ({ id: d.id, displayText: d.text })));
       } catch {
         setOptions([]);
       } finally {

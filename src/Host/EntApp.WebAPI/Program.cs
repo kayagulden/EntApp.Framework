@@ -147,8 +147,8 @@ try
     builder.Services.AddModules(
         builder.Configuration,
         typeof(EntApp.Shared.Infrastructure.Modules.ModuleRegistration).Assembly,
-        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly
-        // typeof(CMSModuleInstaller).Assembly,     // İleride eklenecek
+        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Configuration.Infrastructure.ConfigModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
