@@ -448,14 +448,18 @@
 - [x] `FinanceDbContext` — schema: `fin`, 4 tablo, 7 index
 - [ ] Integration Events — sonraki fazda
 
-### 11d — Inventory
-- [ ] `ProductBase`, `WarehouseBase`, `StockMovementBase` entity'leri
-- [ ] Ürün CRUD, barkod/SKU
-- [ ] Stok giriş/çıkış/transfer
-- [ ] Depo bazlı stok bakiyesi
-- [ ] Min/max stok uyarısı (Notification entegrasyonu)
+### 11d — Inventory ✅
 
-**Çıktı:** CRM, HR, Finance, Inventory generic core modülleri çalışır, Dynamic UI ile ekranları oluşturulmuş.
+> **Tamamlanma:** 2026-04-04
+
+- [x] `ProductBase`, `WarehouseBase`, `StockMovementBase` entity'leri
+- [x] Ürün CRUD, barkod/SKU (arama desteği)
+- [x] Stok giriş/çıkış/transfer/sayım düzeltme/iade
+- [x] Depo bazlı stok bakiyesi endpoint'i
+- [x] Min/max stok + reorder uyarı endpoint'i
+- [x] `InventoryDbContext` — schema: `inv`, 3 tablo, 5 index
+
+**Çıktı:** CRM, HR, Finance, Inventory generic core modülleri çalışır ✅
 
 ---
 
