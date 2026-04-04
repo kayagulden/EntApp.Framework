@@ -16,6 +16,7 @@ using EntApp.Modules.Finance.Infrastructure.Endpoints;
 using EntApp.Modules.Inventory.Infrastructure.Endpoints;
 using EntApp.Modules.Sales.Infrastructure.Endpoints;
 using EntApp.Modules.Procurement.Infrastructure.Endpoints;
+using EntApp.Modules.TaskManagement.Infrastructure.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -258,6 +259,7 @@ try
     app.MapInventoryEndpoints();
     app.MapSalesEndpoints();
     app.MapProcurementEndpoints();
+    app.MapTaskManagementEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();

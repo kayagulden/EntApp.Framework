@@ -38,6 +38,7 @@
     <ProjectReference Include="..\..\Modules\Inventory\EntApp.Modules.Inventory.Infrastructure\EntApp.Modules.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Sales\EntApp.Modules.Sales.Infrastructure\EntApp.Modules.Sales.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Procurement\EntApp.Modules.Procurement.Infrastructure\EntApp.Modules.Procurement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\TaskManagement\EntApp.Modules.TaskManagement.Infrastructure\EntApp.Modules.TaskManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

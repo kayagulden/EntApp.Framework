@@ -490,11 +490,18 @@
 - [x] 3-way matching: PO ↔ Teslim ↔ Fatura eşleştirme
 - [x] `ProcurementDbContext` — schema: `proc`, 3 tablo, 4 index
 
-### 12c — Task Management
-- [ ] `ProjectBase`, `TaskItemBase`, `CommentBase` entity'leri
-- [ ] Görev oluşturma/atama, alt görevler
-- [ ] Kanban view (Zustand state)
-- [ ] Süre takibi (time entry)
+### 12c — Task Management ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `ProjectBase`, `TaskItemBase`, `CommentBase`, `TimeEntryBase` entity'leri
+- [x] Proje CRUD + otomatik görev numaralandırma (KEY-1, KEY-2, ...)
+- [x] Görev oluşturma/atama, alt görevler (ParentTaskId)
+- [x] Kanban board endpoint (duruma göre gruplu)
+- [x] Kanban move + sıralama (SortOrder)
+- [x] Yorum sistemi
+- [x] Süre takibi (time entry)
+- [x] `TaskManagementDbContext` — schema: `pm`, 4 tablo, 6 index
 
 ### 12d — Modüller Arası Entegrasyon Testleri
 - [ ] Sales → Inventory → Finance saga test
