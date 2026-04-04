@@ -8,4 +8,8 @@
     <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Kernel\EntApp.Shared.Kernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Pgvector" Version="0.3.2" />
+  </ItemGroup>
+
 </Project>

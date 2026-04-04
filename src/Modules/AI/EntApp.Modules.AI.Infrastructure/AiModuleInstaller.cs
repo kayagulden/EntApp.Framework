@@ -7,6 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
+#pragma warning disable SKEXP0010, SKEXP0070
+
 namespace EntApp.Modules.AI.Infrastructure;
 
 /// <summary>
@@ -29,6 +31,7 @@ public sealed class AiModuleInstaller : IModuleInstaller
                 {
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AiDbContext.Schema);
                     npgsql.MigrationsAssembly(typeof(AiDbContext).Assembly.FullName);
+                    npgsql.UseVector();
                 }));
 
         // ── MediatR handlers ────────────────────────────────
@@ -40,8 +43,9 @@ public sealed class AiModuleInstaller : IModuleInstaller
         var defaultProvider = aiSettings.GetValue<string>("DefaultProvider") ?? "OpenAI";
 
         var kernelBuilder = services.AddKernel();
+        var embeddingConfigured = false;
 
-        // Provider'a göre chat completion ekle
+        // Provider'a göre chat + embedding completion ekle
         switch (defaultProvider)
         {
             case "AzureOpenAI":
@@ -51,6 +55,8 @@ public sealed class AiModuleInstaller : IModuleInstaller
                 if (!string.IsNullOrEmpty(azureKey))
                 {
                     kernelBuilder.AddAzureOpenAIChatCompletion(azureDeployment, azureEndpoint, azureKey);
+                    kernelBuilder.AddAzureOpenAIEmbeddingGenerator(azureDeployment, azureEndpoint, azureKey);
+                    embeddingConfigured = true;
                 }
                 break;
 
@@ -58,9 +64,12 @@ public sealed class AiModuleInstaller : IModuleInstaller
             default:
                 var openAiKey = aiSettings["OpenAI:ApiKey"] ?? "";
                 var chatModel = aiSettings["OpenAI:ChatModel"] ?? "gpt-4o-mini";
+                var embeddingModel = aiSettings["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
                 if (!string.IsNullOrEmpty(openAiKey))
                 {
                     kernelBuilder.AddOpenAIChatCompletion(chatModel, openAiKey);
+                    kernelBuilder.AddOpenAIEmbeddingGenerator(embeddingModel, openAiKey);
+                    embeddingConfigured = true;
                 }
                 break;
         }
@@ -68,6 +77,13 @@ public sealed class AiModuleInstaller : IModuleInstaller
         // ── AI Services ─────────────────────────────────────
         services.AddScoped<ILlmService, SemanticKernelLlmService>();
         services.AddScoped<IPromptManager, ScribanPromptManager>();
-        // IEmbeddingService, IRagService, IDocumentProcessor → 9b/9c'de eklenecek
+        services.AddScoped<PgVectorStore>();
+
+        // Embedding servisleri sadece API key yapılandırılmışsa kaydet
+        if (embeddingConfigured)
+        {
+            services.AddScoped<IEmbeddingService, SemanticKernelEmbeddingService>();
+        }
     }
 }
+

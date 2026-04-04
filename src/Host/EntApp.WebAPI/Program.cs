@@ -8,6 +8,7 @@ using EntApp.Shared.Infrastructure.Middleware;
 using EntApp.Shared.Infrastructure.Modules;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.RealTime;
+using EntApp.Modules.AI.Infrastructure.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -238,6 +239,9 @@ try
 
     // ── Dynamic CRUD Endpoints ───────────────────────────────
     app.MapDynamicCrudEndpoints();
+
+    // ── AI Endpoints ─────────────────────────────────────────
+    app.MapAiEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();

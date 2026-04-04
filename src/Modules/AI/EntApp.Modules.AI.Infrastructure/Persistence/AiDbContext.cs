@@ -1,5 +1,6 @@
 using EntApp.Modules.AI.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Pgvector.EntityFrameworkCore;
 
 namespace EntApp.Modules.AI.Infrastructure.Persistence;
 
@@ -21,6 +22,7 @@ public sealed class AiDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.HasPostgresExtension("vector");
 
         // ── AiModel ─────────────────────────────────────────
         modelBuilder.Entity<AiModel>(b =>
@@ -28,7 +30,7 @@ public sealed class AiDbContext : DbContext
             b.ToTable("ai_models");
             b.HasIndex(e => new { e.TenantId, e.Provider, e.ModelName })
                 .IsUnique()
-                .HasFilter("is_deleted = false");
+                .HasFilter("\"IsDeleted\" = false");
             b.Property(e => e.ModelName).HasMaxLength(100).IsRequired();
             b.Property(e => e.DisplayName).HasMaxLength(150).IsRequired();
             b.HasQueryFilter(e => !e.IsDeleted);
@@ -40,7 +42,7 @@ public sealed class AiDbContext : DbContext
             b.ToTable("prompt_templates");
             b.HasIndex(e => new { e.TenantId, e.Key, e.Version })
                 .IsUnique()
-                .HasFilter("is_deleted = false");
+                .HasFilter("\"IsDeleted\" = false");
             b.Property(e => e.Key).HasMaxLength(100).IsRequired();
             b.Property(e => e.Title).HasMaxLength(200).IsRequired();
             b.Property(e => e.TemplateContent).HasMaxLength(10000).IsRequired();
@@ -57,6 +59,10 @@ public sealed class AiDbContext : DbContext
             b.Property(e => e.SourceType).HasMaxLength(50).IsRequired();
             b.Property(e => e.SourceId).HasMaxLength(100);
             b.Property(e => e.Content).IsRequired();
+            b.Property(e => e.Embedding).HasColumnType("vector(1536)");
+            b.HasIndex(e => e.Embedding)
+                .HasMethod("hnsw")
+                .HasOperators("vector_cosine_ops");
             b.HasQueryFilter(e => !e.IsDeleted);
         });
 

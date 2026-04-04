@@ -1,11 +1,11 @@
 using EntApp.Shared.Kernel.Domain;
+using Pgvector;
 
 namespace EntApp.Modules.AI.Domain.Entities;
 
 /// <summary>
 /// Embedding doküman parçası — RAG pipeline'da kullanılır.
 /// PDF/Office → metin → chunk → embedding → pgvector.
-/// Embedding vektör alanı Faz 9b'de pgvector ile eklenecek.
 /// </summary>
 public sealed class EmbeddingDocument : AuditableEntity<Guid>, ITenantEntity
 {
@@ -30,8 +30,8 @@ public sealed class EmbeddingDocument : AuditableEntity<Guid>, ITenantEntity
     /// <summary>Token sayısı</summary>
     public int TokenCount { get; private set; }
 
-    // Embedding alanı Faz 9b'de pgvector ile eklenecek:
-    // public Vector Embedding { get; private set; }
+    /// <summary>pgvector embedding vektörü</summary>
+    public Vector? Embedding { get; private set; }
 
     public Guid TenantId { get; set; }
 
@@ -43,6 +43,7 @@ public sealed class EmbeddingDocument : AuditableEntity<Guid>, ITenantEntity
         string content,
         int chunkIndex,
         int tokenCount,
+        Vector? embedding = null,
         string? sourceId = null,
         string? metadata = null)
     {
@@ -55,7 +56,11 @@ public sealed class EmbeddingDocument : AuditableEntity<Guid>, ITenantEntity
             Content = content,
             ChunkIndex = chunkIndex,
             TokenCount = tokenCount,
+            Embedding = embedding,
             Metadata = metadata,
         };
     }
+
+    /// <summary>Embedding vektörünü günceller.</summary>
+    public void SetEmbedding(Vector embedding) => Embedding = embedding;
 }
