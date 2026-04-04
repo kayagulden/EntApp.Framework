@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Endpoints;
 
@@ -21,8 +22,9 @@ public static class WorkflowEndpoints
         // ═══════════════════════════════════════════════════
         var defs = app.MapGroup("/api/workflows/definitions").WithTags("Workflow Definitions");
 
-        defs.MapGet("/", async (WorkflowDbContext db, string? category, int page = 1, int pageSize = 20) =>
+        defs.MapGet("/", async (HttpContext httpContext, string? category, int page = 1, int pageSize = 20) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
             var query = db.Definitions.Where(d => d.IsActive);
             if (!string.IsNullOrEmpty(category))
                 query = query.Where(d => d.Category == category);
@@ -43,8 +45,9 @@ public static class WorkflowEndpoints
         })
         .WithName("ListDefinitions");
 
-        defs.MapGet("/{id:guid}", async (Guid id, WorkflowDbContext db) =>
+        defs.MapGet("/{id:guid}", async (Guid id, HttpContext httpContext) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
             var d = await db.Definitions.FindAsync(id);
             return d is null ? Results.NotFound() : Results.Ok(d);
         })
@@ -79,8 +82,9 @@ public static class WorkflowEndpoints
         // ═══════════════════════════════════════════════════
         var wf = app.MapGroup("/api/workflows").WithTags("Workflows");
 
-        wf.MapGet("/", async (WorkflowDbContext db, string? status, int page = 1, int pageSize = 20) =>
+        wf.MapGet("/", async (HttpContext httpContext, string? status, int page = 1, int pageSize = 20) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
             var query = db.Instances.Include(i => i.Definition).AsQueryable();
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<WorkflowStatus>(status, out var s))
                 query = query.Where(i => i.Status == s);
@@ -102,8 +106,9 @@ public static class WorkflowEndpoints
         })
         .WithName("ListWorkflows");
 
-        wf.MapGet("/{id:guid}", async (Guid id, WorkflowDbContext db) =>
+        wf.MapGet("/{id:guid}", async (Guid id, HttpContext httpContext) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
             var instance = await db.Instances
                 .Include(i => i.Definition)
                 .Include(i => i.Steps.OrderBy(s => s.StepOrder))

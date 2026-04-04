@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntApp.Modules.AI.Infrastructure.Endpoints;
 
@@ -20,8 +21,9 @@ public static class PromptEndpoints
             .WithTags("Prompts");
 
         // ── List ─────────────────────────────────────────
-        group.MapGet("/", async (AiDbContext db, string? category, int page = 1, int pageSize = 20) =>
+        group.MapGet("/", async (HttpContext httpContext, string? category, int page = 1, int pageSize = 20) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<AiDbContext>();
             var query = db.PromptTemplates.AsQueryable();
 
             if (!string.IsNullOrEmpty(category))
@@ -50,8 +52,9 @@ public static class PromptEndpoints
         .WithSummary("Prompt şablonlarını listele (her key için son versiyon)");
 
         // ── Get by Key ───────────────────────────────────
-        group.MapGet("/{key}", async (string key, AiDbContext db, int? version) =>
+        group.MapGet("/{key}", async (string key, HttpContext httpContext, int? version) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<AiDbContext>();
             var query = db.PromptTemplates.Where(t => t.Key == key && t.IsActive);
 
             PromptTemplate? template;
@@ -72,8 +75,9 @@ public static class PromptEndpoints
         .WithSummary("Key (ve opsiyonel versiyon) ile prompt al");
 
         // ── Get versions ─────────────────────────────────
-        group.MapGet("/{key}/versions", async (string key, AiDbContext db) =>
+        group.MapGet("/{key}/versions", async (string key, HttpContext httpContext) =>
         {
+            var db = httpContext.RequestServices.GetRequiredService<AiDbContext>();
             var versions = await db.PromptTemplates
                 .Where(t => t.Key == key)
                 .OrderByDescending(t => t.Version)

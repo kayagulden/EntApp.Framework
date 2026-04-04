@@ -26,6 +26,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 
 // ═══════════════════════════════════════════════════════════════
 //  EntApp.Framework — Composition Root
@@ -158,13 +161,26 @@ try
     builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 
     // ── Module Auto-Discovery ────────────────────────────────
-    // Yeni modül assembly'leri buraya eklenir
+    // Tüm modül assembly'leri — IModuleInstaller otomatik keşfedilir
     builder.Services.AddModules(
         builder.Configuration,
         typeof(EntApp.Shared.Infrastructure.Modules.ModuleRegistration).Assembly,
         typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
         typeof(EntApp.Modules.Configuration.Infrastructure.ConfigModuleInstaller).Assembly,
-        typeof(EntApp.Modules.AI.Infrastructure.AiModuleInstaller).Assembly
+        typeof(EntApp.Modules.AI.Infrastructure.AiModuleInstaller).Assembly,
+        typeof(EntApp.Modules.MultiTenancy.Infrastructure.TenantModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Audit.Infrastructure.AuditModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Workflow.Infrastructure.WorkflowModuleInstaller).Assembly,
+        typeof(EntApp.Modules.CRM.Infrastructure.CrmModuleInstaller).Assembly,
+        typeof(EntApp.Modules.HR.Infrastructure.HrModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Finance.Infrastructure.FinanceModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Inventory.Infrastructure.InventoryModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Sales.Infrastructure.SalesModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Procurement.Infrastructure.ProcurementModuleInstaller).Assembly,
+        typeof(EntApp.Modules.TaskManagement.Infrastructure.TaskManagementModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Notification.Infrastructure.NotificationModuleInstaller).Assembly,
+        typeof(EntApp.Modules.Localization.Infrastructure.LocalizationModuleInstaller).Assembly,
+        typeof(EntApp.Modules.FileManagement.Infrastructure.FileModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
@@ -197,9 +213,47 @@ try
     // ── Log loaded modules ──────────────────────────────────
     app.LogLoadedModules();
 
-    // ── Database Migration (startup'ta) ─────────────────────
-    // Modül DbContext'leri eklendikçe migration buraya eklenir:
-    // await app.Services.MigrateDatabaseAsync<IAMDbContext>();
+    // ── Database Auto-Create (Development) ─────────────────
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        // Her modül için schema ve tabloları oluştur (idempotent)
+        async Task EnsureModuleTables<T>(IServiceProvider provider) where T : DbContext
+        {
+            var db = provider.GetRequiredService<T>();
+            try
+            {
+                var creator = ((IInfrastructure<IServiceProvider>)db.Database).Instance
+                    .GetRequiredService<IRelationalDatabaseCreator>();
+                await creator.CreateTablesAsync();
+                Log.Information("[DB] Tables created for {Module}", typeof(T).Name);
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07") // already exists
+            {
+                Log.Debug("[DB] Tables already exist for {Module}", typeof(T).Name);
+            }
+        }
+
+        await EnsureModuleTables<EntApp.Modules.MultiTenancy.Infrastructure.Persistence.TenantDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Audit.Infrastructure.Persistence.AuditDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Workflow.Infrastructure.Persistence.WorkflowDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.CRM.Infrastructure.Persistence.CrmDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.HR.Infrastructure.Persistence.HrDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Finance.Infrastructure.Persistence.FinanceDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Inventory.Infrastructure.Persistence.InventoryDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Sales.Infrastructure.Persistence.SalesDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Procurement.Infrastructure.Persistence.ProcurementDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.TaskManagement.Infrastructure.Persistence.TaskManagementDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Configuration.Infrastructure.Persistence.ConfigDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.IAM.Infrastructure.Persistence.IamDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Notification.Infrastructure.Persistence.NotificationDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.Localization.Infrastructure.Persistence.LocalizationDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.FileManagement.Infrastructure.Persistence.FileDbContext>(sp);
+
+        Log.Information("[DB] All module schemas ensured.");
+    }
 
     // ── Seed Data (dev ortamda) ─────────────────────────────
     if (app.Environment.IsDevelopment())
