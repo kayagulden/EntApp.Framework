@@ -230,11 +230,12 @@
 - [x] TenantController — 11 API endpoint
 - [x] 25 unit test (Tenant: 14, TenantSetting: 3, Validators: 7, auto: 1)
 
-### 7f — Localization Modülü
-- [ ] Language, TranslationEntry entity'leri
-- [ ] Dinamik çeviri yönetimi (DB'den)
-- [ ] API: çeviri listesi, çeviri güncelleme
-- [ ] Frontend: `next-intl` entegrasyonu, dil seçici
+### 7f — Localization Modülü ✅
+- [x] Language (code, name, nativeName, default, active, displayOrder), TranslationEntry (namespace.key, verified, tenant-specific override, audit) entity'leri
+- [x] Dinamik çeviri yönetimi (DB'den) — upsert, bulk upsert, verify, delete
+- [x] API: 10 endpoint — diller (list, create, set-default, toggle), çeviriler (get, map, by-key, upsert, bulk, verify, delete)
+- [x] Frontend desteği: `GET /translations/{lang}/map` — flat JSON map (tenant override destekli, AllowAnonymous)
+- [x] 24 unit test (Language: 8, TranslationEntry: 8, Validators: 7, auto: 1)
 
 **Çıktı:** Tüm core modüller çalışır, test edilmiş, frontend sayfaları mevcut.
 
