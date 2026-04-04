@@ -465,13 +465,19 @@
 
 ## Faz 12 — Business Framework: Tier 2 Modüller
 
-### 12a — Sales
-- [ ] `SalesOrderBase`, `OrderItemBase`, `PriceListBase` entity'leri
-- [ ] Sipariş oluşturma, fiyat listesi uygulama, iskonto
-- [ ] Sipariş durumu geçişi + Workflow entegrasyonu
-- [ ] Inventory ile stok düşümü (Integration Event)
-- [ ] Finance ile fatura oluşturma (Integration Event)
-- [ ] Saga: Sipariş → Stok → Fatura (MassTransit saga state machine)
+### 12a — Sales ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `SalesOrderBase`, `OrderItemBase`, `PriceListBase` entity'leri
+- [x] Sipariş oluşturma + kalem bazlı fiyat/iskonto (%/sabit)
+- [x] Fiyat listesi yönetimi (Standard/Wholesale/Dealer/Campaign)
+- [x] Sipariş durumu geçişi (Draft → Confirmed → Processing → Shipped → Delivered)
+- [x] Workflow entegrasyonu hazır (WorkflowInstanceId)
+- [x] Satış dashboard endpoint'i (günlük/aylık gelir, durum bazlı sayılar)
+- [x] `SalesDbContext` — schema: `sales`, 3 tablo, 4 index
+- [ ] Inventory ile stok düşümü (Integration Event) — sonraki fazda
+- [ ] Finance ile fatura oluşturma (Integration Event) — sonraki fazda
 
 ### 12b — Procurement
 - [ ] `SupplierBase`, `PurchaseRequestBase`, `PurchaseOrderBase` entity'leri
