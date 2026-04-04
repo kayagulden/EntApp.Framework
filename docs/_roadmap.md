@@ -244,13 +244,20 @@
 
 ## Faz 8 — Dynamic UI Engine
 
-### 8a — Backend Metadata Engine
-- [ ] `DynamicEntityAttribute`, `DynamicFieldAttribute`, `DynamicLookupAttribute`, `DynamicDetailAttribute`
-- [ ] `MetadataService.cs` — reflection ile entity'den JSON schema üretimi
-- [ ] `DynamicCrudEndpointBuilder.cs` — `app.MapDynamicCrudEndpoints()` ile otomatik endpoint registration
-- [ ] `DynamicMenuBuilder.cs` — `GET /api/meta/menu` otomatik menu üretimi
-- [ ] Generic CRUD handler'lar: `CreateEntityCommand<T>`, `GetEntitiesPagedQuery<T>`, `UpdateEntityCommand<T>`, `DeleteEntityCommand<T>`
-- [ ] Lookup endpoint: `GET /api/{entity}/lookup?search=abc`
+### 8a — Backend Metadata Engine ✅
+
+> **Tamamlanma:** 2026-04-04
+
+- [x] `DynamicEntityAttribute`, `DynamicFieldAttribute`, `DynamicLookupAttribute`, `DynamicDetailAttribute`, `FieldType` enum — `Shared.Kernel/Domain/Attributes/`
+- [x] `MetadataService.cs` — reflection + convention-based fallback ile entity'den JSON schema üretimi
+- [x] `DynamicCrudEndpointBuilder.cs` — `app.MapDynamicCrudEndpoints()` minimal API endpoint registration (`/api/v1/dynamic/{entity}`)
+- [x] Menu endpoint — `GET /api/v1/dynamic/meta/menu` otomatik sidebar menu üretimi
+- [x] Generic CRUD service: `DynamicCrudService.cs` — EF Core reflection tabanlı GetPaged, GetById, Create, Update, Delete
+- [x] Lookup endpoint: `GET /api/v1/dynamic/{entity}/lookup?search=abc`
+- [x] `DynamicEntityRegistry` — assembly scan ile entity keşfi
+- [x] `DynamicDbContextProvider` — entity → DbContext runtime eşleştirmesi
+- [x] DI extensions: `AddDynamicCrud()`, `AddDynamicDbContext<T>()`
+- [x] Host entegrasyonu: `Program.cs`
 
 ### 8b — Frontend Render Engine
 - [ ] `DynamicPage.tsx` — orchestrator component
@@ -424,7 +431,8 @@
 - [ ] **AI İstatistikleri:** token kullanımı, maliyet raporu (Recharts grafikleri)
 - [ ] **System Health:** modül bazlı health check durumu, DB/Redis/RabbitMQ bağlantısı
 - [ ] **Audit Viewer:** kullanıcı aktivite logları, entity change history tarayıcısı
-- [ ] **Cache Yönetimi:** Redis cache temizleme, cache hit/miss oranları
+- [ ] **Cache Yönetimi:** Redis cache temizleme, cache hit/miss oranları\r
+- [ ] **DynamicUIConfigs DB Tablosu:** Dynamic UI entity/field konfigürasyonları (label, order, width, showInList, icon) — convention-based fallback yerine admin panelden yönetim
 
 **Çıktı:** Tek yerden framework yönetimi.
 

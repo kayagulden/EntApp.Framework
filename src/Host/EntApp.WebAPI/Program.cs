@@ -2,6 +2,7 @@ using System.Reflection;
 using Asp.Versioning;
 using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Infrastructure.Auth;
+using EntApp.Shared.Infrastructure.DynamicCrud;
 using EntApp.Shared.Infrastructure.Health;
 using EntApp.Shared.Infrastructure.Middleware;
 using EntApp.Shared.Infrastructure.Modules;
@@ -150,6 +151,13 @@ try
         // typeof(CMSModuleInstaller).Assembly,     // İleride eklenecek
     );
 
+    // ── Dynamic CRUD Engine ──────────────────────────────────
+    // [DynamicEntity] attribute'ü olan entity'ler için otomatik metadata + CRUD
+    builder.Services.AddDynamicCrud(
+        typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly
+        // Yeni modül assembly'leri eklendikçe buraya da eklenir
+    );
+
     // ═════════════════════════════════════════════════════════
     //  MIDDLEWARE PIPELINE
     // ═════════════════════════════════════════════════════════
@@ -211,6 +219,9 @@ try
         Predicate = check => check.Tags.Contains("ready"),
         ResponseWriter = WriteHealthCheckResponse
     });
+
+    // ── Dynamic CRUD Endpoints ───────────────────────────────
+    app.MapDynamicCrudEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();
