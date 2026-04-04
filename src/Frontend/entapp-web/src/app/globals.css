@@ -43,6 +43,10 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 
+  /* ── Input / Card ──────────────────────────────── */
+  --color-input-bg: #ffffff;
+  --color-card-bg: #ffffff;
+
   /* ── Radius ─────────────────────────────────────── */
   --radius: 0.5rem;
 }
@@ -70,6 +74,9 @@
   --color-sidebar-text: #e2e8f0;
   --color-sidebar-active: #818cf8;
   --color-sidebar-hover: #1e293b;
+
+  --color-input-bg: #1e293b;
+  --color-card-bg: #1e293b;
 }
 
 /* ── Base Styles ───────────────────────────────────── */
@@ -115,10 +122,19 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
 
 .animate-slide-in {
   animation: slide-in-left 0.2s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }

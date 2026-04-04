@@ -259,17 +259,24 @@
 - [x] DI extensions: `AddDynamicCrud()`, `AddDynamicDbContext<T>()`
 - [x] Host entegrasyonu: `Program.cs`
 
-### 8b — Frontend Render Engine
-- [ ] `DynamicPage.tsx` — orchestrator component
-- [ ] `DynamicTable.tsx` — TanStack Table + shadcn, metadata'dan otomatik kolon
-- [ ] `DynamicForm.tsx` — React Hook Form + Zod, metadata'dan otomatik form
-- [ ] `DynamicField.tsx` — field type → shadcn component router (Input, Select, DatePicker, Switch, Combobox...)
+### 8b — Frontend Render Engine ✅ (MVP)
+
+> **Tamamlanma:** 2026-04-04 (MVP)
+
+- [x] `DynamicPage.tsx` — orchestrator component
+- [x] `DynamicTable.tsx` — metadata'dan otomatik kolon, sort, pagination, row actions
+- [x] `DynamicForm.tsx` — React Hook Form + Zod (metadata'dan runtime schema), sheet dialog
+- [x] `DynamicField.tsx` — field type → component router (Input, Select, DatePicker, Switch, money prefix)
+- [x] `DynamicToolbar.tsx` — arama, yenile, yeni ekle
+- [x] `useDynamicMeta.ts` + `useDynamicMenu.ts` hooks — metadata + menu fetch + TanStack Query cache
+- [x] `useDynamicCrud.ts` hook — list, getById, create, update, delete, lookup mutations
+- [x] `schema-to-zod.ts` — metadata → Zod validation schema üretimi
+- [x] Otomatik sidebar menu (meta/menu endpoint'inden, dinamik bölüm)
+- [x] Dynamic route: `/dashboard/dynamic/[entityName]`
+- [x] `QueryClientProvider` wiring (`providers.tsx`)
 - [ ] `DynamicLookup.tsx` — async arama destekli combobox
 - [ ] `DynamicDetailTable.tsx` — master-detail alt tablo (inline edit, satır ekle/sil)
 - [ ] `DynamicFilters.tsx` — gelişmiş filtreleme paneli
-- [ ] `DynamicToolbar.tsx` — butonlar (Yeni Ekle, Dışa Aktar, Filtre)
-- [ ] `useDynamicMeta.ts` hook — metadata fetch + cache
-- [ ] `useDynamicCrud.ts` hook — CRUD operations
 - [ ] `schema-to-zod.ts` — metadata → Zod validation schema üretimi
 - [ ] Otomatik sidebar menu (meta/menu endpoint'inden)
 - [ ] Override mekanizmaları: config, fieldOverrides, detailOverrides
