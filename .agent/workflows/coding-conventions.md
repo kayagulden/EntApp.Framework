@@ -21,10 +21,12 @@ Bu kurallar tüm kod yazım, düzenleme ve modül oluşturma işlemlerinde geçe
 - Cross-module kontratlar `Shared.Contracts/` altında tanımlanır.
 
 ### Entity Kuralları
-- Tüm entity'ler `BaseEntity` veya `AuditableEntity`'den türer.
-- Her entity `RowVersion` (concurrency token) taşır — `BaseEntity`'de zaten mevcut.
+- Hiyerarşi: `BaseEntity<TId>` → `AuditableEntity<TId>` → `AggregateRoot<TId>`.
+- Aggregate root olan entity'ler `AggregateRoot<TId>`'den türer (domain events desteği).
+- Diğer entity'ler `AuditableEntity<TId>` veya `BaseEntity<TId>`'den türer.
+- Her entity `RowVersion` (concurrency token) taşır — `BaseEntity<TId>`'de zaten mevcut.
 - Multi-tenant entity'ler `ITenantEntity` interface'ini implement eder.
-- Strongly Typed ID kullanılır: `CustomerId`, `OrderId` vb. (`EntityId<T>` record struct).
+- Strongly Typed ID kullanılır: `CustomerId`, `OrderId` vb. (`IEntityId` interface, record struct).
 - Guid dışında primitive ID kullanmayın.
 - Soft delete: `IsDeleted = true` — unique constraint'ler `WHERE is_deleted = false` partial index ile tanımlanır.
 
@@ -136,8 +138,8 @@ frontend/src/
 ## 📋 Yeni Modül Ekleme Checklist
 
 1. `Modules/{Name}/` altında 4 proje oluştur (Domain, Application, Infrastructure, API)
-2. Entity'leri `BaseEntity`/`AuditableEntity` + `ITenantEntity`'den türet
-3. StronglyTypedId tanımla (ör: `public readonly record struct CustomerId(Guid Value);`)
+2. Aggregate root entity'leri `AggregateRoot<TId>` + `ITenantEntity`'den türet, diğerlerini `AuditableEntity<TId>`'den
+3. `Domain/Ids/` altında StronglyTypedId tanımla (ör: `public readonly record struct CustomerId(Guid Value) : IEntityId;`)
 4. `{Name}DbContext` oluştur, kendi schema'sını kullan
 5. `IModuleInstaller` interface'ini implement et → otomatik DI registration
 6. Integration Event'leri `Shared.Contracts/Events/` altına koy
