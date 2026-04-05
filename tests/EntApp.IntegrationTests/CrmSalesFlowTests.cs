@@ -1,7 +1,9 @@
 using EntApp.Modules.CRM.Domain.Entities;
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Modules.Sales.Domain.Entities;
 using EntApp.Modules.Sales.Domain.Enums;
+using EntApp.Modules.Sales.Domain.Ids;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -37,7 +39,7 @@ public class CrmSalesFlowTests
 
         // Simulate integration: fırsat kazanıldığında sipariş oluştur
         var order = SalesOrderBase.Create(
-            $"SO-OPP-{opportunity.Id.ToString()[..8]}", customer.Id, DateTime.UtcNow,
+            $"SO-OPP-{opportunity.Id.Value.ToString()[..8]}", customer.Id.Value, DateTime.UtcNow,
             customer.Name, "TRY");
 
         var item = OrderItemBase.Create(order.Id, Guid.NewGuid(),
@@ -91,7 +93,7 @@ public class CrmSalesFlowTests
         await procDb.SaveChangesAsync();
 
         var po = EntApp.Modules.Procurement.Domain.Entities.PurchaseOrderBase.Create(
-            "PO-001", supplier.Id, DateTime.UtcNow, "Test Tedarikçi",
+            "PO-001", new EntApp.Modules.Procurement.Domain.Ids.SupplierId(supplier.Id.Value), DateTime.UtcNow, "Test Tedarikçi",
             subTotal: 10_000, taxTotal: 2_000);
         procDb.PurchaseOrders.Add(po);
         await procDb.SaveChangesAsync();
@@ -113,7 +115,7 @@ public class CrmSalesFlowTests
         await financeDb.SaveChangesAsync();
 
         // 3-way match
-        po.MatchInvoice(invoice.Id);
+        po.MatchInvoice(invoice.Id.Value);
         await procDb.SaveChangesAsync();
 
         // Assert

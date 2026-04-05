@@ -1,5 +1,6 @@
 using EntApp.Modules.Procurement.Domain.Entities;
 using EntApp.Modules.Procurement.Domain.Enums;
+using EntApp.Modules.Procurement.Domain.Ids;
 using EntApp.Modules.Procurement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -116,7 +117,7 @@ public static class ProcurementEndpoints
             var query = db.PurchaseOrders.Include(o => o.Supplier).AsQueryable();
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<PurchaseOrderStatus>(status, out var s))
                 query = query.Where(o => o.Status == s);
-            if (supplierId.HasValue) query = query.Where(o => o.SupplierId == supplierId.Value);
+            if (supplierId.HasValue) query = query.Where(o => o.SupplierId.Value == supplierId.Value);
 
             var total = await query.CountAsync();
             var items = await query.OrderByDescending(o => o.OrderDate)
@@ -132,13 +133,13 @@ public static class ProcurementEndpoints
         po.MapGet("/{id:guid}", async (Guid id, ProcurementDbContext db) =>
         {
             var o = await db.PurchaseOrders.Include(x => x.Supplier)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id.Value == id);
             return o is null ? Results.NotFound() : Results.Ok(o);
         }).WithName("GetPurchaseOrder");
 
         po.MapPost("/", async (CreatePurchaseOrderReq req, ProcurementDbContext db) =>
         {
-            var po = PurchaseOrderBase.Create(req.OrderNumber, req.SupplierId,
+            var po = PurchaseOrderBase.Create(req.OrderNumber, new SupplierId(req.SupplierId),
                 req.OrderDate == default ? DateTime.UtcNow : req.OrderDate,
                 req.SupplierName, req.Currency ?? "TRY", req.ExpectedDeliveryDate,
                 req.ItemsJson, req.SubTotal, req.TaxTotal, req.Notes);

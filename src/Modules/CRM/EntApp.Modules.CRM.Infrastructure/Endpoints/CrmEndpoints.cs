@@ -1,5 +1,6 @@
 using EntApp.Modules.CRM.Domain.Entities;
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Modules.CRM.Application.IntegrationEvents;
 using EntApp.Modules.CRM.Infrastructure.Persistence;
 using EntApp.Shared.Contracts.Messaging;
@@ -40,7 +41,7 @@ public static class CrmEndpoints
         customers.MapGet("/{id:guid}", async (Guid id, CrmDbContext db) =>
         {
             var c = await db.Customers.Include(x => x.Contacts).Include(x => x.Opportunities)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id.Value == id);
             return c is null ? Results.NotFound() : Results.Ok(c);
         }).WithName("GetCustomer");
 
@@ -54,7 +55,7 @@ public static class CrmEndpoints
             await db.SaveChangesAsync();
 
             await eventBus.PublishAsync(new CustomerCreatedEvent(
-                customer.Id, customer.Name, customer.CustomerType.ToString(),
+                customer.Id.Value, customer.Name, customer.CustomerType.ToString(),
                 customer.Email, customer.TaxNumber));
 
             return Results.Created($"/api/crm/customers/{customer.Id}", new { customer.Id, customer.Name });
@@ -66,7 +67,7 @@ public static class CrmEndpoints
         contacts.MapGet("/", async (CrmDbContext db, Guid? customerId, int page = 1, int pageSize = 20) =>
         {
             var query = db.Contacts.AsQueryable();
-            if (customerId.HasValue) query = query.Where(c => c.CustomerId == customerId.Value);
+            if (customerId.HasValue) query = query.Where(c => c.CustomerId.Value == customerId.Value);
 
             var total = await query.CountAsync();
             var items = await query.OrderBy(c => c.LastName)
@@ -79,7 +80,7 @@ public static class CrmEndpoints
 
         contacts.MapPost("/", async (CreateContactRequest req, CrmDbContext db) =>
         {
-            var contact = ContactBase.Create(req.CustomerId, req.FirstName, req.LastName,
+            var contact = ContactBase.Create(new CustomerId(req.CustomerId), req.FirstName, req.LastName,
                 req.Title, req.Email, req.Phone, req.Department, req.IsPrimary);
             db.Contacts.Add(contact);
             await db.SaveChangesAsync();
@@ -95,7 +96,7 @@ public static class CrmEndpoints
             var query = db.Opportunities.Include(o => o.Customer).AsQueryable();
             if (!string.IsNullOrEmpty(stage) && Enum.TryParse<OpportunityStage>(stage, out var s))
                 query = query.Where(o => o.Stage == s);
-            if (customerId.HasValue) query = query.Where(o => o.CustomerId == customerId.Value);
+            if (customerId.HasValue) query = query.Where(o => o.CustomerId.Value == customerId.Value);
 
             var total = await query.CountAsync();
             var items = await query.OrderByDescending(o => o.CreatedAt)
@@ -111,7 +112,7 @@ public static class CrmEndpoints
         opps.MapPost("/", async (CreateOpportunityRequest req, CrmDbContext db) =>
         {
             Enum.TryParse<OpportunityStage>(req.Stage, out var stage);
-            var opp = OpportunityBase.Create(req.CustomerId, req.Title, req.EstimatedValue,
+            var opp = OpportunityBase.Create(new CustomerId(req.CustomerId), req.Title, req.EstimatedValue,
                 req.Currency ?? "TRY", stage, req.Description, req.ExpectedCloseDate, req.AssignedUserId);
             db.Opportunities.Add(opp);
             await db.SaveChangesAsync();
@@ -120,7 +121,7 @@ public static class CrmEndpoints
 
         opps.MapPost("/{id:guid}/advance", async (Guid id, AdvanceStageRequest req, CrmDbContext db, IEventBus eventBus) =>
         {
-            var opp = await db.Opportunities.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id == id);
+            var opp = await db.Opportunities.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id.Value == id);
             if (opp is null) return Results.NotFound();
             if (!Enum.TryParse<OpportunityStage>(req.Stage, out var stage))
                 return Results.BadRequest(new { error = "Invalid stage." });
@@ -129,11 +130,11 @@ public static class CrmEndpoints
 
             if (stage == OpportunityStage.ClosedWon)
                 await eventBus.PublishAsync(new OpportunityWonEvent(
-                    opp.Id, opp.Title, opp.CustomerId, opp.Customer.Name,
+                    opp.Id.Value, opp.Title, opp.CustomerId.Value, opp.Customer.Name,
                     opp.EstimatedValue, opp.Currency));
             else if (stage == OpportunityStage.ClosedLost)
                 await eventBus.PublishAsync(new OpportunityLostEvent(
-                    opp.Id, opp.Title, opp.CustomerId, opp.LostReason));
+                    opp.Id.Value, opp.Title, opp.CustomerId.Value, opp.LostReason));
 
             return Results.Ok(new { opp.Id, Stage = opp.Stage.ToString(), opp.Probability });
         }).WithName("AdvanceOpportunityStage");
@@ -157,7 +158,7 @@ public static class CrmEndpoints
             int page = 1, int pageSize = 20) =>
         {
             var query = db.Activities.AsQueryable();
-            if (customerId.HasValue) query = query.Where(a => a.CustomerId == customerId.Value);
+            if (customerId.HasValue) query = query.Where(a => a.CustomerId.HasValue && a.CustomerId.Value.Value == customerId.Value);
             if (!string.IsNullOrEmpty(type) && Enum.TryParse<ActivityType>(type, out var at))
                 query = query.Where(a => a.ActivityType == at);
 
@@ -174,8 +175,8 @@ public static class CrmEndpoints
         acts.MapPost("/", async (CreateActivityRequest req, CrmDbContext db) =>
         {
             Enum.TryParse<ActivityType>(req.ActivityType, out var type);
-            var activity = ActivityBase.Create(req.Subject, type, req.CustomerId,
-                req.OpportunityId, req.Description, req.DueDate, req.AssignedUserId);
+            var activity = ActivityBase.Create(req.Subject, type, req.CustomerId.HasValue ? new CustomerId(req.CustomerId.Value) : null,
+                req.OpportunityId.HasValue ? new OpportunityId(req.OpportunityId.Value) : null, req.Description, req.DueDate, req.AssignedUserId);
             db.Activities.Add(activity);
             await db.SaveChangesAsync();
             return Results.Created($"/api/crm/activities/{activity.Id}", new { activity.Id });

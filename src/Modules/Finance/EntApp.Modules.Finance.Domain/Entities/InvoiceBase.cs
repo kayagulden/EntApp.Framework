@@ -1,4 +1,5 @@
 using EntApp.Modules.Finance.Domain.Enums;
+using EntApp.Modules.Finance.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,12 +7,12 @@ namespace EntApp.Modules.Finance.Domain.Entities;
 
 /// <summary>Fatura — satış veya satın alma.</summary>
 [DynamicEntity("Invoice", MenuGroup = "Finans")]
-public sealed class InvoiceBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class InvoiceBase : AuditableEntity<InvoiceId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string InvoiceNumber { get; private set; } = string.Empty;
 
-    public Guid AccountId { get; private set; }
+    public AccountId AccountId { get; private set; }
     public InvoiceType InvoiceType { get; private set; } = InvoiceType.Sales;
     public InvoiceStatus Status { get; private set; } = InvoiceStatus.Draft;
 
@@ -38,13 +39,13 @@ public sealed class InvoiceBase : AuditableEntity<Guid>, ITenantEntity
 
     private InvoiceBase() { }
 
-    public static InvoiceBase Create(string invoiceNumber, Guid accountId,
+    public static InvoiceBase Create(string invoiceNumber, AccountId accountId,
         InvoiceType invoiceType, DateTime invoiceDate, DateTime dueDate,
         string currency = "TRY", string? notes = null)
     {
         return new InvoiceBase
         {
-            Id = Guid.NewGuid(), InvoiceNumber = invoiceNumber,
+            Id = EntityId.New<InvoiceId>(), InvoiceNumber = invoiceNumber,
             AccountId = accountId, InvoiceType = invoiceType,
             InvoiceDate = invoiceDate, DueDate = dueDate,
             Currency = currency, Notes = notes

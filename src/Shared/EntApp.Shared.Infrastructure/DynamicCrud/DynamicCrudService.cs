@@ -88,11 +88,12 @@ public sealed class DynamicCrudService : IDynamicCrudService
     {
         var (info, db, _) = ResolveEntity(entityName);
 
-        var entity = await db.FindAsync(info.ClrType, [id], ct);
+        var idKey = ConstructIdKey(info.ClrType, id);
+        var entity = await db.FindAsync(info.ClrType, [idKey], ct);
         if (entity is null) return null;
 
         // Soft delete kontrolü
-        if (entity is BaseEntity<Guid> baseEntity && baseEntity.IsDeleted)
+        if (GetBoolProperty(entity, "IsDeleted") == true)
             return null;
 
         return JsonSerializer.SerializeToElement(entity, info.ClrType, JsonOptions);
@@ -114,10 +115,12 @@ public sealed class DynamicCrudService : IDynamicCrudService
         var idProp = info.ClrType.GetProperty("Id");
         if (idProp is not null)
         {
-            var currentId = idProp.GetValue(entity);
-            if (currentId is Guid guid && guid == Guid.Empty)
+            var currentId = ExtractGuidFromId(idProp.GetValue(entity));
+            if (currentId == Guid.Empty)
             {
-                idProp.SetValue(entity, Guid.NewGuid());
+                var newGuid = Guid.CreateVersion7();
+                var newId = ConstructIdValue(idProp.PropertyType, newGuid);
+                idProp.SetValue(entity, newId);
             }
         }
 
@@ -127,9 +130,9 @@ public sealed class DynamicCrudService : IDynamicCrudService
         db.Add(entity);
         await db.SaveChangesAsync(ct);
 
-        var newId = idProp?.GetValue(entity) as Guid? ?? Guid.Empty;
-        _logger.LogInformation("[DynamicCrud] Created {Entity}: {Id}", entityName, newId);
-        return newId;
+        var newIdValue = ExtractGuidFromId(idProp?.GetValue(entity));
+        _logger.LogInformation("[DynamicCrud] Created {Entity}: {Id}", entityName, newIdValue);
+        return newIdValue;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -141,7 +144,8 @@ public sealed class DynamicCrudService : IDynamicCrudService
     {
         var (info, db, _) = ResolveEntity(entityName);
 
-        var existingEntity = await db.FindAsync(info.ClrType, [id], ct)
+        var idKey = ConstructIdKey(info.ClrType, id);
+        var existingEntity = await db.FindAsync(info.ClrType, [idKey], ct)
             ?? throw new KeyNotFoundException($"'{entityName}' with id '{id}' not found.");
 
         // body'deki property'leri mevcut entity'ye uygula
@@ -163,7 +167,8 @@ public sealed class DynamicCrudService : IDynamicCrudService
     {
         var (info, db, _) = ResolveEntity(entityName);
 
-        var entity = await db.FindAsync(info.ClrType, [id], ct)
+        var idKey = ConstructIdKey(info.ClrType, id);
+        var entity = await db.FindAsync(info.ClrType, [idKey], ct)
             ?? throw new KeyNotFoundException($"'{entityName}' with id '{id}' not found.");
 
         // Soft delete
@@ -200,7 +205,7 @@ public sealed class DynamicCrudService : IDynamicCrudService
 
         return items.Select(item => new LookupDto
         {
-            Id = (Guid)(idProp.GetValue(item) ?? Guid.Empty),
+            Id = ExtractGuidFromId(idProp.GetValue(item)),
             Text = displayProp?.GetValue(item)?.ToString() ?? item.ToString() ?? "",
             IsActive = GetBoolProperty(item, "IsActive") ?? true
         }).ToList();
@@ -387,4 +392,46 @@ public sealed class DynamicCrudService : IDynamicCrudService
 
     private static InvalidOperationException CreateSetError(string entityName) =>
         new($"Could not obtain DbSet for entity '{entityName}'. Ensure the entity is registered in a DbContext.");
+
+    // ═══════════════════════════════════════════════════════════
+    //  PRIVATE — IEntityId Support
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Entity'nin Id property tipi IEntityId ise Guid'den IEntityId'ye dönüştürür.
+    /// Düz Guid ise Guid olarak bırakır.
+    /// FindAsync'e parametre olarak verilir.
+    /// </summary>
+    private static object ConstructIdKey(Type entityType, Guid id)
+    {
+        var idProp = entityType.GetProperty("Id");
+        if (idProp is null) return id;
+        return ConstructIdValue(idProp.PropertyType, id);
+    }
+
+    /// <summary>
+    /// Verilen tip IEntityId ise Activator ile construct eder, değilse Guid döner.
+    /// </summary>
+    private static object ConstructIdValue(Type idType, Guid guid)
+    {
+        if (typeof(IEntityId).IsAssignableFrom(idType))
+        {
+            return Activator.CreateInstance(idType, guid)!;
+        }
+
+        return guid;
+    }
+
+    /// <summary>
+    /// Bir ID değerinden Guid çıkarır. IEntityId ise .Value, Guid ise doğrudan döner.
+    /// </summary>
+    private static Guid ExtractGuidFromId(object? idValue)
+    {
+        return idValue switch
+        {
+            IEntityId entityId => entityId.Value,
+            Guid guid => guid,
+            _ => Guid.Empty
+        };
+    }
 }

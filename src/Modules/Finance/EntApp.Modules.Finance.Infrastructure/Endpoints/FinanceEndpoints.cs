@@ -1,5 +1,6 @@
 using EntApp.Modules.Finance.Domain.Entities;
 using EntApp.Modules.Finance.Domain.Enums;
+using EntApp.Modules.Finance.Domain.Ids;
 using EntApp.Modules.Finance.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -89,14 +90,14 @@ public static class FinanceEndpoints
         {
             var invoice = await db.Invoices
                 .Include(i => i.Account).Include(i => i.Items)
-                .FirstOrDefaultAsync(i => i.Id == id);
+                .FirstOrDefaultAsync(i => i.Id.Value == id);
             return invoice is null ? Results.NotFound() : Results.Ok(invoice);
         }).WithName("GetInvoice");
 
         inv.MapPost("/", async (CreateInvoiceRequest req, FinanceDbContext db) =>
         {
             Enum.TryParse<InvoiceType>(req.InvoiceType, out var type);
-            var invoice = InvoiceBase.Create(req.InvoiceNumber, req.AccountId, type,
+            var invoice = InvoiceBase.Create(req.InvoiceNumber, new AccountId(req.AccountId), type,
                 req.InvoiceDate, req.DueDate, req.Currency ?? "TRY", req.Notes);
 
             // Kalemleri ekle
@@ -144,7 +145,7 @@ public static class FinanceEndpoints
             int page = 1, int pageSize = 20) =>
         {
             var query = db.Payments.Include(p => p.Account).AsQueryable();
-            if (accountId.HasValue) query = query.Where(p => p.AccountId == accountId.Value);
+            if (accountId.HasValue) query = query.Where(p => p.AccountId.Value == accountId.Value);
             if (!string.IsNullOrEmpty(direction) && Enum.TryParse<PaymentDirection>(direction, out var d))
                 query = query.Where(p => p.Direction == d);
 
@@ -163,8 +164,8 @@ public static class FinanceEndpoints
         {
             Enum.TryParse<PaymentDirection>(req.Direction, out var dir);
             Enum.TryParse<PaymentMethod>(req.Method, out var method);
-            var payment = PaymentBase.Create(req.AccountId, req.Amount, dir, method,
-                req.PaymentDate, req.InvoiceId, req.Currency ?? "TRY",
+            var payment = PaymentBase.Create(new AccountId(req.AccountId), req.Amount, dir, method,
+                req.PaymentDate, req.InvoiceId.HasValue ? new InvoiceId(req.InvoiceId.Value) : null, req.Currency ?? "TRY",
                 req.ReferenceNumber, req.Notes);
 
             db.Payments.Add(payment);

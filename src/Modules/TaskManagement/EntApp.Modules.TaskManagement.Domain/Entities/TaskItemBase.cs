@@ -1,4 +1,5 @@
 using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
@@ -7,9 +8,9 @@ namespace EntApp.Modules.TaskManagement.Domain.Entities;
 
 /// <summary>Görev / iş kalemi.</summary>
 [DynamicEntity("TaskItem", MenuGroup = "Proje Yönetimi")]
-public sealed class TaskItemBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
 {
-    public Guid ProjectId { get; private set; }
+    public ProjectId ProjectId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 20, Searchable = true)]
     public string TaskNumber { get; private set; } = string.Empty;
@@ -31,7 +32,7 @@ public sealed class TaskItemBase : AuditableEntity<Guid>, ITenantEntity
     public Guid? ReporterUserId { get; private set; }
 
     /// <summary>Üst görev (alt görev desteği)</summary>
-    public Guid? ParentTaskId { get; private set; }
+    public TaskItemId? ParentTaskId { get; private set; }
 
     public DateTime? DueDate { get; private set; }
 
@@ -56,15 +57,15 @@ public sealed class TaskItemBase : AuditableEntity<Guid>, ITenantEntity
 
     private TaskItemBase() { }
 
-    public static TaskItemBase Create(Guid projectId, string taskNumber, string title,
+    public static TaskItemBase Create(ProjectId projectId, string taskNumber, string title,
         TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
-        Guid? reporterUserId = null, Guid? parentTaskId = null,
+        Guid? reporterUserId = null, TaskItemId? parentTaskId = null,
         DateTime? dueDate = null, decimal estimatedHours = 0, string? tags = null)
     {
         return new TaskItemBase
         {
-            Id = Guid.NewGuid(), ProjectId = projectId, TaskNumber = taskNumber,
+            Id = EntityId.New<TaskItemId>(), ProjectId = projectId, TaskNumber = taskNumber,
             Title = title, Type = type, Priority = priority,
             Description = description, AssigneeUserId = assigneeUserId,
             ReporterUserId = reporterUserId, ParentTaskId = parentTaskId,

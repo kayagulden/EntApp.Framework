@@ -1,4 +1,5 @@
 using EntApp.Modules.Procurement.Domain.Enums;
+using EntApp.Modules.Procurement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Procurement.Domain.Entities;
 
 /// <summary>Satın alma talebi — onay akışına bağlanabilir.</summary>
 [DynamicEntity("PurchaseRequest", MenuGroup = "Satın Alma")]
-public sealed class PurchaseRequestBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class PurchaseRequestBase : AuditableEntity<PurchaseRequestId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string RequestNumber { get; private set; } = string.Empty;
@@ -48,7 +49,7 @@ public sealed class PurchaseRequestBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new PurchaseRequestBase
         {
-            Id = Guid.NewGuid(), RequestNumber = requestNumber,
+            Id = EntityId.New<PurchaseRequestId>(), RequestNumber = requestNumber,
             RequestedByUserId = requestedByUserId, Department = department,
             Description = description, ItemsJson = itemsJson ?? "[]",
             EstimatedTotal = estimatedTotal, Currency = currency,

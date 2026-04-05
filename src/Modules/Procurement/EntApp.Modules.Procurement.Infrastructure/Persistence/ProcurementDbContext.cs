@@ -1,4 +1,6 @@
 using EntApp.Modules.Procurement.Domain.Entities;
+using EntApp.Modules.Procurement.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Procurement.Infrastructure.Persistence;
@@ -23,6 +25,7 @@ public sealed class ProcurementDbContext : DbContext
         {
             e.ToTable("suppliers");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<SupplierId>());
             e.HasIndex(x => x.Code).IsUnique();
             e.HasIndex(x => x.Name);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
@@ -39,6 +42,7 @@ public sealed class ProcurementDbContext : DbContext
         {
             e.ToTable("purchase_requests");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<PurchaseRequestId>());
             e.HasIndex(x => x.RequestNumber).IsUnique();
             e.HasIndex(x => x.Status);
             e.Property(x => x.RequestNumber).HasMaxLength(50).IsRequired();
@@ -54,6 +58,8 @@ public sealed class ProcurementDbContext : DbContext
         {
             e.ToTable("purchase_orders");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<PurchaseOrderId>());
+            e.Property(x => x.SupplierId).HasConversion(new StronglyTypedIdValueConverter<SupplierId>());
             e.HasIndex(x => x.OrderNumber).IsUnique();
             e.HasIndex(x => x.SupplierId);
             e.HasIndex(x => x.Status);

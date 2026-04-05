@@ -1,4 +1,5 @@
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.HR.Domain.Entities;
 
 /// <summary>Çalışan — HR modülünün temel entity'si.</summary>
 [DynamicEntity("Employee", MenuGroup = "İnsan Kaynakları")]
-public sealed class EmployeeBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class EmployeeBase : AuditableEntity<EmployeeId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string EmployeeNumber { get; private set; } = string.Empty;
@@ -37,7 +38,7 @@ public sealed class EmployeeBase : AuditableEntity<Guid>, ITenantEntity
     public string? Position { get; private set; }
 
     /// <summary>Üst yönetici (organizasyon şeması)</summary>
-    public Guid? ManagerId { get; private set; }
+    public EmployeeId? ManagerId { get; private set; }
 
     public EmployeeStatus Status { get; private set; } = EmployeeStatus.Active;
     public EmploymentType EmploymentType { get; private set; } = EmploymentType.FullTime;
@@ -60,12 +61,12 @@ public sealed class EmployeeBase : AuditableEntity<Guid>, ITenantEntity
         DateTime hireDate, EmploymentType employmentType = EmploymentType.FullTime,
         string? email = null, string? phone = null, string? nationalId = null,
         DateTime? dateOfBirth = null, string? department = null,
-        string? position = null, Guid? managerId = null,
+        string? position = null, EmployeeId? managerId = null,
         int annualLeaveEntitlement = 14)
     {
         return new EmployeeBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<EmployeeId>(),
             EmployeeNumber = employeeNumber, FirstName = firstName, LastName = lastName,
             HireDate = hireDate, EmploymentType = employmentType,
             Email = email, Phone = phone, NationalId = nationalId,

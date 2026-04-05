@@ -1,4 +1,6 @@
 using EntApp.Modules.Inventory.Domain.Entities;
+using EntApp.Modules.Inventory.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Inventory.Infrastructure.Persistence;
@@ -23,6 +25,7 @@ public sealed class InventoryDbContext : DbContext
         {
             e.ToTable("products");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ProductId>());
             e.HasIndex(x => x.SKU).IsUnique();
             e.HasIndex(x => x.Barcode).HasFilter("\"Barcode\" IS NOT NULL");
             e.HasIndex(x => x.Category);
@@ -45,6 +48,7 @@ public sealed class InventoryDbContext : DbContext
         {
             e.ToTable("warehouses");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<WarehouseId>());
             e.HasIndex(x => x.Code).IsUnique();
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
@@ -57,6 +61,10 @@ public sealed class InventoryDbContext : DbContext
         {
             e.ToTable("stock_movements");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<StockMovementId>());
+            e.Property(x => x.ProductId).HasConversion(new StronglyTypedIdValueConverter<ProductId>());
+            e.Property(x => x.WarehouseId).HasConversion(new StronglyTypedIdValueConverter<WarehouseId>());
+            e.Property(x => x.TargetWarehouseId).HasConversion(new StronglyTypedIdValueConverter<WarehouseId>());
             e.HasIndex(x => x.ProductId);
             e.HasIndex(x => x.WarehouseId);
             e.HasIndex(x => x.MovementDate);

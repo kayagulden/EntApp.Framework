@@ -1,9 +1,12 @@
 using EntApp.Modules.Sales.Domain.Entities;
 using EntApp.Modules.Sales.Domain.Enums;
+using EntApp.Modules.Sales.Domain.Ids;
 using EntApp.Modules.Finance.Domain.Entities;
 using EntApp.Modules.Finance.Domain.Enums;
+using EntApp.Modules.Finance.Domain.Ids;
 using EntApp.Modules.Inventory.Domain.Entities;
 using EntApp.Modules.Inventory.Domain.Enums;
+using EntApp.Modules.Inventory.Domain.Ids;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -48,7 +51,7 @@ public class SalesInventoryFinanceSagaTests
         // Act — Sipariş oluştur ve onayla
         var order = SalesOrderBase.Create("SO-001", Guid.NewGuid(), DateTime.UtcNow,
             "Test Müşteri", "TRY");
-        var item = OrderItemBase.Create(order.Id, product.Id, "Test Ürün",
+        var item = OrderItemBase.Create(order.Id, product.Id.Value, "Test Ürün",
             quantity: 5, unitPrice: 100, taxRate: 20);
         order.Items.Add(item);
         order.Recalculate();

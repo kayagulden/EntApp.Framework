@@ -1,12 +1,13 @@
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 
 namespace EntApp.Modules.HR.Domain.Entities;
 
 /// <summary>Puantaj kaydı — günlük giriş/çıkış.</summary>
-public sealed class AttendanceBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class AttendanceBase : AuditableEntity<AttendanceId>, ITenantEntity
 {
-    public Guid EmployeeId { get; private set; }
+    public EmployeeId EmployeeId { get; private set; }
 
     public DateTime Date { get; private set; }
     public TimeSpan? CheckIn { get; private set; }
@@ -30,7 +31,7 @@ public sealed class AttendanceBase : AuditableEntity<Guid>, ITenantEntity
     private AttendanceBase() { }
 
     public static AttendanceBase Create(
-        Guid employeeId, DateTime date,
+        EmployeeId employeeId, DateTime date,
         TimeSpan? checkIn = null, TimeSpan? checkOut = null,
         AttendanceStatus status = AttendanceStatus.Present,
         string? notes = null)
@@ -41,7 +42,7 @@ public sealed class AttendanceBase : AuditableEntity<Guid>, ITenantEntity
 
         return new AttendanceBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<AttendanceId>(),
             EmployeeId = employeeId,
             Date = date.Date,
             CheckIn = checkIn,

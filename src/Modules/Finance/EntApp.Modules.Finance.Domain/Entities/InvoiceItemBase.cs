@@ -1,11 +1,12 @@
+using EntApp.Modules.Finance.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 
 namespace EntApp.Modules.Finance.Domain.Entities;
 
 /// <summary>Fatura kalemi.</summary>
-public sealed class InvoiceItemBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class InvoiceItemBase : AuditableEntity<InvoiceItemId>, ITenantEntity
 {
-    public Guid InvoiceId { get; private set; }
+    public InvoiceId InvoiceId { get; private set; }
 
     public string Description { get; private set; } = string.Empty;
     public decimal Quantity { get; private set; } = 1;
@@ -29,13 +30,13 @@ public sealed class InvoiceItemBase : AuditableEntity<Guid>, ITenantEntity
 
     private InvoiceItemBase() { }
 
-    public static InvoiceItemBase Create(Guid invoiceId, string description,
+    public static InvoiceItemBase Create(InvoiceId invoiceId, string description,
         decimal quantity, decimal unitPrice, decimal taxRate = 20, decimal discountRate = 0)
     {
         var lineTotal = quantity * unitPrice;
         return new InvoiceItemBase
         {
-            Id = Guid.NewGuid(), InvoiceId = invoiceId,
+            Id = EntityId.New<InvoiceItemId>(), InvoiceId = invoiceId,
             Description = description, Quantity = quantity,
             UnitPrice = unitPrice, TaxRate = taxRate, DiscountRate = discountRate,
             LineTotal = lineTotal,

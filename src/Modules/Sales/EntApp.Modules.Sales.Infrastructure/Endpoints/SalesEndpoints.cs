@@ -64,7 +64,7 @@ public static class SalesEndpoints
         orders.MapGet("/{id:guid}", async (Guid id, SalesDbContext db) =>
         {
             var order = await db.Orders.Include(o => o.Items)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id.Value == id);
             return order is null ? Results.NotFound() : Results.Ok(order);
         }).WithName("GetOrder");
 
@@ -95,14 +95,14 @@ public static class SalesEndpoints
         // ── Status transitions ───────────────────────────
         orders.MapPost("/{id:guid}/confirm", async (Guid id, SalesDbContext db, IEventBus eventBus) =>
         {
-            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id.Value == id);
             if (order is null) return Results.NotFound();
             order.Confirm();
             await db.SaveChangesAsync();
 
             // Integration Event: Inventory stok düşümü + Finance fatura oluşturma
             await eventBus.PublishAsync(new OrderConfirmedEvent(
-                order.Id, order.OrderNumber, order.CustomerId, order.CustomerName,
+                order.Id.Value, order.OrderNumber, order.CustomerId, order.CustomerName,
                 order.Currency, order.GrandTotal,
                 order.Items.Select(i => new OrderConfirmedEvent.OrderLineDto(
                     i.ProductId, i.ProductName, i.ProductSKU,
@@ -132,14 +132,14 @@ public static class SalesEndpoints
 
         orders.MapPost("/{id:guid}/cancel", async (Guid id, SalesDbContext db, IEventBus eventBus) =>
         {
-            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+            var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id.Value == id);
             if (order is null) return Results.NotFound();
             order.Cancel();
             await db.SaveChangesAsync();
 
             // Integration Event: Inventory stok iadesi
             await eventBus.PublishAsync(new OrderCancelledEvent(
-                order.Id, order.OrderNumber,
+                order.Id.Value, order.OrderNumber,
                 order.Items.Select(i => new OrderCancelledEvent.CancelledLineDto(
                     i.ProductId, i.Quantity)).ToList()));
 

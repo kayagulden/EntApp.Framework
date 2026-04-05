@@ -1,5 +1,6 @@
 using EntApp.Modules.Inventory.Domain.Entities;
 using EntApp.Modules.Inventory.Domain.Enums;
+using EntApp.Modules.Inventory.Domain.Ids;
 using EntApp.Modules.Inventory.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -85,8 +86,8 @@ public static class InventoryEndpoints
         {
             var query = db.StockMovements
                 .Include(m => m.Product).Include(m => m.Warehouse).AsQueryable();
-            if (productId.HasValue) query = query.Where(m => m.ProductId == productId.Value);
-            if (warehouseId.HasValue) query = query.Where(m => m.WarehouseId == warehouseId.Value);
+            if (productId.HasValue) query = query.Where(m => m.ProductId.Value == productId.Value);
+            if (warehouseId.HasValue) query = query.Where(m => m.WarehouseId.Value == warehouseId.Value);
             if (!string.IsNullOrEmpty(type) && Enum.TryParse<MovementType>(type, out var mt))
                 query = query.Where(m => m.MovementType == mt);
 
@@ -105,8 +106,8 @@ public static class InventoryEndpoints
         moves.MapPost("/", async (CreateStockMovementRequest req, InventoryDbContext db) =>
         {
             Enum.TryParse<MovementType>(req.MovementType, out var type);
-            var movement = StockMovementBase.Create(req.ProductId, req.WarehouseId, type,
-                req.Quantity, req.UnitCost, req.MovementDate, req.TargetWarehouseId,
+            var movement = StockMovementBase.Create(new ProductId(req.ProductId), new WarehouseId(req.WarehouseId), type,
+                req.Quantity, req.UnitCost, req.MovementDate, req.TargetWarehouseId.HasValue ? new WarehouseId(req.TargetWarehouseId.Value) : null,
                 req.ReferenceNumber, req.Notes);
             db.StockMovements.Add(movement);
             await db.SaveChangesAsync();
@@ -120,7 +121,7 @@ public static class InventoryEndpoints
         stock.MapGet("/balance", async (InventoryDbContext db, Guid? warehouseId) =>
         {
             var query = db.StockMovements.Include(m => m.Product).Include(m => m.Warehouse).AsQueryable();
-            if (warehouseId.HasValue) query = query.Where(m => m.WarehouseId == warehouseId.Value);
+            if (warehouseId.HasValue) query = query.Where(m => m.WarehouseId.Value == warehouseId.Value);
 
             var balance = await query
                 .GroupBy(m => new { m.ProductId, m.Product.SKU, m.Product.Name,
@@ -156,12 +157,12 @@ public static class InventoryEndpoints
 
             var alerts = products.Select(p =>
             {
-                var stockIn = movements.Where(m => m.ProductId == p.Id
+                var stockIn = movements.Where(m => m.ProductId.Value == p.Id.Value
                     && (m.MovementType == MovementType.StockIn || m.MovementType == MovementType.Return))
                     .Sum(m => m.Quantity);
-                var stockOut = movements.Where(m => m.ProductId == p.Id
+                var stockOut = movements.Where(m => m.ProductId.Value == p.Id.Value
                     && m.MovementType == MovementType.StockOut).Sum(m => m.Quantity);
-                var adj = movements.Where(m => m.ProductId == p.Id
+                var adj = movements.Where(m => m.ProductId.Value == p.Id.Value
                     && m.MovementType == MovementType.Adjustment).Sum(m => m.Quantity);
                 var current = stockIn - stockOut + adj;
 

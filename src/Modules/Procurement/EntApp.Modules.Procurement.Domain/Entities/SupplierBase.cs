@@ -1,4 +1,5 @@
 using EntApp.Modules.Procurement.Domain.Enums;
+using EntApp.Modules.Procurement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Procurement.Domain.Entities;
 
 /// <summary>Tedarikçi.</summary>
 [DynamicEntity("Supplier", MenuGroup = "Satın Alma")]
-public sealed class SupplierBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class SupplierBase : AuditableEntity<SupplierId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string Code { get; private set; } = string.Empty;
@@ -46,7 +47,7 @@ public sealed class SupplierBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new SupplierBase
         {
-            Id = Guid.NewGuid(), Code = code, Name = name,
+            Id = EntityId.New<SupplierId>(), Code = code, Name = name,
             Email = email, Phone = phone, Address = address,
             TaxNumber = taxNumber, ContactPerson = contactPerson,
             PaymentTermDays = paymentTermDays

@@ -1,4 +1,5 @@
 using EntApp.Modules.Inventory.Domain.Enums;
+using EntApp.Modules.Inventory.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Inventory.Domain.Entities;
 
 /// <summary>Ürün / malzeme.</summary>
 [DynamicEntity("Product", MenuGroup = "Stok")]
-public sealed class ProductBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class ProductBase : AuditableEntity<ProductId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string SKU { get; private set; } = string.Empty;
@@ -53,7 +54,7 @@ public sealed class ProductBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new ProductBase
         {
-            Id = Guid.NewGuid(), SKU = sku, Name = name,
+            Id = EntityId.New<ProductId>(), SKU = sku, Name = name,
             ProductType = productType, Unit = unit, Barcode = barcode,
             Description = description, Category = category,
             UnitPrice = unitPrice, CostPrice = costPrice, Currency = currency,

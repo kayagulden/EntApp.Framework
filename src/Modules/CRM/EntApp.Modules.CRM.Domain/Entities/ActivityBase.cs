@@ -1,4 +1,5 @@
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,15 +7,15 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 
 /// <summary>CRM aktivitesi — arama, e-posta, toplantı, not.</summary>
 [DynamicEntity("Activity", MenuGroup = "CRM")]
-public sealed class ActivityBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class ActivityBase : AuditableEntity<ActivityId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.Lookup)]
     [DynamicLookup(typeof(CustomerBase), DisplayField = "Name")]
-    public Guid? CustomerId { get; private set; }
+    public CustomerId? CustomerId { get; private set; }
 
     [DynamicField(FieldType = FieldType.Lookup)]
     [DynamicLookup(typeof(OpportunityBase), DisplayField = "Title")]
-    public Guid? OpportunityId { get; private set; }
+    public OpportunityId? OpportunityId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 200, Searchable = true)]
     public string Subject { get; private set; } = string.Empty;
@@ -46,13 +47,13 @@ public sealed class ActivityBase : AuditableEntity<Guid>, ITenantEntity
 
     public static ActivityBase Create(
         string subject, ActivityType type,
-        Guid? customerId = null, Guid? opportunityId = null,
+        CustomerId? customerId = null, OpportunityId? opportunityId = null,
         string? description = null, DateTime? dueDate = null,
         Guid? assignedUserId = null)
     {
         return new ActivityBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<ActivityId>(),
             Subject = subject, ActivityType = type,
             CustomerId = customerId, OpportunityId = opportunityId,
             Description = description, DueDate = dueDate,

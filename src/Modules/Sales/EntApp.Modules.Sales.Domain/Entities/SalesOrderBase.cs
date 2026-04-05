@@ -1,4 +1,5 @@
 using EntApp.Modules.Sales.Domain.Enums;
+using EntApp.Modules.Sales.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Sales.Domain.Entities;
 
 /// <summary>Satış siparişi.</summary>
 [DynamicEntity("SalesOrder", MenuGroup = "Satış")]
-public sealed class SalesOrderBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class SalesOrderBase : AggregateRoot<SalesOrderId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string OrderNumber { get; private set; } = string.Empty;
@@ -61,7 +62,7 @@ public sealed class SalesOrderBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new SalesOrderBase
         {
-            Id = Guid.NewGuid(), OrderNumber = orderNumber,
+            Id = EntityId.New<SalesOrderId>(), OrderNumber = orderNumber,
             CustomerId = customerId, CustomerName = customerName,
             OrderDate = orderDate, Currency = currency,
             ShippingAddress = shippingAddress, Notes = notes,

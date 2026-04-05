@@ -1,4 +1,5 @@
 using EntApp.Modules.Sales.Domain.Enums;
+using EntApp.Modules.Sales.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Sales.Domain.Entities;
 
 /// <summary>Fiyat listesi — ürün fiyatlandırma şablonu.</summary>
 [DynamicEntity("PriceList", MenuGroup = "Satış")]
-public sealed class PriceListBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class PriceListBase : AuditableEntity<PriceListId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string Code { get; private set; } = string.Empty;
@@ -36,7 +37,7 @@ public sealed class PriceListBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new PriceListBase
         {
-            Id = Guid.NewGuid(), Code = code, Name = name,
+            Id = EntityId.New<PriceListId>(), Code = code, Name = name,
             ListType = listType, Currency = currency,
             ValidFrom = validFrom, ValidTo = validTo,
             PriceItemsJson = priceItemsJson ?? "[]"

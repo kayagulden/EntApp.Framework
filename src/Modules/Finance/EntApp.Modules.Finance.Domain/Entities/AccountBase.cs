@@ -1,4 +1,5 @@
 using EntApp.Modules.Finance.Domain.Enums;
+using EntApp.Modules.Finance.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Finance.Domain.Entities;
 
 /// <summary>Cari hesap — müşteri, tedarikçi, banka, kasa.</summary>
 [DynamicEntity("Account", MenuGroup = "Finans")]
-public sealed class AccountBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class AccountBase : AuditableEntity<AccountId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string Code { get; private set; } = string.Empty;
@@ -49,7 +50,7 @@ public sealed class AccountBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new AccountBase
         {
-            Id = Guid.NewGuid(), Code = code, Name = name,
+            Id = EntityId.New<AccountId>(), Code = code, Name = name,
             AccountType = accountType, Currency = currency,
             TaxNumber = taxNumber, Email = email, Phone = phone, Address = address
         };

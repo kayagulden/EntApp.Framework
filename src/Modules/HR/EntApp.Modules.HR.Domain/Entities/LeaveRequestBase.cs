@@ -1,4 +1,5 @@
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,9 +7,9 @@ namespace EntApp.Modules.HR.Domain.Entities;
 
 /// <summary>İzin talebi — onay akışına bağlanabilir.</summary>
 [DynamicEntity("LeaveRequest", MenuGroup = "İnsan Kaynakları")]
-public sealed class LeaveRequestBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class LeaveRequestBase : AuditableEntity<LeaveRequestId>, ITenantEntity
 {
-    public Guid EmployeeId { get; private set; }
+    public EmployeeId EmployeeId { get; private set; }
 
     public LeaveType LeaveType { get; private set; } = LeaveType.Annual;
     public LeaveRequestStatus Status { get; private set; } = LeaveRequestStatus.Draft;
@@ -40,7 +41,7 @@ public sealed class LeaveRequestBase : AuditableEntity<Guid>, ITenantEntity
     private LeaveRequestBase() { }
 
     public static LeaveRequestBase Create(
-        Guid employeeId, LeaveType leaveType,
+        EmployeeId employeeId, LeaveType leaveType,
         DateTime startDate, DateTime endDate,
         string? reason = null)
     {
@@ -48,7 +49,7 @@ public sealed class LeaveRequestBase : AuditableEntity<Guid>, ITenantEntity
 
         return new LeaveRequestBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<LeaveRequestId>(),
             EmployeeId = employeeId,
             LeaveType = leaveType,
             StartDate = startDate,

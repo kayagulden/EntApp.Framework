@@ -1,4 +1,5 @@
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 
 /// <summary>Müşteri — CRM'in temel entity'si.</summary>
 [DynamicEntity("Customer", MenuGroup = "CRM")]
-public sealed class CustomerBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class CustomerBase : AggregateRoot<CustomerId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 200, Searchable = true)]
     public string Name { get; private set; } = string.Empty;
@@ -58,7 +59,7 @@ public sealed class CustomerBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new CustomerBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<CustomerId>(),
             Name = name, CustomerType = type, Code = code,
             Email = email, Phone = phone, Address = address,
             City = city, Country = country, TaxNumber = taxNumber,

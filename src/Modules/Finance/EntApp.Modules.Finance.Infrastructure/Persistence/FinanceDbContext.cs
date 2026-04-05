@@ -1,4 +1,6 @@
 using EntApp.Modules.Finance.Domain.Entities;
+using EntApp.Modules.Finance.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Finance.Infrastructure.Persistence;
@@ -24,6 +26,7 @@ public sealed class FinanceDbContext : DbContext
         {
             e.ToTable("accounts");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<AccountId>());
             e.HasIndex(x => x.Code).IsUnique();
             e.HasIndex(x => x.Name);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
@@ -41,6 +44,8 @@ public sealed class FinanceDbContext : DbContext
         {
             e.ToTable("invoices");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<InvoiceId>());
+            e.Property(x => x.AccountId).HasConversion(new StronglyTypedIdValueConverter<AccountId>());
             e.HasIndex(x => x.InvoiceNumber).IsUnique();
             e.HasIndex(x => x.AccountId);
             e.HasIndex(x => x.Status);
@@ -63,6 +68,8 @@ public sealed class FinanceDbContext : DbContext
         {
             e.ToTable("invoice_items");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<InvoiceItemId>());
+            e.Property(x => x.InvoiceId).HasConversion(new StronglyTypedIdValueConverter<InvoiceId>());
             e.HasIndex(x => x.InvoiceId);
             e.Property(x => x.Description).HasMaxLength(500).IsRequired();
             e.Property(x => x.Quantity).HasPrecision(18, 4);
@@ -79,6 +86,9 @@ public sealed class FinanceDbContext : DbContext
         {
             e.ToTable("payments");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<PaymentId>());
+            e.Property(x => x.AccountId).HasConversion(new StronglyTypedIdValueConverter<AccountId>());
+            e.Property(x => x.InvoiceId).HasConversion(new StronglyTypedIdValueConverter<InvoiceId>());
             e.HasIndex(x => x.AccountId);
             e.HasIndex(x => x.PaymentDate);
             e.Property(x => x.Amount).HasPrecision(18, 2);

@@ -1,12 +1,14 @@
 using EntApp.Modules.Sales.Domain.Entities;
+using EntApp.Shared.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Sales.Infrastructure.Persistence;
 
 /// <summary>Sales modülü DbContext — schema: sales</summary>
-public sealed class SalesDbContext : DbContext
+public sealed class SalesDbContext : BaseDbContext
 {
     public const string Schema = "sales";
+    protected override string SchemaName => Schema;
 
     public DbSet<SalesOrderBase> Orders => Set<SalesOrderBase>();
     public DbSet<OrderItemBase> OrderItems => Set<OrderItemBase>();
@@ -17,25 +19,30 @@ public sealed class SalesDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<PriceListBase>(e =>
         {
             e.ToTable("price_lists");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.Code).IsUnique();
+            e.HasIndex(x => x.Code)
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Currency).HasMaxLength(10);
             e.Property(x => x.ListType).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.PriceItemsJson).HasColumnType("jsonb");
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<SalesOrderBase>(e =>
         {
             e.ToTable("orders");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.OrderNumber).IsUnique();
+            e.HasIndex(x => x.OrderNumber)
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
             e.HasIndex(x => x.CustomerId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.OrderDate);
@@ -49,6 +56,8 @@ public sealed class SalesDbContext : DbContext
             e.Property(x => x.TaxTotal).HasPrecision(18, 2);
             e.Property(x => x.DiscountTotal).HasPrecision(18, 2);
             e.Property(x => x.GrandTotal).HasPrecision(18, 2);
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<OrderItemBase>(e =>
@@ -66,6 +75,8 @@ public sealed class SalesDbContext : DbContext
             e.Property(x => x.TaxAmount).HasPrecision(18, 2);
             e.Property(x => x.DiscountAmount).HasPrecision(18, 2);
             e.Property(x => x.DiscountType).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
             e.HasOne(x => x.Order).WithMany(o => o.Items).HasForeignKey(x => x.OrderId);
         });
     }

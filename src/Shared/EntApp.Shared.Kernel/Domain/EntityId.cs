@@ -23,7 +23,7 @@ public interface IEntityId
 public static class EntityId
 {
     public static T New<T>() where T : struct, IEntityId
-        => Create<T>(Guid.NewGuid());
+        => Create<T>(Guid.CreateVersion7());
 
     public static T From<T>(Guid value) where T : struct, IEntityId
     {

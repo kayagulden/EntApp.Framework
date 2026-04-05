@@ -1,4 +1,5 @@
 using EntApp.Modules.Inventory.Domain.Enums;
+using EntApp.Modules.Inventory.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.Inventory.Domain.Entities;
 
 /// <summary>Depo / lokasyon.</summary>
 [DynamicEntity("Warehouse", MenuGroup = "Stok")]
-public sealed class WarehouseBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class WarehouseBase : AuditableEntity<WarehouseId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 50, Searchable = true)]
     public string Code { get; private set; } = string.Empty;
@@ -34,7 +35,7 @@ public sealed class WarehouseBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new WarehouseBase
         {
-            Id = Guid.NewGuid(), Code = code, Name = name,
+            Id = EntityId.New<WarehouseId>(), Code = code, Name = name,
             Address = address, City = city, ManagerUserId = managerUserId
         };
     }

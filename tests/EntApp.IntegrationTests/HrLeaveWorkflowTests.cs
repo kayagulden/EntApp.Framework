@@ -1,5 +1,6 @@
 using EntApp.Modules.HR.Domain.Entities;
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;

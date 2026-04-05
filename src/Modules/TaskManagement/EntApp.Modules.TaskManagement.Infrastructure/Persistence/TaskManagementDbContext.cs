@@ -1,4 +1,6 @@
 using EntApp.Modules.TaskManagement.Domain.Entities;
+using EntApp.Modules.TaskManagement.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
 
@@ -25,6 +27,7 @@ public sealed class TaskManagementDbContext : DbContext
         {
             e.ToTable("projects");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
             e.HasIndex(x => x.Key).IsUnique();
             e.Property(x => x.Key).HasMaxLength(10).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
@@ -36,6 +39,9 @@ public sealed class TaskManagementDbContext : DbContext
         {
             e.ToTable("tasks");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.ParentTaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
             e.HasIndex(x => x.TaskNumber).IsUnique();
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.Status);
@@ -57,6 +63,8 @@ public sealed class TaskManagementDbContext : DbContext
         {
             e.ToTable("comments");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<CommentId>());
+            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
             e.HasIndex(x => x.TaskId);
             e.Property(x => x.Content).HasMaxLength(5000).IsRequired();
             e.HasOne(x => x.Task).WithMany(t => t.Comments).HasForeignKey(x => x.TaskId);
@@ -66,6 +74,8 @@ public sealed class TaskManagementDbContext : DbContext
         {
             e.ToTable("time_entries");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TimeEntryId>());
+            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
             e.HasIndex(x => x.TaskId);
             e.HasIndex(x => x.UserId);
             e.Property(x => x.Hours).HasPrecision(8, 2);

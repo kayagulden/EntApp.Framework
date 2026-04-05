@@ -1,5 +1,7 @@
 using EntApp.Modules.HR.Domain.Entities;
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.HR.Infrastructure.Persistence;
@@ -24,6 +26,8 @@ public sealed class HrDbContext : DbContext
         {
             e.ToTable("employees");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<EmployeeId>());
+            e.Property(x => x.ManagerId).HasConversion(new StronglyTypedIdValueConverter<EmployeeId>());
             e.HasIndex(x => x.EmployeeNumber).IsUnique();
             e.HasIndex(x => x.Department);
             e.Property(x => x.EmployeeNumber).HasMaxLength(50).IsRequired();
@@ -44,6 +48,8 @@ public sealed class HrDbContext : DbContext
         {
             e.ToTable("leave_requests");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<LeaveRequestId>());
+            e.Property(x => x.EmployeeId).HasConversion(new StronglyTypedIdValueConverter<EmployeeId>());
             e.HasIndex(x => x.EmployeeId);
             e.HasIndex(x => x.Status);
             e.Property(x => x.LeaveType).HasConversion<string>().HasMaxLength(20);
@@ -57,6 +63,8 @@ public sealed class HrDbContext : DbContext
         {
             e.ToTable("attendances");
             e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<AttendanceId>());
+            e.Property(x => x.EmployeeId).HasConversion(new StronglyTypedIdValueConverter<EmployeeId>());
             e.HasIndex(x => new { x.EmployeeId, x.Date }).IsUnique();
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.WorkedHours).HasPrecision(5, 2);

@@ -1,5 +1,6 @@
 using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Modules.TaskManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -54,7 +55,7 @@ public static class TaskManagementEndpoints
             string? assignee, string? priority, int page = 1, int pageSize = 20) =>
         {
             var query = db.Tasks.Include(t => t.Project).AsQueryable();
-            if (projectId.HasValue) query = query.Where(t => t.ProjectId == projectId.Value);
+            if (projectId.HasValue) query = query.Where(t => t.ProjectId.Value == projectId.Value);
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<TaskStatusEnum>(status, out var s))
                 query = query.Where(t => t.Status == s);
             if (!string.IsNullOrEmpty(priority) && Enum.TryParse<TaskPriority>(priority, out var p))
@@ -78,7 +79,7 @@ public static class TaskManagementEndpoints
         tasks.MapGet("/{id:guid}", async (Guid id, TaskManagementDbContext db) =>
         {
             var t = await db.Tasks.Include(x => x.SubTasks).Include(x => x.Comments)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id.Value == id);
             return t is null ? Results.NotFound() : Results.Ok(t);
         }).WithName("GetTask");
 
@@ -92,7 +93,7 @@ public static class TaskManagementEndpoints
             var taskNumber = project.NextTaskNumber();
 
             var task = TaskItemBase.Create(project.Id, taskNumber, req.Title, type, priority,
-                req.Description, req.AssigneeUserId, req.ReporterUserId, req.ParentTaskId,
+                req.Description, req.AssigneeUserId, req.ReporterUserId, req.ParentTaskId.HasValue ? new TaskItemId(req.ParentTaskId.Value) : null,
                 req.DueDate, req.EstimatedHours, req.Tags);
             db.Tasks.Add(task);
             await db.SaveChangesAsync();
@@ -126,7 +127,7 @@ public static class TaskManagementEndpoints
         // ── Kanban board ─────────────────────────────────
         tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, TaskManagementDbContext db) =>
         {
-            var tasks2 = await db.Tasks.Where(t => t.ProjectId == projectId)
+            var tasks2 = await db.Tasks.Where(t => t.ProjectId.Value == projectId)
                 .OrderBy(t => t.SortOrder)
                 .Select(t => new { t.Id, t.TaskNumber, t.Title,
                     Status = t.Status.ToString(), Priority = t.Priority.ToString(),
@@ -144,7 +145,7 @@ public static class TaskManagementEndpoints
 
         comments.MapGet("/{taskId:guid}", async (Guid taskId, TaskManagementDbContext db) =>
         {
-            var items = await db.Comments.Where(c => c.TaskId == taskId)
+            var items = await db.Comments.Where(c => c.TaskId.Value == taskId)
                 .OrderBy(c => c.CreatedAt)
                 .Select(c => new { c.Id, c.AuthorUserId, c.Content, c.CreatedAt })
                 .ToListAsync();
@@ -153,7 +154,7 @@ public static class TaskManagementEndpoints
 
         comments.MapPost("/", async (CreateCommentRequest req, TaskManagementDbContext db) =>
         {
-            var comment = CommentBase.Create(req.TaskId, req.AuthorUserId, req.Content);
+            var comment = CommentBase.Create(new TaskItemId(req.TaskId), req.AuthorUserId, req.Content);
             db.Comments.Add(comment);
             await db.SaveChangesAsync();
             return Results.Created($"/api/pm/comments/{comment.Id}", new { comment.Id });
@@ -166,7 +167,7 @@ public static class TaskManagementEndpoints
             int page = 1, int pageSize = 20) =>
         {
             var query = db.TimeEntries.AsQueryable();
-            if (taskId.HasValue) query = query.Where(t => t.TaskId == taskId.Value);
+            if (taskId.HasValue) query = query.Where(t => t.TaskId.Value == taskId.Value);
             if (userId.HasValue) query = query.Where(t => t.UserId == userId.Value);
 
             var total = await query.CountAsync();
@@ -179,7 +180,7 @@ public static class TaskManagementEndpoints
 
         time.MapPost("/", async (CreateTimeEntryRequest req, TaskManagementDbContext db) =>
         {
-            var entry = TimeEntryBase.Create(req.TaskId, req.UserId, req.Hours,
+            var entry = TimeEntryBase.Create(new TaskItemId(req.TaskId), req.UserId, req.Hours,
                 req.WorkDate, req.Description);
             db.TimeEntries.Add(entry);
             await db.SaveChangesAsync();

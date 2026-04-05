@@ -1,4 +1,5 @@
 using EntApp.Modules.CRM.Domain.Enums;
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,11 +7,11 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 
 /// <summary>Satış fırsatı — pipeline yönetimi.</summary>
 [DynamicEntity("Opportunity", MenuGroup = "CRM")]
-public sealed class OpportunityBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class OpportunityBase : AuditableEntity<OpportunityId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.Lookup, Required = true)]
     [DynamicLookup(typeof(CustomerBase), DisplayField = "Name")]
-    public Guid CustomerId { get; private set; }
+    public CustomerId CustomerId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 200, Searchable = true)]
     public string Title { get; private set; } = string.Empty;
@@ -48,14 +49,14 @@ public sealed class OpportunityBase : AuditableEntity<Guid>, ITenantEntity
     private OpportunityBase() { }
 
     public static OpportunityBase Create(
-        Guid customerId, string title, decimal estimatedValue = 0,
+        CustomerId customerId, string title, decimal estimatedValue = 0,
         string currency = "TRY", OpportunityStage stage = OpportunityStage.Lead,
         string? description = null, DateTime? expectedCloseDate = null,
         Guid? assignedUserId = null)
     {
         return new OpportunityBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<OpportunityId>(),
             CustomerId = customerId, Title = title,
             EstimatedValue = estimatedValue, Currency = currency,
             Stage = stage, Description = description,

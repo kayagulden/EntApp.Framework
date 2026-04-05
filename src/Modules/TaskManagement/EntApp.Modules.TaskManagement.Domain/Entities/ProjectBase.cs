@@ -1,4 +1,5 @@
 using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -6,7 +7,7 @@ namespace EntApp.Modules.TaskManagement.Domain.Entities;
 
 /// <summary>Proje.</summary>
 [DynamicEntity("Project", MenuGroup = "Proje Yönetimi")]
-public sealed class ProjectBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 10, Searchable = true)]
     public string Key { get; private set; } = string.Empty;
@@ -40,7 +41,7 @@ public sealed class ProjectBase : AuditableEntity<Guid>, ITenantEntity
     {
         return new ProjectBase
         {
-            Id = Guid.NewGuid(), Key = key.ToUpperInvariant(), Name = name,
+            Id = EntityId.New<ProjectId>(), Key = key.ToUpperInvariant(), Name = name,
             Description = description, StartDate = startDate, EndDate = endDate,
             ManagerUserId = managerUserId
         };

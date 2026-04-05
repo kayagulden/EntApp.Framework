@@ -1,5 +1,6 @@
 using EntApp.Modules.HR.Domain.Entities;
 using EntApp.Modules.HR.Domain.Enums;
+using EntApp.Modules.HR.Domain.Ids;
 using EntApp.Modules.HR.Application.IntegrationEvents;
 using EntApp.Modules.HR.Infrastructure.Persistence;
 using EntApp.Shared.Contracts.Messaging;
@@ -44,7 +45,7 @@ public static class HrEndpoints
         emp.MapGet("/{id:guid}", async (Guid id, HrDbContext db) =>
         {
             var e = await db.Employees.Include(x => x.DirectReports)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id.Value == id);
             return e is null ? Results.NotFound() : Results.Ok(e);
         }).WithName("GetEmployee");
 
@@ -53,7 +54,7 @@ public static class HrEndpoints
             Enum.TryParse<EmploymentType>(req.EmploymentType, out var empType);
             var employee = EmployeeBase.Create(req.EmployeeNumber, req.FirstName, req.LastName,
                 req.HireDate, empType, req.Email, req.Phone, req.NationalId,
-                req.DateOfBirth, req.Department, req.Position, req.ManagerId,
+                req.DateOfBirth, req.Department, req.Position, req.ManagerId.HasValue ? new EmployeeId(req.ManagerId.Value) : null,
                 req.AnnualLeaveEntitlement);
             db.Employees.Add(employee);
             await db.SaveChangesAsync();
@@ -78,7 +79,7 @@ public static class HrEndpoints
             int page = 1, int pageSize = 20) =>
         {
             var query = db.LeaveRequests.Include(l => l.Employee).AsQueryable();
-            if (employeeId.HasValue) query = query.Where(l => l.EmployeeId == employeeId.Value);
+            if (employeeId.HasValue) query = query.Where(l => l.EmployeeId.Value == employeeId.Value);
             if (!string.IsNullOrEmpty(status) && Enum.TryParse<LeaveRequestStatus>(status, out var s))
                 query = query.Where(l => l.Status == s);
 
@@ -97,7 +98,7 @@ public static class HrEndpoints
         leave.MapPost("/", async (CreateLeaveRequest req, HrDbContext db) =>
         {
             Enum.TryParse<LeaveType>(req.LeaveType, out var type);
-            var request = LeaveRequestBase.Create(req.EmployeeId, type,
+            var request = LeaveRequestBase.Create(new EmployeeId(req.EmployeeId), type,
                 req.StartDate, req.EndDate, req.Reason);
             request.Submit();
             db.LeaveRequests.Add(request);
@@ -108,13 +109,13 @@ public static class HrEndpoints
 
         leave.MapPost("/{id:guid}/approve", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
         {
-            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id == id);
+            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id.Value == id);
             if (lr is null) return Results.NotFound();
             lr.Approve(req.UserId, req.Comment);
             await db.SaveChangesAsync();
 
             await eventBus.PublishAsync(new LeaveApprovedEvent(
-                lr.Id, lr.EmployeeId, lr.Employee.FullName,
+                lr.Id.Value, lr.EmployeeId.Value, lr.Employee.FullName,
                 lr.LeaveType.ToString(), lr.StartDate, lr.EndDate,
                 lr.TotalDays, req.UserId));
 
@@ -123,13 +124,13 @@ public static class HrEndpoints
 
         leave.MapPost("/{id:guid}/reject", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
         {
-            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id == id);
+            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id.Value == id);
             if (lr is null) return Results.NotFound();
             lr.Reject(req.UserId, req.Comment);
             await db.SaveChangesAsync();
 
             await eventBus.PublishAsync(new LeaveRejectedEvent(
-                lr.Id, lr.EmployeeId, lr.Employee.FullName,
+                lr.Id.Value, lr.EmployeeId.Value, lr.Employee.FullName,
                 lr.LeaveType.ToString(), req.UserId, req.Comment));
 
             return Results.Ok(new { lr.Id, Status = lr.Status.ToString() });
@@ -142,7 +143,7 @@ public static class HrEndpoints
             if (employee is null) return Results.NotFound();
 
             var usedDays = await db.LeaveRequests
-                .Where(l => l.EmployeeId == employeeId && l.LeaveType == LeaveType.Annual
+                .Where(l => l.EmployeeId.Value == employeeId && l.LeaveType == LeaveType.Annual
                     && l.Status == LeaveRequestStatus.Approved
                     && l.StartDate.Year == DateTime.UtcNow.Year)
                 .SumAsync(l => l.TotalDays);
@@ -165,7 +166,7 @@ public static class HrEndpoints
             int page = 1, int pageSize = 20) =>
         {
             var query = db.Attendances.AsQueryable();
-            if (employeeId.HasValue) query = query.Where(a => a.EmployeeId == employeeId.Value);
+            if (employeeId.HasValue) query = query.Where(a => a.EmployeeId.Value == employeeId.Value);
             if (date.HasValue) query = query.Where(a => a.Date == date.Value.Date);
 
             var total = await query.CountAsync();
@@ -181,7 +182,7 @@ public static class HrEndpoints
         att.MapPost("/", async (CreateAttendanceRequest req, HrDbContext db) =>
         {
             Enum.TryParse<AttendanceStatus>(req.Status, out var status);
-            var attendance = AttendanceBase.Create(req.EmployeeId, req.Date,
+            var attendance = AttendanceBase.Create(new EmployeeId(req.EmployeeId), req.Date,
                 req.CheckIn, req.CheckOut, status, req.Notes);
             db.Attendances.Add(attendance);
             await db.SaveChangesAsync();

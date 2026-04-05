@@ -1,5 +1,6 @@
 using EntApp.Modules.Inventory.Domain.Entities;
 using EntApp.Modules.Inventory.Domain.Enums;
+using EntApp.Modules.Inventory.Domain.Ids;
 using EntApp.Modules.Inventory.Infrastructure.Persistence;
 using EntApp.Modules.Procurement.Application.IntegrationEvents;
 using EntApp.Modules.Sales.Application.IntegrationEvents;
@@ -37,7 +38,7 @@ public sealed class OrderConfirmedStockHandler : INotificationHandler<OrderConfi
         foreach (var line in notification.Lines)
         {
             var movement = StockMovementBase.Create(
-                line.ProductId, warehouse.Id,
+                new ProductId(line.ProductId), warehouse.Id,
                 MovementType.StockOut, line.Quantity,
                 unitCost: 0, referenceNumber: notification.OrderNumber);
             _db.StockMovements.Add(movement);
@@ -72,7 +73,7 @@ public sealed class OrderCancelledStockHandler : INotificationHandler<OrderCance
         foreach (var line in notification.Lines)
         {
             var movement = StockMovementBase.Create(
-                line.ProductId, warehouse.Id,
+                new ProductId(line.ProductId), warehouse.Id,
                 MovementType.Return, line.Quantity,
                 referenceNumber: $"CANCEL-{notification.OrderNumber}");
             _db.StockMovements.Add(movement);
@@ -111,7 +112,7 @@ public sealed class GoodsReceivedStockHandler : INotificationHandler<GoodsReceiv
         foreach (var line in notification.Lines)
         {
             var movement = StockMovementBase.Create(
-                line.ProductId, warehouse.Id,
+                new ProductId(line.ProductId), warehouse.Id,
                 MovementType.StockIn, line.Quantity,
                 unitCost: line.UnitCost, referenceNumber: notification.OrderNumber);
             _db.StockMovements.Add(movement);

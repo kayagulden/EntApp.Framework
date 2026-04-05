@@ -1,3 +1,4 @@
+using EntApp.Modules.CRM.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
 
@@ -5,11 +6,11 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 
 /// <summary>Müşteri ilgili kişisi.</summary>
 [DynamicEntity("Contact", MenuGroup = "CRM")]
-public sealed class ContactBase : AuditableEntity<Guid>, ITenantEntity
+public sealed class ContactBase : AuditableEntity<ContactId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.Lookup, Required = true)]
     [DynamicLookup(typeof(CustomerBase), DisplayField = "Name")]
-    public Guid CustomerId { get; private set; }
+    public CustomerId CustomerId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 100, Searchable = true)]
     public string FirstName { get; private set; } = string.Empty;
@@ -43,13 +44,13 @@ public sealed class ContactBase : AuditableEntity<Guid>, ITenantEntity
     private ContactBase() { }
 
     public static ContactBase Create(
-        Guid customerId, string firstName, string lastName,
+        CustomerId customerId, string firstName, string lastName,
         string? title = null, string? email = null, string? phone = null,
         string? department = null, bool isPrimary = false)
     {
         return new ContactBase
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<ContactId>(),
             CustomerId = customerId, FirstName = firstName, LastName = lastName,
             Title = title, Email = email, Phone = phone,
             Department = department, IsPrimary = isPrimary
