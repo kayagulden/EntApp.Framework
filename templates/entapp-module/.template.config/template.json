@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "EntApp Framework",
+  "classifications": ["EntApp", "Module", "Modular Monolith"],
+  "identity": "EntApp.Module.Template",
+  "name": "EntApp Module",
+  "shortName": "entapp-module",
+  "description": "EntApp Framework için yeni modül scaffold'u oluşturur (Domain, Application, Infrastructure).",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "MyModule",
+  "preferNameDirectory": false,
+  "symbols": {
+    "schema": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "PostgreSQL schema adı. Örn: req",
+      "isRequired": true,
+      "replaces": "moduleschema"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".template.config/**"
+          ]
+        }
+      ],
+      "rename": {
+        "EntApp.Modules.MyModule.Domain": "EntApp.Modules.MyModule.Domain",
+        "EntApp.Modules.MyModule.Application": "EntApp.Modules.MyModule.Application",
+        "EntApp.Modules.MyModule.Infrastructure": "EntApp.Modules.MyModule.Infrastructure"
+      }
+    }
+  ]
+}
