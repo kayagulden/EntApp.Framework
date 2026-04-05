@@ -19,6 +19,7 @@ using EntApp.Modules.Inventory.Infrastructure.Endpoints;
 using EntApp.Modules.Sales.Infrastructure.Endpoints;
 using EntApp.Modules.Procurement.Infrastructure.Endpoints;
 using EntApp.Modules.TaskManagement.Infrastructure.Endpoints;
+using EntApp.Modules.RequestManagement.Infrastructure.Endpoints;
 using EntApp.WebAPI.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -188,7 +189,8 @@ try
         typeof(EntApp.Modules.TaskManagement.Infrastructure.TaskManagementModuleInstaller).Assembly,
         typeof(EntApp.Modules.Notification.Infrastructure.NotificationModuleInstaller).Assembly,
         typeof(EntApp.Modules.Localization.Infrastructure.LocalizationModuleInstaller).Assembly,
-        typeof(EntApp.Modules.FileManagement.Infrastructure.FileModuleInstaller).Assembly
+        typeof(EntApp.Modules.FileManagement.Infrastructure.FileModuleInstaller).Assembly,
+        typeof(EntApp.Modules.RequestManagement.Infrastructure.RequestManagementModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
@@ -275,6 +277,7 @@ try
         await EnsureModuleTables<EntApp.Modules.Notification.Infrastructure.Persistence.NotificationDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Localization.Infrastructure.Persistence.LocalizationDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.FileManagement.Infrastructure.Persistence.FileDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext>(sp);
 
         Log.Information("[DB] All module schemas ensured.");
     }
@@ -357,6 +360,7 @@ try
     app.MapSalesEndpoints();
     app.MapProcurementEndpoints();
     app.MapTaskManagementEndpoints();
+    app.MapRequestManagementEndpoints();
     app.MapAdminEndpoints();
     app.MapTenantManageEndpoints();
 

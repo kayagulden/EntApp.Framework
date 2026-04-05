@@ -668,6 +668,7 @@
 - [x] HTTPS/HSTS enforcement — production ortamında aktif
 - [x] API key yönetimi — `ApiKeyAuthenticationHandler.cs` (X-API-Key header, dual scheme: Bearer + ApiKey)
 - [x] `appsettings.json` Security section eklendi
+- [ ] **Backlog:** API Key yönetim sayfası (`/admin/api-keys`) — DB-driven, CRUD + revoke, hash, expire desteği
 
 **Çıktı:** CI/CD otomatik, monitoring hazır, Kubernetes'e deploy edilebilir.
 
@@ -715,12 +716,18 @@
 > - Workflow'u başlatma → `IWorkflowEngine.StartAsync()` ile (ISender üzerinden)
 
 ### 16a — Request Management (Talep Yönetimi)
-- [ ] `Ticket`, `TicketComment`, `TicketStatusHistory`, `SlaDefinition`, `Department`, `RequestCategory` entity'leri
-- [ ] Talep oluşturma + SLA takibi + eskalasyon
+
+> **Backend tamamlanma:** 2026-04-05
+
+- [x] `Department`, `RequestCategory`, `SlaDefinition`, `Ticket`, `TicketComment`, `TicketStatusHistory` entity'leri
+- [x] Talep oluşturma + SLA takibi (`SlaCalculator`, otomatik deadline hesaplama)
+- [x] Sequential ticket numarası (`TicketNumberGenerator` — REQ-0001 formatı)
+- [x] CQRS: 12 command, 8 query, 5 validator, 20 handler, 20 API endpoint (`/api/req/`)
+- [x] Integration Events: `TicketCreatedEvent`, `TicketAssignedEvent`, `TicketSlaBreachedEvent`, `TicketResolvedEvent`
+- [x] `RequestManagementDbContext` (schema: `req`, 6 tablo)
 - [ ] Departman/kategori bazlı dinamik form (RequestCategory.FormSchema → Dynamic UI)
-- [ ] Workflow entegrasyonu (kategori bazlı onay akışları)
-- [ ] Integration Events: `TicketCreatedEvent`, `TicketSlaBreachedEvent`, `TicketConvertedToProjectEvent`
-- [ ] Talep sahibi portalı (basit self-service UI)
+- [ ] Workflow entegrasyonu (kategori bazlı onay akışları — WorkflowDefinitionId ready)
+- [ ] Talep sahibi portalı (self-service UI)
 
 ### 16b — Project & Portfolio Management
 - [ ] `Program`, `Project` (genişletilmiş), `BacklogItem`, `Sprint`, `SprintRetrospective`, `BoardColumn`, `TeamMember` entity'leri
