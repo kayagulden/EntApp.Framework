@@ -582,6 +582,22 @@
 
 **Çıktı:** Tek yerden framework yönetimi + runtime UI konfigürasyonu ✅
 
+### 13d — 3-Tier Admin Model Refactoring ✅
+
+> **Tamamlanma:** 2026-04-05
+>
+> Dashboard, Tenant Admin, Super Admin ayrımı yapıldı.
+
+- [x] Dashboard sidebar → tamamen dinamik (meta/menu API driven), hardcoded IAM menüleri kaldırıldı
+- [x] `/manage` route, layout, sidebar (teal/cyan tema) + Tenant Dashboard
+- [x] IAM sayfaları (Users, Roles, Organizations, Settings) → `/dashboard`'dan `/manage`'e taşındı
+- [x] `admin-sidebar.tsx` → UI Config menüsü eklendi
+- [x] `TenantManageEndpoints.cs` — 5 tenant-scoped endpoint (info, settings, feature flags, UI configs, audit logs)
+- [x] Authorization policies: `SuperAdmin` (superadmin rolü), `TenantAdmin` (tenant_admin + superadmin)
+- [x] Backend build: 0 error | Frontend build: ✓ Compiled
+
+**Çıktı:** 3 seviyeli admin modeli: Dashboard (iş kullanıcısı) → Manage (tenant admin) → Admin (super admin) ✅
+
 ---
 
 ## Faz 14 — CLI Scaffolding

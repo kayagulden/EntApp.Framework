@@ -4,27 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Users,
-  Shield,
-  Building2,
   Settings,
   ChevronLeft,
   ChevronRight,
   Layers,
   Database,
   Loader2,
+  Shield,
+  Wrench,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
 import { useDynamicMenu } from "@/lib/hooks/use-dynamic-meta";
-
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Kullanıcılar", href: "/dashboard/users", icon: Users },
-  { name: "Roller", href: "/dashboard/roles", icon: Shield },
-  { name: "Organizasyon", href: "/dashboard/organizations", icon: Building2 },
-  { name: "Ayarlar", href: "/dashboard/settings", icon: Settings },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -55,56 +47,40 @@ export function Sidebar() {
 
       {/* ── Navigation ────────────────────────────── */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {/* Static Menu */}
+        {/* Ana Sayfa */}
         <ul className="space-y-1">
-          {navigation.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" &&
-                pathname?.startsWith(item.href));
-
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    "transition-all duration-200",
-                    isActive
-                      ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-indigo-500/20"
-                      : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                  )}
-                  title={sidebarCollapsed ? item.name : undefined}
-                >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  {!sidebarCollapsed && (
-                    <span className="animate-fade-in">{item.name}</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
+          <li>
+            <Link
+              href="/dashboard"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                "transition-all duration-200",
+                pathname === "/dashboard"
+                  ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-indigo-500/20"
+                  : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+              )}
+              title={sidebarCollapsed ? "Ana Sayfa" : undefined}
+            >
+              <LayoutDashboard className="w-5 h-5 shrink-0" />
+              {!sidebarCollapsed && (
+                <span className="animate-fade-in">Ana Sayfa</span>
+              )}
+            </Link>
+          </li>
         </ul>
 
-        {/* Dynamic Menu */}
+        {/* Dynamic Menu (meta/menu API) */}
         {dynamicMenu && dynamicMenu.length > 0 && (
-          <div className="mt-6">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 px-3 mb-2">
-                <div className="h-px flex-1 bg-white/10" />
-                <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
-                  Dinamik
-                </span>
-                <div className="h-px flex-1 bg-white/10" />
-              </div>
-            )}
-
+          <div className="mt-4">
             {dynamicMenu.map((group) => (
               <div key={group.name} className="mb-3">
                 {!sidebarCollapsed && (
                   <p className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                     {group.name}
                   </p>
+                )}
+                {sidebarCollapsed && (
+                  <div className="h-px mx-3 my-2 bg-white/10" />
                 )}
                 <ul className="space-y-0.5">
                   {group.items.map((item) => {
@@ -146,7 +122,64 @@ export function Sidebar() {
             <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
           </div>
         )}
+
+        {/* ── Kişisel ────────────────────────────── */}
+        <div className="mt-4">
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-2 px-3 mb-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
+                Kişisel
+              </span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+          )}
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/dashboard/profile"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+                  "transition-all duration-200",
+                  pathname === "/dashboard/profile"
+                    ? "bg-[var(--color-sidebar-active)] text-white"
+                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+                )}
+                title={sidebarCollapsed ? "Profilim" : undefined}
+              >
+                <User className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && (
+                  <span className="animate-fade-in">Profilim</span>
+                )}
+              </Link>
+            </li>
+          </ul>
+        </div>
       </nav>
+
+      {/* ── Footer: Admin & Manage Links ──────────── */}
+      <div className="px-3 py-2 border-t border-white/10 space-y-1">
+        <Link
+          href="/manage"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-[var(--color-sidebar-hover)] transition-colors"
+          title={sidebarCollapsed ? "Tenant Yönetimi" : undefined}
+        >
+          <Settings className="w-4 h-4 shrink-0" />
+          {!sidebarCollapsed && (
+            <span className="animate-fade-in">Tenant Yönetimi</span>
+          )}
+        </Link>
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-[var(--color-sidebar-hover)] transition-colors"
+          title={sidebarCollapsed ? "Admin Panel" : undefined}
+        >
+          <Shield className="w-4 h-4 shrink-0" />
+          {!sidebarCollapsed && (
+            <span className="animate-fade-in">Admin Panel</span>
+          )}
+        </Link>
+      </div>
 
       {/* ── Collapse Toggle ───────────────────────── */}
       <div className="p-3 border-t border-white/10">

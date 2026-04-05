@@ -62,6 +62,10 @@ try
     builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
     builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy("SuperAdmin", policy => policy.RequireRole("superadmin"))
+        .AddPolicy("TenantAdmin", policy => policy.RequireRole("tenant_admin", "superadmin"));
+
     // ── Current User & Tenant ───────────────────────────────
     builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
     builder.Services.AddScoped<ICurrentTenant, HttpContextCurrentTenant>();
@@ -330,6 +334,7 @@ try
     app.MapProcurementEndpoints();
     app.MapTaskManagementEndpoints();
     app.MapAdminEndpoints();
+    app.MapTenantManageEndpoints();
 
     // ── Controllers ──────────────────────────────────────────
     app.MapControllers();
