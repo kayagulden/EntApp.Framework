@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface ReqDepartment {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface ServiceQueue {
   id: string;
   name: string;
@@ -27,13 +33,15 @@ interface ServiceQueue {
   managerUserId?: string;
   defaultWorkflowDefinitionId?: string;
   isActive: boolean;
-  department?: { name: string };
+  department?: { name: string; id: string };
   members: QueueMember[];
 }
 
 interface QueueMember {
   id: string;
   userId: string;
+  userName?: string;
+  fullName?: string;
   role: string;
   joinedAt: string;
   isActive: boolean;
@@ -52,7 +60,18 @@ export default function QueuesPage() {
   const [formName, setFormName] = useState("");
   const [formCode, setFormCode] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formDepartmentId, setFormDepartmentId] = useState("");
   const [formSaving, setFormSaving] = useState(false);
+
+  // ── Departments ──
+  const [departments, setDepartments] = useState<ReqDepartment[]>([]);
+
+  useEffect(() => {
+    fetch("/api/req/departments")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setDepartments(Array.isArray(data) ? data : []))
+      .catch(() => setDepartments([]));
+  }, []);
 
   // ── Add member state ──
   const [showAddMember, setShowAddMember] = useState(false);
@@ -81,11 +100,15 @@ export default function QueuesPage() {
       const res = await fetch("/api/req/queues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formName, code: formCode, description: formDescription || null }),
+        body: JSON.stringify({
+          name: formName, code: formCode,
+          description: formDescription || null,
+          departmentId: formDepartmentId || null,
+        }),
       });
       if (res.ok) {
         setShowCreateForm(false);
-        setFormName(""); setFormCode(""); setFormDescription("");
+        setFormName(""); setFormCode(""); setFormDescription(""); setFormDepartmentId("");
         await fetchQueues();
       }
     } finally {
@@ -156,6 +179,7 @@ export default function QueuesPage() {
           placeholder="Kuyruk ara..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          suppressHydrationWarning
           className="w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
         />
       </div>
@@ -295,13 +319,14 @@ export default function QueuesPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                            <span className="text-xs font-bold text-white">U</span>
+                            <span className="text-xs font-bold text-white">{(member.fullName || member.userName || "U").charAt(0).toUpperCase()}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-[var(--color-text)] font-mono">
-                              {member.userId.substring(0, 8)}...
+                            <p className="text-sm font-medium text-[var(--color-text)]">
+                              {member.fullName || member.userName || member.userId.substring(0, 8) + "..."}
                             </p>
                             <p className="text-xs text-[var(--color-text-muted)]">
+                              {member.userName && <span className="mr-2 font-mono">@{member.userName}</span>}
                               {new Date(member.joinedAt).toLocaleDateString("tr-TR")}
                             </p>
                           </div>
@@ -372,6 +397,18 @@ export default function QueuesPage() {
                   rows={3} placeholder="Kuyruğun amacı ve kapsamı..."
                   className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Departman</label>
+                <select
+                  value={formDepartmentId} onChange={(e) => setFormDepartmentId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                >
+                  <option value="">Departman seçin (opsiyonel)</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)]">

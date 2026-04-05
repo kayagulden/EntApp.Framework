@@ -75,6 +75,10 @@ try
     builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
     builder.Services.AddScoped<ICurrentTenant, HttpContextCurrentTenant>();
 
+    // ── Seed Data Providers ──────────────────────────────────
+    builder.Services.AddSingleton<ISeedDataProvider, EntApp.Modules.IAM.Infrastructure.Persistence.IamRoleSeedDataProvider>();
+    builder.Services.AddSingleton<ISeedDataProvider, EntApp.WebAPI.Seed.DemoOrganizationSeedDataProvider>();
+
     // ── SignalR ──────────────────────────────────────────────
     builder.Services.AddSignalR();
     builder.Services.AddSingleton<IUserConnectionTracker, InMemoryUserConnectionTracker>();

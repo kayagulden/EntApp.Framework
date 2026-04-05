@@ -98,10 +98,12 @@ public sealed class UpdateQueueMemberRoleHandler(RequestManagementDbContext db)
 //  ServiceQueue Query Handlers
 // ═══════════════════════════════════════════════════════════════
 
-public sealed class ListServiceQueuesHandler(RequestManagementDbContext db)
-    : IRequestHandler<ListServiceQueuesQuery, IReadOnlyList<ServiceQueue>>
+public sealed class ListServiceQueuesHandler(
+    RequestManagementDbContext db,
+    EntApp.Modules.IAM.Infrastructure.Persistence.IamDbContext iamDb)
+    : IRequestHandler<ListServiceQueuesQuery, IReadOnlyList<ServiceQueueDto>>
 {
-    public async Task<IReadOnlyList<ServiceQueue>> Handle(ListServiceQueuesQuery request, CancellationToken ct)
+    public async Task<IReadOnlyList<ServiceQueueDto>> Handle(ListServiceQueuesQuery request, CancellationToken ct)
     {
         var query = db.ServiceQueues
             .Include(q => q.Department)
@@ -112,18 +114,67 @@ public sealed class ListServiceQueuesHandler(RequestManagementDbContext db)
             query = query.Where(q => q.DepartmentId == new DepartmentId(request.DepartmentId.Value));
         if (request.ActiveOnly) query = query.Where(q => q.IsActive);
 
-        return await query.OrderBy(q => q.Name).ToListAsync(ct);
+        var queues = await query.OrderBy(q => q.Name).ToListAsync(ct);
+
+        // Batch-fetch user names
+        var allUserIds = queues.SelectMany(q => q.Members.Select(m => m.UserId)).Distinct().ToList();
+        var userMap = allUserIds.Count > 0
+            ? await iamDb.Users.Where(u => allUserIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.FullName })
+                .ToDictionaryAsync(u => u.Id, ct)
+            : [];
+
+        return queues.Select(q => new ServiceQueueDto(
+            q.Id.Value, q.Name, q.Code, q.Description,
+            q.DepartmentId?.Value, q.Department?.Name,
+            q.ManagerUserId, q.DefaultWorkflowDefinitionId,
+            q.IsActive,
+            q.Members.Select(m =>
+            {
+                userMap.TryGetValue(m.UserId, out var u);
+                return new QueueMemberDto(
+                    m.Id.Value, m.UserId, u?.UserName, u?.FullName,
+                    m.Role, m.JoinedAt, m.IsActive);
+            }).ToList()
+        )).ToList();
     }
 }
 
-public sealed class GetServiceQueueHandler(RequestManagementDbContext db)
-    : IRequestHandler<GetServiceQueueQuery, ServiceQueue?>
+public sealed class GetServiceQueueHandler(
+    RequestManagementDbContext db,
+    EntApp.Modules.IAM.Infrastructure.Persistence.IamDbContext iamDb)
+    : IRequestHandler<GetServiceQueueQuery, ServiceQueueDto?>
 {
-    public async Task<ServiceQueue?> Handle(GetServiceQueueQuery request, CancellationToken ct)
+    public async Task<ServiceQueueDto?> Handle(GetServiceQueueQuery request, CancellationToken ct)
     {
-        return await db.ServiceQueues
+        var q = await db.ServiceQueues
             .Include(q => q.Department)
             .Include(q => q.Members)
             .FirstOrDefaultAsync(q => q.Id == new ServiceQueueId(request.Id), ct);
+
+        if (q is null) return null;
+
+        var userIds = q.Members.Select(m => m.UserId).Distinct().ToList();
+        var userMap = userIds.Count > 0
+            ? await iamDb.Users.Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.FullName })
+                .ToDictionaryAsync(u => u.Id, ct)
+            : [];
+
+        return new ServiceQueueDto(
+            q.Id.Value, q.Name, q.Code, q.Description,
+            q.DepartmentId?.Value, q.Department?.Name,
+            q.ManagerUserId, q.DefaultWorkflowDefinitionId,
+            q.IsActive,
+            q.Members.Select(m =>
+            {
+                userMap.TryGetValue(m.UserId, out var u);
+                return new QueueMemberDto(
+                    m.Id.Value, m.UserId, u?.UserName, u?.FullName,
+                    m.Role, m.JoinedAt, m.IsActive);
+            }).ToList()
+        );
     }
 }
+
+
