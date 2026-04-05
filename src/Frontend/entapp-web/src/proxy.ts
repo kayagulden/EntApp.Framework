@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Development middleware — Keycloak yokken auth bypass.
+ * Development proxy — Keycloak yokken auth bypass.
  * Production'da next-auth middleware kullanılacak.
+ *
+ * Next.js 16'da middleware.ts → proxy.ts konvansiyonuna geçildi.
+ * Bu dosya ağ seviyesinde routing, redirect ve rewrite işlemleri içindir.
+ * Karmaşık auth/business logic Server Component veya Route Handler'larda yapılmalıdır.
  */
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const isLoginPage = req.nextUrl.pathname === "/login";
   const isApiRoute = req.nextUrl.pathname.startsWith("/api");
   const isStaticAsset = req.nextUrl.pathname.startsWith("/_next");

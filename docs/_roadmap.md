@@ -153,7 +153,7 @@
 - [x] shadcn/ui bileşenleri (Button, Input, Dialog, Table, Select, Toast — 7 adet)
 - [x] Orval Kurulumu (`orval.config.ts`, `npm run api:generate`)
 - [x] **Test altyapısı:** Vitest v3 (7 test) + Playwright E2E scaffold
-- [ ] **Tech Debt:** Next.js 16'da `middleware` dosya konvansiyonu deprecated — `proxy` konvansiyonuna geçiş yapılmalı ([detay](https://nextjs.org/docs/messages/middleware-to-proxy))
+- [x] **Tech Debt:** Next.js 16'da `middleware` dosya konvansiyonu deprecated — `proxy` konvansiyonuna geçiş yapıldı ✅
 
 **Çıktı:** Login → sidebar'lı dashboard, dark/light mode çalışır.
 
