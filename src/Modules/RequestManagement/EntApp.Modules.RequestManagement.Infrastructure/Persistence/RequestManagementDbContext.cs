@@ -18,6 +18,8 @@ public sealed class RequestManagementDbContext : BaseDbContext
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<TicketStatusHistory> TicketStatusHistory => Set<TicketStatusHistory>();
+    public DbSet<ServiceQueue> ServiceQueues => Set<ServiceQueue>();
+    public DbSet<QueueMembership> QueueMemberships => Set<QueueMembership>();
 
     public RequestManagementDbContext(DbContextOptions<RequestManagementDbContext> options) : base(options) { }
 
@@ -141,6 +143,40 @@ public sealed class RequestManagementDbContext : BaseDbContext
 
             e.Property(x => x.TicketId).HasConversion(new StronglyTypedIdValueConverter<TicketId>());
             e.HasOne(x => x.Ticket).WithMany(t => t.StatusHistory).HasForeignKey(x => x.TicketId);
+        });
+
+        // ── ServiceQueue ────────────────────────────────────────
+        modelBuilder.Entity<ServiceQueue>(e =>
+        {
+            e.ToTable("service_queues");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ServiceQueueId>());
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasIndex(x => x.Name);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
+
+            e.Property(x => x.DepartmentId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new DepartmentId(v.Value) : null);
+
+            e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId);
+        });
+
+        // ── QueueMembership ──────────────────────────────────────
+        modelBuilder.Entity<QueueMembership>(e =>
+        {
+            e.ToTable("queue_memberships");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<QueueMembershipId>());
+            e.HasIndex(x => new { x.QueueId, x.UserId }).IsUnique();
+            e.Property(x => x.Role).HasMaxLength(50).IsRequired();
+
+            e.Property(x => x.QueueId).HasConversion(new StronglyTypedIdValueConverter<ServiceQueueId>());
+            e.HasOne(x => x.Queue).WithMany(q => q.Members).HasForeignKey(x => x.QueueId);
         });
     }
 }

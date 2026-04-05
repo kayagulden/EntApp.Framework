@@ -8,3 +8,5 @@ public readonly record struct SlaDefinitionId(Guid Value) : IEntityId;
 public readonly record struct TicketId(Guid Value) : IEntityId;
 public readonly record struct TicketCommentId(Guid Value) : IEntityId;
 public readonly record struct TicketStatusHistoryId(Guid Value) : IEntityId;
+public readonly record struct ServiceQueueId(Guid Value) : IEntityId;
+public readonly record struct QueueMembershipId(Guid Value) : IEntityId;

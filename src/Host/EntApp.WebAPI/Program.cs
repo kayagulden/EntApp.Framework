@@ -361,6 +361,7 @@ try
     app.MapProcurementEndpoints();
     app.MapTaskManagementEndpoints();
     app.MapRequestManagementEndpoints();
+    app.MapServiceQueueEndpoints();
     app.MapAdminEndpoints();
     app.MapTenantManageEndpoints();
 
