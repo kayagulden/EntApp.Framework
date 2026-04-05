@@ -5,10 +5,28 @@
 ## Yapı
 
 ```
-EntApp.Modules.ModuleName.Domain/           → Entity'ler, ID'ler, Enum'lar
-EntApp.Modules.ModuleName.Application/      → Integration Event'ler, Validator'lar
-EntApp.Modules.ModuleName.Infrastructure/   → DbContext, Endpoint'ler, ModuleInstaller
+EntApp.Modules.ModuleName.Domain/
+  └── Entities/, Ids/, Enums/
+
+EntApp.Modules.ModuleName.Application/
+  ├── Commands/           → IRequest<T> command tanımları
+  ├── Queries/            → IRequest<T> query tanımları
+  ├── Validators/         → FluentValidation kuralları (pipeline otomatik)
+  └── IntegrationEvents/  → Modüller arası event'ler
+
+EntApp.Modules.ModuleName.Infrastructure/
+  ├── Handlers/           → IRequestHandler<T,TResult> implementasyonları
+  ├── Endpoints/          → Thin proxy (ISender → MediatR)
+  ├── Persistence/        → DbContext
+  └── ModuleInstaller     → DI kaydı
 ```
+
+## Mimari Kurallar
+
+1. **Endpoint'ler thin proxy'dir** — sadece HTTP → IRequest eşlemesi yapar
+2. **İş mantığı Handler'larda yaşar** — DbContext erişimi sadece handler'larda
+3. **Validation otomatiktir** — `AbstractValidator<T>` tanımlayın, `ValidationBehavior` pipeline çalıştırır
+4. **CancellationToken** — tüm handler'lar desteklemelidir
 
 ## Solution'a Ekleme
 
@@ -52,8 +70,8 @@ PostgreSQL schema: `moduleschema`
 ## Sonraki Adımlar
 
 - [ ] `SampleEntity`'yi kendi entity'nizle değiştirin
+- [ ] Commands/Queries/Validators/Handlers dosyalarını güncelleyin
 - [ ] ID dosyasında yeni `IEntityId` struct'lar tanımlayın
 - [ ] DbContext'e yeni entity mapping'ler ekleyin
-- [ ] Endpoint'leri iş kurallarınıza göre güncelleyin
 - [ ] Integration Event'leri tanımlayın
 - [ ] Dynamic UI attribute'larını ayarlayın

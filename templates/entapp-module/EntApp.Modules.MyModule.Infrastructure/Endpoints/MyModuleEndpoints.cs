@@ -1,15 +1,17 @@
-using EntApp.Modules.MyModule.Domain.Entities;
+using EntApp.Modules.MyModule.Application.Commands;
+using EntApp.Modules.MyModule.Application.Queries;
 using EntApp.Modules.MyModule.Domain.Enums;
-using EntApp.Modules.MyModule.Domain.Ids;
-using EntApp.Modules.MyModule.Infrastructure.Persistence;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.MyModule.Infrastructure.Endpoints;
 
-/// <summary>MyModule REST API endpoint'leri.</summary>
+/// <summary>
+/// MyModule REST API endpoint'leri.
+/// Thin proxy pattern — tüm iş mantığı MediatR handler'larında yaşar.
+/// </summary>
 public static class MyModuleEndpoints
 {
     public static IEndpointRouteBuilder MapMyModuleEndpoints(this IEndpointRouteBuilder app)
@@ -18,71 +20,47 @@ public static class MyModuleEndpoints
             .WithTags("MyModule - SampleEntities");
 
         // ── List ──────────────────────────────────────────────────
-        group.MapGet("/", async (MyModuleDbContext db,
+        group.MapGet("/", async (ISender mediator,
             string? search, int page = 1, int pageSize = 20) =>
         {
-            var query = db.SampleEntities.AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(e => e.Name.Contains(search));
-
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(e => e.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, page, pageSize });
+            var result = await mediator.Send(new ListSampleEntitiesQuery(search, page, pageSize));
+            return Results.Ok(result);
         });
 
         // ── Get by ID ────────────────────────────────────────────
-        group.MapGet("/{id:guid}", async (Guid id, MyModuleDbContext db) =>
+        group.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var entity = await db.SampleEntities
-                .FirstOrDefaultAsync(e => e.Id == new SampleEntityId(id));
-
-            return entity is null ? Results.NotFound() : Results.Ok(entity);
+            var result = await mediator.Send(new GetSampleEntityQuery(id));
+            return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
         // ── Create ───────────────────────────────────────────────
-        group.MapPost("/", async (CreateSampleRequest req, MyModuleDbContext db) =>
+        group.MapPost("/", async (CreateSampleRequest req, ISender mediator) =>
         {
-            var entity = SampleEntity.Create(req.Name, req.Description);
-            db.SampleEntities.Add(entity);
-            await db.SaveChangesAsync();
-
-            return Results.Created($"/api/moduleschema/sample-entities/{entity.Id.Value}", entity);
+            var result = await mediator.Send(new CreateSampleEntityCommand(req.Name, req.Description));
+            return Results.Created($"/api/moduleschema/sample-entities/{result.Id}", result);
         });
 
         // ── Update ───────────────────────────────────────────────
-        group.MapPut("/{id:guid}", async (Guid id, UpdateSampleRequest req, MyModuleDbContext db) =>
+        group.MapPut("/{id:guid}", async (Guid id, UpdateSampleRequest req, ISender mediator) =>
         {
-            var entity = await db.SampleEntities
-                .FirstOrDefaultAsync(e => e.Id == new SampleEntityId(id));
-
-            if (entity is null) return Results.NotFound();
-
-            entity.Name = req.Name;
-            entity.Description = req.Description;
-            entity.Status = req.Status;
-            await db.SaveChangesAsync();
-
-            return Results.Ok(entity);
+            try
+            {
+                await mediator.Send(new UpdateSampleEntityCommand(id, req.Name, req.Description, req.Status));
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException) { return Results.NotFound(); }
         });
 
         // ── Delete ───────────────────────────────────────────────
-        group.MapDelete("/{id:guid}", async (Guid id, MyModuleDbContext db) =>
+        group.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var entity = await db.SampleEntities
-                .FirstOrDefaultAsync(e => e.Id == new SampleEntityId(id));
-
-            if (entity is null) return Results.NotFound();
-
-            db.SampleEntities.Remove(entity);
-            await db.SaveChangesAsync();
-
-            return Results.NoContent();
+            try
+            {
+                await mediator.Send(new DeleteSampleEntityCommand(id));
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException) { return Results.NotFound(); }
         });
 
         return app;
