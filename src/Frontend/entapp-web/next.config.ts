@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:5212/api/admin/:path*",
       },
       {
+        source: "/api/workflows/:path*",
+        destination: "http://localhost:5212/api/workflows/:path*",
+      },
+      {
+        source: "/api/ai/:path*",
+        destination: "http://localhost:5212/api/ai/:path*",
+      },
+      {
         source: "/api/v:version/:path*",
         destination: "http://localhost:5212/api/v:version/:path*",
       },
