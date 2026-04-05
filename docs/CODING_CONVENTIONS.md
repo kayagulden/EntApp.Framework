@@ -1,6 +1,6 @@
 # EntApp.Framework — Kodlama Kuralları ve Mimari Kısıtlamalar
 
-> **Tarih:** 2026-04-03  
+> **Tarih:** 2026-04-05  
 > **AI Workflow dosyası:** [.agent/workflows/coding-conventions.md](file:///c:/Users/kaya/projects/EntApp.Framework/.agent/workflows/coding-conventions.md)  
 > **Kaynak:** [Mimari Spesifikasyon](file:///c:/Users/kaya/projects/EntApp.Framework/docs/enterprise-framework-evaluation.md)
 
@@ -36,26 +36,31 @@ var result = _projectService.GetById(projectId);
 ### 2.1. Temel Entity Hiyerarşisi
 
 ```csharp
-// Tüm entity'lerin temeli
-public abstract class BaseEntity
+// Tüm entity'lerin temeli — generic TId ile Strongly Typed ID desteği
+public abstract class BaseEntity<TId> where TId : struct
 {
-    public Guid Id { get; set; }
+    public TId Id { get; protected set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }      // Soft delete
     public uint RowVersion { get; set; }     // Optimistic concurrency (EF xmin)
-    
-    private readonly List<IDomainEvent> _domainEvents = new();
-    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
-    public void AddDomainEvent(IDomainEvent @event) => _domainEvents.Add(@event);
-    public void ClearDomainEvents() => _domainEvents.Clear();
 }
 
 // Audit alanları gereken entity'ler için
-public abstract class AuditableEntity : BaseEntity
+public abstract class AuditableEntity<TId> : BaseEntity<TId> where TId : struct
 {
-    public string CreatedBy { get; set; }
+    public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
+}
+
+// DDD Aggregate Root — Domain Event desteği
+// Sadece aggregate root olan entity'ler bu sınıftan türer.
+public abstract class AggregateRoot<TId> : AuditableEntity<TId> where TId : struct
+{
+    private readonly List<IDomainEvent> _domainEvents = [];
+    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    public void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
+    public void ClearDomainEvents() => _domainEvents.Clear();
 }
 
 // Multi-tenant entity'ler
@@ -64,6 +69,15 @@ public interface ITenantEntity
     Guid TenantId { get; set; }
 }
 ```
+
+**Hiyerarşi:**
+```
+BaseEntity<TId>              → Id, CreatedAt, UpdatedAt, IsDeleted, RowVersion
+  └─ AuditableEntity<TId>   → + CreatedBy, ModifiedBy
+      └─ AggregateRoot<TId> → + DomainEvents, AddDomainEvent(), ClearDomainEvents()
+```
+
+> **Not:** Tüm entity'ler en az `AuditableEntity<TId>`'den türer. Aggregate root olan entity'ler (ör: `CustomerBase`, `SalesOrderBase`) `AggregateRoot<TId>`'den türer.
 
 ### 2.2. Strongly Typed ID
 
@@ -80,13 +94,15 @@ public async Task<Order> GetOrder(OrderId orderId) { ... }
 GetOrder(customerId); // COMPILE HATASI — OrderId ≠ CustomerId
 ```
 
-Her modül kendi ID tiplerini `Domain/` klasöründe tanımlar:
+Her modül kendi ID tiplerini `Domain/Ids/` klasöründe tanımlar ve `IEntityId` interface'ini implement eder:
 ```
-Modules/CRM/CRM.Domain/
+Modules/CRM/EntApp.Modules.CRM.Domain/
 ├── Ids/
-│   ├── CustomerId.cs
+│   ├── CustomerId.cs    → public readonly record struct CustomerId(Guid Value) : IEntityId;
 │   ├── ContactId.cs
 │   └── OpportunityId.cs
+├── Entities/
+│   └── CustomerBase.cs  → AggregateRoot<CustomerId>
 ```
 
 ### 2.3. Soft Delete + Unique Constraint
@@ -336,7 +352,7 @@ if (await _processedEvents.ExistsAsync(event.IdempotencyKey))
 
 ```csharp
 // Framework tablosu: app.customer_base (app schema, prefix yok)
-public class CustomerBase : AuditableEntity, ITenantEntity { ... }
+public class CustomerBase : AggregateRoot<CustomerId>, ITenantEntity { ... }
 
 // Proje tablosu: crm.customers (modül schema, prefix yok)
 public class Customer : CustomerBase
