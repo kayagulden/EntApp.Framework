@@ -1,17 +1,13 @@
-using EntApp.Modules.CRM.Domain.Entities;
-using EntApp.Modules.CRM.Domain.Enums;
-using EntApp.Modules.CRM.Domain.Ids;
-using EntApp.Modules.CRM.Application.IntegrationEvents;
-using EntApp.Modules.CRM.Infrastructure.Persistence;
-using EntApp.Shared.Contracts.Messaging;
+using EntApp.Modules.CRM.Application.Commands;
+using EntApp.Modules.CRM.Application.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.CRM.Infrastructure.Endpoints;
 
-/// <summary>CRM REST API endpoint'leri.</summary>
+/// <summary>CRM REST API endpoint'leri — CQRS/MediatR ile.</summary>
 public static class CrmEndpoints
 {
     public static IEndpointRouteBuilder MapCrmEndpoints(this IEndpointRouteBuilder app)
@@ -19,174 +15,97 @@ public static class CrmEndpoints
         // ═══════════ Customers ═══════════
         var customers = app.MapGroup("/api/crm/customers").WithTags("CRM - Customers");
 
-        customers.MapGet("/", async (CrmDbContext db, string? search, string? segment,
+        customers.MapGet("/", async (ISender mediator, string? search, string? segment,
             int page = 1, int pageSize = 20) =>
         {
-            var query = db.Customers.Where(c => c.IsActive);
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(c => c.Name.Contains(search) || (c.Code != null && c.Code.Contains(search)));
-            if (!string.IsNullOrEmpty(segment) && Enum.TryParse<CustomerSegment>(segment, out var seg))
-                query = query.Where(c => c.Segment == seg);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderBy(c => c.Name)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(c => new { c.Id, c.Name, c.Code, c.Email, c.Phone, c.City, c.Country,
-                    CustomerType = c.CustomerType.ToString(), Segment = c.Segment.ToString(), c.CreatedAt })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListCustomersQuery(search, segment, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListCustomers");
 
-        customers.MapGet("/{id:guid}", async (Guid id, CrmDbContext db) =>
+        customers.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var c = await db.Customers.Include(x => x.Contacts).Include(x => x.Opportunities)
-                .FirstOrDefaultAsync(x => x.Id.Value == id);
-            return c is null ? Results.NotFound() : Results.Ok(c);
+            var result = await mediator.Send(new GetCustomerQuery(id));
+            return result is null ? Results.NotFound() : Results.Ok(result);
         }).WithName("GetCustomer");
 
-        customers.MapPost("/", async (CreateCustomerRequest req, CrmDbContext db, IEventBus eventBus) =>
+        customers.MapPost("/", async (CreateCustomerRequest req, ISender mediator) =>
         {
-            Enum.TryParse<CustomerType>(req.CustomerType, out var type);
-            Enum.TryParse<CustomerSegment>(req.Segment, out var segment);
-            var customer = CustomerBase.Create(req.Name, type, req.Code, req.Email,
-                req.Phone, req.Address, req.City, req.Country, req.TaxNumber, segment);
-            db.Customers.Add(customer);
-            await db.SaveChangesAsync();
-
-            await eventBus.PublishAsync(new CustomerCreatedEvent(
-                customer.Id.Value, customer.Name, customer.CustomerType.ToString(),
-                customer.Email, customer.TaxNumber));
-
-            return Results.Created($"/api/crm/customers/{customer.Id}", new { customer.Id, customer.Name });
+            var id = await mediator.Send(new CreateCustomerCommand(
+                req.Name, req.Code, req.Email, req.Phone, req.Address,
+                req.City, req.Country, req.TaxNumber, req.CustomerType, req.Segment));
+            return Results.Created($"/api/crm/customers/{id}", new { id });
         }).WithName("CreateCustomer");
 
         // ═══════════ Contacts ═══════════
         var contacts = app.MapGroup("/api/crm/contacts").WithTags("CRM - Contacts");
 
-        contacts.MapGet("/", async (CrmDbContext db, Guid? customerId, int page = 1, int pageSize = 20) =>
+        contacts.MapGet("/", async (ISender mediator, Guid? customerId, int page = 1, int pageSize = 20) =>
         {
-            var query = db.Contacts.AsQueryable();
-            if (customerId.HasValue) query = query.Where(c => c.CustomerId.Value == customerId.Value);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderBy(c => c.LastName)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(c => new { c.Id, c.CustomerId, c.FirstName, c.LastName, c.Title, c.Email, c.Phone, c.IsPrimary })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListContactsQuery(customerId, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListContacts");
 
-        contacts.MapPost("/", async (CreateContactRequest req, CrmDbContext db) =>
+        contacts.MapPost("/", async (CreateContactRequest req, ISender mediator) =>
         {
-            var contact = ContactBase.Create(new CustomerId(req.CustomerId), req.FirstName, req.LastName,
-                req.Title, req.Email, req.Phone, req.Department, req.IsPrimary);
-            db.Contacts.Add(contact);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/crm/contacts/{contact.Id}", new { contact.Id });
+            var id = await mediator.Send(new CreateContactCommand(
+                req.CustomerId, req.FirstName, req.LastName,
+                req.Title, req.Email, req.Phone, req.Department, req.IsPrimary));
+            return Results.Created($"/api/crm/contacts/{id}", new { id });
         }).WithName("CreateContact");
 
         // ═══════════ Opportunities ═══════════
         var opps = app.MapGroup("/api/crm/opportunities").WithTags("CRM - Opportunities");
 
-        opps.MapGet("/", async (CrmDbContext db, string? stage, Guid? customerId,
+        opps.MapGet("/", async (ISender mediator, string? stage, Guid? customerId,
             int page = 1, int pageSize = 20) =>
         {
-            var query = db.Opportunities.Include(o => o.Customer).AsQueryable();
-            if (!string.IsNullOrEmpty(stage) && Enum.TryParse<OpportunityStage>(stage, out var s))
-                query = query.Where(o => o.Stage == s);
-            if (customerId.HasValue) query = query.Where(o => o.CustomerId.Value == customerId.Value);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderByDescending(o => o.CreatedAt)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(o => new { o.Id, o.Title, CustomerName = o.Customer.Name,
-                    o.EstimatedValue, o.Currency, Stage = o.Stage.ToString(),
-                    o.Probability, o.ExpectedCloseDate, o.CreatedAt })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListOpportunitiesQuery(stage, customerId, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListOpportunities");
 
-        opps.MapPost("/", async (CreateOpportunityRequest req, CrmDbContext db) =>
+        opps.MapPost("/", async (CreateOpportunityRequest req, ISender mediator) =>
         {
-            Enum.TryParse<OpportunityStage>(req.Stage, out var stage);
-            var opp = OpportunityBase.Create(new CustomerId(req.CustomerId), req.Title, req.EstimatedValue,
-                req.Currency ?? "TRY", stage, req.Description, req.ExpectedCloseDate, req.AssignedUserId);
-            db.Opportunities.Add(opp);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/crm/opportunities/{opp.Id}", new { opp.Id, opp.Title });
+            var id = await mediator.Send(new CreateOpportunityCommand(
+                req.CustomerId, req.Title, req.EstimatedValue, req.Currency,
+                req.Stage, req.Description, req.ExpectedCloseDate, req.AssignedUserId));
+            return Results.Created($"/api/crm/opportunities/{id}", new { id });
         }).WithName("CreateOpportunity");
 
-        opps.MapPost("/{id:guid}/advance", async (Guid id, AdvanceStageRequest req, CrmDbContext db, IEventBus eventBus) =>
+        opps.MapPost("/{id:guid}/advance", async (Guid id, AdvanceStageRequest req, ISender mediator) =>
         {
-            var opp = await db.Opportunities.Include(o => o.Customer).FirstOrDefaultAsync(o => o.Id.Value == id);
-            if (opp is null) return Results.NotFound();
-            if (!Enum.TryParse<OpportunityStage>(req.Stage, out var stage))
-                return Results.BadRequest(new { error = "Invalid stage." });
-            opp.AdvanceStage(stage);
-            await db.SaveChangesAsync();
-
-            if (stage == OpportunityStage.ClosedWon)
-                await eventBus.PublishAsync(new OpportunityWonEvent(
-                    opp.Id.Value, opp.Title, opp.CustomerId.Value, opp.Customer.Name,
-                    opp.EstimatedValue, opp.Currency));
-            else if (stage == OpportunityStage.ClosedLost)
-                await eventBus.PublishAsync(new OpportunityLostEvent(
-                    opp.Id.Value, opp.Title, opp.CustomerId.Value, opp.LostReason));
-
-            return Results.Ok(new { opp.Id, Stage = opp.Stage.ToString(), opp.Probability });
+            var result = await mediator.Send(new AdvanceOpportunityStageCommand(id, req.Stage));
+            return Results.Ok(result);
         }).WithName("AdvanceOpportunityStage");
 
-        // ═══════════ Pipeline Summary ═══════════
-        opps.MapGet("/pipeline", async (CrmDbContext db) =>
+        opps.MapGet("/pipeline", async (ISender mediator) =>
         {
-            var pipeline = await db.Opportunities
-                .GroupBy(o => o.Stage)
-                .Select(g => new { Stage = g.Key.ToString(), Count = g.Count(),
-                    TotalValue = g.Sum(o => o.EstimatedValue) })
-                .OrderBy(x => x.Stage)
-                .ToListAsync();
-            return Results.Ok(pipeline);
+            var result = await mediator.Send(new GetPipelineQuery());
+            return Results.Ok(result);
         }).WithName("OpportunityPipeline").WithSummary("Fırsat pipeline özeti");
 
         // ═══════════ Activities ═══════════
         var acts = app.MapGroup("/api/crm/activities").WithTags("CRM - Activities");
 
-        acts.MapGet("/", async (CrmDbContext db, Guid? customerId, string? type,
+        acts.MapGet("/", async (ISender mediator, Guid? customerId, string? type,
             int page = 1, int pageSize = 20) =>
         {
-            var query = db.Activities.AsQueryable();
-            if (customerId.HasValue) query = query.Where(a => a.CustomerId.HasValue && a.CustomerId.Value.Value == customerId.Value);
-            if (!string.IsNullOrEmpty(type) && Enum.TryParse<ActivityType>(type, out var at))
-                query = query.Where(a => a.ActivityType == at);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderByDescending(a => a.CreatedAt)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(a => new { a.Id, a.Subject, ActivityType = a.ActivityType.ToString(),
-                    Status = a.Status.ToString(), a.CustomerId, a.DueDate, a.CreatedAt })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListActivitiesQuery(customerId, type, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListActivities");
 
-        acts.MapPost("/", async (CreateActivityRequest req, CrmDbContext db) =>
+        acts.MapPost("/", async (CreateActivityRequest req, ISender mediator) =>
         {
-            Enum.TryParse<ActivityType>(req.ActivityType, out var type);
-            var activity = ActivityBase.Create(req.Subject, type, req.CustomerId.HasValue ? new CustomerId(req.CustomerId.Value) : null,
-                req.OpportunityId.HasValue ? new OpportunityId(req.OpportunityId.Value) : null, req.Description, req.DueDate, req.AssignedUserId);
-            db.Activities.Add(activity);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/crm/activities/{activity.Id}", new { activity.Id });
+            var id = await mediator.Send(new CreateActivityCommand(
+                req.Subject, req.ActivityType, req.CustomerId, req.OpportunityId,
+                req.Description, req.DueDate, req.AssignedUserId));
+            return Results.Created($"/api/crm/activities/{id}", new { id });
         }).WithName("CreateActivity");
 
         return app;
     }
 }
 
-// ── DTOs ─────────────────────────────────────────────────
+// ── Request DTO'lar ─────────────────────────────────────────
 public sealed record CreateCustomerRequest(string Name, string? Code = null, string? Email = null,
     string? Phone = null, string? Address = null, string? City = null, string? Country = null,
     string? TaxNumber = null, string CustomerType = "Company", string Segment = "Standard");

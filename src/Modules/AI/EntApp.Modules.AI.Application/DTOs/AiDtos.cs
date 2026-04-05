@@ -5,20 +5,10 @@ public sealed class ChatRequest
 {
     /// <summary>Mesaj geçmişi</summary>
     public IReadOnlyList<ChatMessage> Messages { get; init; } = [];
-
-    /// <summary>Kullanılacak model adı (null ise default)</summary>
     public string? ModelName { get; init; }
-
-    /// <summary>Temperature (0-2, default: 0.7)</summary>
     public float Temperature { get; init; } = 0.7f;
-
-    /// <summary>Maksimum token (null ise model default)</summary>
     public int? MaxTokens { get; init; }
-
-    /// <summary>Sistem promptu</summary>
     public string? SystemPrompt { get; init; }
-
-    /// <summary>Çağrıyı yapan modül adı (loglama için)</summary>
     public string? ModuleName { get; init; }
 }
 
@@ -27,7 +17,6 @@ public sealed class ChatMessage
 {
     public string Role { get; init; } = "user";
     public string Content { get; init; } = string.Empty;
-
     public static ChatMessage User(string content) => new() { Role = "user", Content = content };
     public static ChatMessage Assistant(string content) => new() { Role = "assistant", Content = content };
     public static ChatMessage System(string content) => new() { Role = "system", Content = content };
@@ -50,6 +39,7 @@ public sealed class RagRequest
     public string? ModuleName { get; init; }
     public int TopK { get; init; } = 5;
     public float MinScore { get; init; } = 0.7f;
+    public string? SystemPrompt { get; init; }
 }
 
 /// <summary>RAG yanıtı.</summary>
@@ -77,3 +67,11 @@ public sealed class TextChunk
     public int Index { get; init; }
     public int TokenCount { get; init; }
 }
+
+// ── CQRS Response DTOs ──────────────────────────────────
+public sealed record EmbedResponse(float[] Vector, int Dimensions);
+public sealed record StoreEmbeddingResult(Guid Id, int Dimensions);
+public sealed record SearchResultItem(Guid Id, string Content, string ModuleName,
+    string SourceType, string? SourceId, double Score, int ChunkIndex);
+public sealed record SearchResponse(IReadOnlyList<SearchResultItem> Results, string Query);
+public sealed record IngestResponse(int ChunkCount, string FileName, string Message);

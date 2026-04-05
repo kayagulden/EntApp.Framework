@@ -1,17 +1,13 @@
-using EntApp.Modules.HR.Domain.Entities;
-using EntApp.Modules.HR.Domain.Enums;
-using EntApp.Modules.HR.Domain.Ids;
-using EntApp.Modules.HR.Application.IntegrationEvents;
-using EntApp.Modules.HR.Infrastructure.Persistence;
-using EntApp.Shared.Contracts.Messaging;
+using EntApp.Modules.HR.Application.Commands;
+using EntApp.Modules.HR.Application.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.HR.Infrastructure.Endpoints;
 
-/// <summary>HR REST API endpoint'leri.</summary>
+/// <summary>HR REST API endpoint'leri — CQRS/MediatR ile.</summary>
 public static class HrEndpoints
 {
     public static IEndpointRouteBuilder MapHrEndpoints(this IEndpointRouteBuilder app)
@@ -19,182 +15,92 @@ public static class HrEndpoints
         // ═══════════ Employees ═══════════
         var emp = app.MapGroup("/api/hr/employees").WithTags("HR - Employees");
 
-        emp.MapGet("/", async (HrDbContext db, string? search, string? department,
+        emp.MapGet("/", async (ISender mediator, string? search, string? department,
             string? status, int page = 1, int pageSize = 20) =>
         {
-            var query = db.Employees.AsQueryable();
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(e => e.FirstName.Contains(search) || e.LastName.Contains(search)
-                    || e.EmployeeNumber.Contains(search));
-            if (!string.IsNullOrEmpty(department))
-                query = query.Where(e => e.Department == department);
-            if (!string.IsNullOrEmpty(status) && Enum.TryParse<EmployeeStatus>(status, out var s))
-                query = query.Where(e => e.Status == s);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.Email,
-                    e.Department, e.Position, Status = e.Status.ToString(),
-                    EmploymentType = e.EmploymentType.ToString(), e.HireDate })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListEmployeesQuery(search, department, status, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListEmployees");
 
-        emp.MapGet("/{id:guid}", async (Guid id, HrDbContext db) =>
+        emp.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var e = await db.Employees.Include(x => x.DirectReports)
-                .FirstOrDefaultAsync(x => x.Id.Value == id);
-            return e is null ? Results.NotFound() : Results.Ok(e);
+            var result = await mediator.Send(new GetEmployeeQuery(id));
+            return result is null ? Results.NotFound() : Results.Ok(result);
         }).WithName("GetEmployee");
 
-        emp.MapPost("/", async (CreateEmployeeRequest req, HrDbContext db) =>
+        emp.MapPost("/", async (CreateEmployeeRequest req, ISender mediator) =>
         {
-            Enum.TryParse<EmploymentType>(req.EmploymentType, out var empType);
-            var employee = EmployeeBase.Create(req.EmployeeNumber, req.FirstName, req.LastName,
-                req.HireDate, empType, req.Email, req.Phone, req.NationalId,
-                req.DateOfBirth, req.Department, req.Position, req.ManagerId.HasValue ? new EmployeeId(req.ManagerId.Value) : null,
-                req.AnnualLeaveEntitlement);
-            db.Employees.Add(employee);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/hr/employees/{employee.Id}", new { employee.Id, employee.EmployeeNumber });
+            var id = await mediator.Send(new CreateEmployeeCommand(
+                req.EmployeeNumber, req.FirstName, req.LastName, req.HireDate,
+                req.EmploymentType, req.Email, req.Phone, req.NationalId,
+                req.DateOfBirth, req.Department, req.Position,
+                req.ManagerId, req.AnnualLeaveEntitlement));
+            return Results.Created($"/api/hr/employees/{id}", new { id });
         }).WithName("CreateEmployee");
 
-        // ── Org Chart ────────────────────────────────────
-        emp.MapGet("/org-chart", async (HrDbContext db) =>
+        emp.MapGet("/org-chart", async (ISender mediator) =>
         {
-            var employees = await db.Employees
-                .Where(e => e.Status == EmployeeStatus.Active)
-                .Select(e => new { e.Id, e.FirstName, e.LastName, e.Department,
-                    e.Position, e.ManagerId })
-                .ToListAsync();
-            return Results.Ok(employees);
+            var result = await mediator.Send(new GetOrgChartQuery());
+            return Results.Ok(result);
         }).WithName("OrgChart").WithSummary("Organizasyon şeması verisi");
 
         // ═══════════ Leave Requests ═══════════
         var leave = app.MapGroup("/api/hr/leave-requests").WithTags("HR - Leave Requests");
 
-        leave.MapGet("/", async (HrDbContext db, Guid? employeeId, string? status,
+        leave.MapGet("/", async (ISender mediator, Guid? employeeId, string? status,
             int page = 1, int pageSize = 20) =>
         {
-            var query = db.LeaveRequests.Include(l => l.Employee).AsQueryable();
-            if (employeeId.HasValue) query = query.Where(l => l.EmployeeId.Value == employeeId.Value);
-            if (!string.IsNullOrEmpty(status) && Enum.TryParse<LeaveRequestStatus>(status, out var s))
-                query = query.Where(l => l.Status == s);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderByDescending(l => l.CreatedAt)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(l => new { l.Id, l.EmployeeId,
-                    EmployeeName = l.Employee.FirstName + " " + l.Employee.LastName,
-                    LeaveType = l.LeaveType.ToString(), Status = l.Status.ToString(),
-                    l.StartDate, l.EndDate, l.TotalDays, l.Reason, l.CreatedAt })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListLeaveRequestsQuery(employeeId, status, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListLeaveRequests");
 
-        leave.MapPost("/", async (CreateLeaveRequest req, HrDbContext db) =>
+        leave.MapPost("/", async (CreateLeaveRequest req, ISender mediator) =>
         {
-            Enum.TryParse<LeaveType>(req.LeaveType, out var type);
-            var request = LeaveRequestBase.Create(new EmployeeId(req.EmployeeId), type,
-                req.StartDate, req.EndDate, req.Reason);
-            request.Submit();
-            db.LeaveRequests.Add(request);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/hr/leave-requests/{request.Id}",
-                new { request.Id, request.TotalDays, Status = request.Status.ToString() });
+            var result = await mediator.Send(new CreateLeaveRequestCommand(
+                req.EmployeeId, req.LeaveType, req.StartDate, req.EndDate, req.Reason));
+            return Results.Created($"/api/hr/leave-requests/{result.Id}", result);
         }).WithName("CreateLeaveRequest");
 
-        leave.MapPost("/{id:guid}/approve", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
+        leave.MapPost("/{id:guid}/approve", async (Guid id, LeaveActionRequest req, ISender mediator) =>
         {
-            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id.Value == id);
-            if (lr is null) return Results.NotFound();
-            lr.Approve(req.UserId, req.Comment);
-            await db.SaveChangesAsync();
-
-            await eventBus.PublishAsync(new LeaveApprovedEvent(
-                lr.Id.Value, lr.EmployeeId.Value, lr.Employee.FullName,
-                lr.LeaveType.ToString(), lr.StartDate, lr.EndDate,
-                lr.TotalDays, req.UserId));
-
-            return Results.Ok(new { lr.Id, Status = lr.Status.ToString() });
+            var status = await mediator.Send(new ApproveLeaveCommand(id, req.UserId, req.Comment));
+            return Results.Ok(new { id, status });
         }).WithName("ApproveLeave");
 
-        leave.MapPost("/{id:guid}/reject", async (Guid id, LeaveActionRequest req, HrDbContext db, IEventBus eventBus) =>
+        leave.MapPost("/{id:guid}/reject", async (Guid id, LeaveActionRequest req, ISender mediator) =>
         {
-            var lr = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id.Value == id);
-            if (lr is null) return Results.NotFound();
-            lr.Reject(req.UserId, req.Comment);
-            await db.SaveChangesAsync();
-
-            await eventBus.PublishAsync(new LeaveRejectedEvent(
-                lr.Id.Value, lr.EmployeeId.Value, lr.Employee.FullName,
-                lr.LeaveType.ToString(), req.UserId, req.Comment));
-
-            return Results.Ok(new { lr.Id, Status = lr.Status.ToString() });
+            var status = await mediator.Send(new RejectLeaveCommand(id, req.UserId, req.Comment));
+            return Results.Ok(new { id, status });
         }).WithName("RejectLeave");
 
-        // ── Leave Balance ────────────────────────────────
-        leave.MapGet("/balance/{employeeId:guid}", async (Guid employeeId, HrDbContext db) =>
+        leave.MapGet("/balance/{employeeId:guid}", async (Guid employeeId, ISender mediator) =>
         {
-            var employee = await db.Employees.FindAsync(employeeId);
-            if (employee is null) return Results.NotFound();
-
-            var usedDays = await db.LeaveRequests
-                .Where(l => l.EmployeeId.Value == employeeId && l.LeaveType == LeaveType.Annual
-                    && l.Status == LeaveRequestStatus.Approved
-                    && l.StartDate.Year == DateTime.UtcNow.Year)
-                .SumAsync(l => l.TotalDays);
-
-            return Results.Ok(new
-            {
-                employeeId,
-                employeeName = employee.FullName,
-                year = DateTime.UtcNow.Year,
-                entitlement = employee.AnnualLeaveEntitlement,
-                used = usedDays,
-                remaining = employee.AnnualLeaveEntitlement - usedDays
-            });
+            var result = await mediator.Send(new GetLeaveBalanceQuery(employeeId));
+            return result is null ? Results.NotFound() : Results.Ok(result);
         }).WithName("LeaveBalance").WithSummary("Yıllık izin bakiyesi");
 
         // ═══════════ Attendance ═══════════
         var att = app.MapGroup("/api/hr/attendance").WithTags("HR - Attendance");
 
-        att.MapGet("/", async (HrDbContext db, Guid? employeeId, DateTime? date,
+        att.MapGet("/", async (ISender mediator, Guid? employeeId, DateTime? date,
             int page = 1, int pageSize = 20) =>
         {
-            var query = db.Attendances.AsQueryable();
-            if (employeeId.HasValue) query = query.Where(a => a.EmployeeId.Value == employeeId.Value);
-            if (date.HasValue) query = query.Where(a => a.Date == date.Value.Date);
-
-            var total = await query.CountAsync();
-            var items = await query.OrderByDescending(a => a.Date)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(a => new { a.Id, a.EmployeeId, a.Date, a.CheckIn, a.CheckOut,
-                    Status = a.Status.ToString(), a.WorkedHours, a.OvertimeHours })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
+            var result = await mediator.Send(new ListAttendancesQuery(employeeId, date, page, pageSize));
+            return Results.Ok(result);
         }).WithName("ListAttendances");
 
-        att.MapPost("/", async (CreateAttendanceRequest req, HrDbContext db) =>
+        att.MapPost("/", async (CreateAttendanceRequest req, ISender mediator) =>
         {
-            Enum.TryParse<AttendanceStatus>(req.Status, out var status);
-            var attendance = AttendanceBase.Create(new EmployeeId(req.EmployeeId), req.Date,
-                req.CheckIn, req.CheckOut, status, req.Notes);
-            db.Attendances.Add(attendance);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/hr/attendance/{attendance.Id}",
-                new { attendance.Id, attendance.WorkedHours, attendance.OvertimeHours });
+            var result = await mediator.Send(new CreateAttendanceCommand(
+                req.EmployeeId, req.Date, req.CheckIn, req.CheckOut, req.Status, req.Notes));
+            return Results.Created($"/api/hr/attendance/{result.Id}", result);
         }).WithName("CreateAttendance");
 
         return app;
     }
 }
 
-// ── DTOs ─────────────────────────────────────────────────
+// ── Request DTO'lar (HTTP body) ─────────────────────────────
 public sealed record CreateEmployeeRequest(string EmployeeNumber, string FirstName, string LastName,
     DateTime HireDate, string EmploymentType = "FullTime", string? Email = null, string? Phone = null,
     string? NationalId = null, DateTime? DateOfBirth = null, string? Department = null,

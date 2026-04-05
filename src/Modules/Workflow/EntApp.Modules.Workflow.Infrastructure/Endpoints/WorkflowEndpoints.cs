@@ -1,18 +1,13 @@
-using EntApp.Modules.Workflow.Application.Interfaces;
-using EntApp.Modules.Workflow.Domain.Entities;
-using EntApp.Modules.Workflow.Domain.Enums;
-using EntApp.Modules.Workflow.Infrastructure.Persistence;
+using EntApp.Modules.Workflow.Application.Commands;
+using EntApp.Modules.Workflow.Application.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Endpoints;
 
-/// <summary>
-/// Workflow & Approval Engine REST API endpoint'leri.
-/// </summary>
+/// <summary>Workflow & Approval Engine REST API endpoint'leri — CQRS/MediatR ile.</summary>
 public static class WorkflowEndpoints
 {
     public static IEndpointRouteBuilder MapWorkflowEndpoints(this IEndpointRouteBuilder app)
@@ -22,231 +17,119 @@ public static class WorkflowEndpoints
         // ═══════════════════════════════════════════════════
         var defs = app.MapGroup("/api/workflows/definitions").WithTags("Workflow Definitions");
 
-        defs.MapGet("/", async (HttpContext httpContext, string? category, int page = 1, int pageSize = 20) =>
+        defs.MapGet("/", async (ISender mediator, string? category, int page = 1, int pageSize = 20) =>
         {
-            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
-            var query = db.Definitions.Where(d => d.IsActive);
-            if (!string.IsNullOrEmpty(category))
-                query = query.Where(d => d.Category == category);
+            var result = await mediator.Send(new ListDefinitionsQuery(category, page, pageSize));
+            return Results.Ok(result);
+        }).WithName("ListDefinitions");
 
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderBy(d => d.Category).ThenBy(d => d.Name)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(d => new
-                {
-                    d.Id, d.Name, d.Title, d.Description, d.Category,
-                    ApprovalType = d.ApprovalType.ToString(),
-                    d.TimeoutHours, d.IsActive, d.CreatedAt
-                })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
-        })
-        .WithName("ListDefinitions");
-
-        defs.MapGet("/{id:guid}", async (Guid id, HttpContext httpContext) =>
+        defs.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
-            var d = await db.Definitions.FindAsync(id);
-            return d is null ? Results.NotFound() : Results.Ok(d);
-        })
-        .WithName("GetDefinition");
+            var result = await mediator.Send(new GetDefinitionQuery(id));
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("GetDefinition");
 
-        defs.MapPost("/", async (CreateDefinitionRequest req, WorkflowDbContext db) =>
+        defs.MapPost("/", async (CreateDefinitionRequest req, ISender mediator) =>
         {
-            if (string.IsNullOrWhiteSpace(req.Name) || string.IsNullOrWhiteSpace(req.Title))
-                return Results.BadRequest(new { error = "Name and Title are required." });
-
-            if (!Enum.TryParse<ApprovalType>(req.ApprovalType, out var approvalType))
-                approvalType = ApprovalType.Sequential;
-
-            var def = WorkflowDefinition.Create(
-                name: req.Name,
-                title: req.Title,
-                approvalType: approvalType,
-                stepDefinitionsJson: req.StepDefinitionsJson ?? "[]",
-                description: req.Description,
-                category: req.Category,
-                timeoutHours: req.TimeoutHours);
-
-            db.Definitions.Add(def);
-            await db.SaveChangesAsync();
-
-            return Results.Created($"/api/workflows/definitions/{def.Id}", new { def.Id, def.Name });
-        })
-        .WithName("CreateDefinition");
+            var result = await mediator.Send(new CreateDefinitionCommand(
+                req.Name, req.Title, req.Description, req.Category,
+                req.ApprovalType, req.StepDefinitionsJson, req.TimeoutHours));
+            return Results.Created($"/api/workflows/definitions/{result.Id}", result);
+        }).WithName("CreateDefinition");
 
         // ═══════════════════════════════════════════════════
         // Instance (Workflow) Endpoints
         // ═══════════════════════════════════════════════════
         var wf = app.MapGroup("/api/workflows").WithTags("Workflows");
 
-        wf.MapGet("/", async (HttpContext httpContext, string? status, int page = 1, int pageSize = 20) =>
+        wf.MapGet("/", async (ISender mediator, string? status, int page = 1, int pageSize = 20) =>
         {
-            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
-            var query = db.Instances.Include(i => i.Definition).AsQueryable();
-            if (!string.IsNullOrEmpty(status) && Enum.TryParse<WorkflowStatus>(status, out var s))
-                query = query.Where(i => i.Status == s);
+            var result = await mediator.Send(new ListWorkflowsQuery(status, page, pageSize));
+            return Results.Ok(result);
+        }).WithName("ListWorkflows");
 
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(i => i.CreatedAt)
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .Select(i => new
-                {
-                    i.Id, DefinitionName = i.Definition.Name,
-                    Status = i.Status.ToString(),
-                    i.ReferenceType, i.ReferenceId,
-                    i.CurrentStepOrder, i.StartedAt, i.CompletedAt, i.CreatedAt
-                })
-                .ToListAsync();
-
-            return Results.Ok(new { items, totalCount = total, pageNumber = page, pageSize });
-        })
-        .WithName("ListWorkflows");
-
-        wf.MapGet("/{id:guid}", async (Guid id, HttpContext httpContext) =>
+        wf.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         {
-            var db = httpContext.RequestServices.GetRequiredService<WorkflowDbContext>();
-            var instance = await db.Instances
-                .Include(i => i.Definition)
-                .Include(i => i.Steps.OrderBy(s => s.StepOrder))
-                .FirstOrDefaultAsync(i => i.Id == id);
+            var result = await mediator.Send(new GetWorkflowQuery(id));
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("GetWorkflow");
 
-            if (instance is null) return Results.NotFound();
-
-            return Results.Ok(new
-            {
-                instance.Id,
-                Definition = new { instance.Definition.Name, instance.Definition.Title, ApprovalType = instance.Definition.ApprovalType.ToString() },
-                Status = instance.Status.ToString(),
-                instance.ReferenceType,
-                instance.ReferenceId,
-                instance.CurrentStepOrder,
-                instance.StartedAt,
-                instance.CompletedAt,
-                Steps = instance.Steps.Select(s => new
-                {
-                    s.Id, s.StepOrder, s.StepName,
-                    Status = s.Status.ToString(),
-                    s.AssignedUserId, s.AssignedRole,
-                    s.ActionByUserId, s.ActionAt, s.Comment, s.DueDate
-                })
-            });
-        })
-        .WithName("GetWorkflow");
-
-        // ── Start ────────────────────────────────────────
-        wf.MapPost("/start", async (StartWorkflowRequest req, IWorkflowEngine engine) =>
+        wf.MapPost("/start", async (StartWorkflowRequest req, ISender mediator) =>
         {
             try
             {
-                var instance = await engine.StartAsync(
-                    req.DefinitionId, req.InitiatorUserId,
-                    req.ReferenceType, req.ReferenceId, req.Metadata);
-
-                return Results.Created($"/api/workflows/{instance.Id}",
-                    new { instance.Id, Status = instance.Status.ToString() });
+                var result = await mediator.Send(new StartWorkflowCommand(
+                    req.DefinitionId, req.InitiatorUserId, req.ReferenceType, req.ReferenceId, req.Metadata));
+                return Results.Created($"/api/workflows/{result.Id}", result);
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
-        })
-        .WithName("StartWorkflow");
+        }).WithName("StartWorkflow");
 
-        // ── Approve ──────────────────────────────────────
-        wf.MapPost("/{id:guid}/approve", async (Guid id, ApprovalActionRequest req, IWorkflowEngine engine) =>
+        wf.MapPost("/{id:guid}/approve", async (Guid id, ApprovalActionRequest req, ISender mediator) =>
         {
             try
             {
-                var instance = await engine.ApproveAsync(id, req.StepId, req.UserId, req.Comment);
-                return Results.Ok(new { instance.Id, Status = instance.Status.ToString() });
+                var result = await mediator.Send(new ApproveStepCommand(id, req.StepId, req.UserId, req.Comment));
+                return Results.Ok(result);
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
-        })
-        .WithName("ApproveStep");
+        }).WithName("ApproveStep");
 
-        // ── Reject ───────────────────────────────────────
-        wf.MapPost("/{id:guid}/reject", async (Guid id, ApprovalActionRequest req, IWorkflowEngine engine) =>
+        wf.MapPost("/{id:guid}/reject", async (Guid id, ApprovalActionRequest req, ISender mediator) =>
         {
             try
             {
-                var instance = await engine.RejectAsync(id, req.StepId, req.UserId, req.Comment);
-                return Results.Ok(new { instance.Id, Status = instance.Status.ToString() });
+                var result = await mediator.Send(new RejectStepCommand(id, req.StepId, req.UserId, req.Comment));
+                return Results.Ok(result);
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
-        })
-        .WithName("RejectStep");
+        }).WithName("RejectStep");
 
-        // ── Escalate ─────────────────────────────────────
-        wf.MapPost("/{id:guid}/escalate", async (Guid id, EscalateRequest req, IWorkflowEngine engine) =>
+        wf.MapPost("/{id:guid}/escalate", async (Guid id, EscalateRequest req, ISender mediator) =>
         {
             try
             {
-                var instance = await engine.EscalateAsync(id, req.StepId, req.EscalateToUserId, req.Comment);
-                return Results.Ok(new { instance.Id, Status = instance.Status.ToString() });
+                var result = await mediator.Send(new EscalateStepCommand(id, req.StepId, req.EscalateToUserId, req.Comment));
+                return Results.Ok(result);
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
-        })
-        .WithName("EscalateStep");
+        }).WithName("EscalateStep");
 
-        // ── Cancel ───────────────────────────────────────
-        wf.MapPost("/{id:guid}/cancel", async (Guid id, IWorkflowEngine engine) =>
+        wf.MapPost("/{id:guid}/cancel", async (Guid id, ISender mediator) =>
         {
             try
             {
-                var instance = await engine.CancelAsync(id);
-                return Results.Ok(new { instance.Id, Status = instance.Status.ToString() });
+                var result = await mediator.Send(new CancelWorkflowCommand(id));
+                return Results.Ok(result);
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
-        })
-        .WithName("CancelWorkflow");
+        }).WithName("CancelWorkflow");
 
-        // ── Pending ──────────────────────────────────────
-        wf.MapGet("/pending/{userId:guid}", async (Guid userId, IWorkflowEngine engine) =>
+        wf.MapGet("/pending/{userId:guid}", async (Guid userId, ISender mediator) =>
         {
-            var steps = await engine.GetPendingStepsAsync(userId);
-            return Results.Ok(steps.Select(s => new
-            {
-                s.Id, s.InstanceId, s.StepOrder, s.StepName,
-                s.AssignedUserId, s.DueDate, s.CreatedAt
-            }));
-        })
-        .WithName("GetPendingSteps")
-        .WithSummary("Kullanıcının onay bekleyen adımlarını listele");
+            var result = await mediator.Send(new GetPendingStepsQuery(userId));
+            return Results.Ok(result);
+        }).WithName("GetPendingSteps").WithSummary("Kullanıcının onay bekleyen adımlarını listele");
 
         return app;
     }
 }
 
 // ── DTOs ─────────────────────────────────────────────────
-
-public sealed record CreateDefinitionRequest(
-    string Name,
-    string Title,
-    string? Description = null,
-    string? Category = null,
-    string ApprovalType = "Sequential",
-    string? StepDefinitionsJson = null,
+public sealed record CreateDefinitionRequest(string Name, string Title,
+    string? Description = null, string? Category = null,
+    string ApprovalType = "Sequential", string? StepDefinitionsJson = null,
     int? TimeoutHours = null);
 
-public sealed record StartWorkflowRequest(
-    Guid DefinitionId,
-    Guid? InitiatorUserId = null,
-    string? ReferenceType = null,
-    string? ReferenceId = null,
-    string? Metadata = null);
+public sealed record StartWorkflowRequest(Guid DefinitionId,
+    Guid? InitiatorUserId = null, string? ReferenceType = null,
+    string? ReferenceId = null, string? Metadata = null);
 
-public sealed record ApprovalActionRequest(
-    Guid StepId,
-    Guid UserId,
-    string? Comment = null);
+public sealed record ApprovalActionRequest(Guid StepId, Guid UserId, string? Comment = null);
 
-public sealed record EscalateRequest(
-    Guid StepId,
-    Guid EscalateToUserId,
-    string? Comment = null);
+public sealed record EscalateRequest(Guid StepId, Guid EscalateToUserId, string? Comment = null);
