@@ -276,7 +276,7 @@
 - [x] `QueryClientProvider` wiring (`providers.tsx`)
 - [x] `DynamicLookup.tsx` — async arama destekli combobox *(Faz 8e'de implemente edildi)*
 - [x] `DynamicFilters.tsx` — gelişmiş filtreleme paneli *(Faz 8e'de implemente edildi)*
-- [ ] `DynamicDetailTable.tsx` — master-detail alt tablo *(→ Faz 11, SalesOrder/OrderItem gerekli)*
+- [x] `DynamicDetailTable.tsx` — master-detail alt tablo (collapsible inline CRUD, SalesOrder→OrderItem)
 - [x] Override mekanizmaları: config, fieldOverrides, detailOverrides *(→ Faz 13c'de tamamlandı)*
 
 ### 8c — Import/Export Engine ✅

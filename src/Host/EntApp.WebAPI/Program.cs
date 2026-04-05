@@ -193,7 +193,8 @@ try
         typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
         typeof(EntApp.Modules.Configuration.Domain.Entities.Country).Assembly,
         typeof(EntApp.Modules.AI.Domain.Entities.AiModel).Assembly,
-        typeof(EntApp.Modules.CRM.Domain.Entities.CustomerBase).Assembly
+        typeof(EntApp.Modules.CRM.Domain.Entities.CustomerBase).Assembly,
+        typeof(EntApp.Modules.Sales.Domain.Entities.SalesOrderBase).Assembly
     );
 
     // Dynamic entity → DbContext eşleştirmesi
@@ -216,6 +217,12 @@ try
         typeof(EntApp.Modules.CRM.Domain.Entities.ContactBase),
         typeof(EntApp.Modules.CRM.Domain.Entities.OpportunityBase),
         typeof(EntApp.Modules.CRM.Domain.Entities.ActivityBase)
+    );
+
+    builder.Services.AddDynamicDbContext<
+        EntApp.Modules.Sales.Infrastructure.Persistence.SalesDbContext>(
+        typeof(EntApp.Modules.Sales.Domain.Entities.SalesOrderBase),
+        typeof(EntApp.Modules.Sales.Domain.Entities.OrderItemBase)
     );
 
     // ═════════════════════════════════════════════════════════

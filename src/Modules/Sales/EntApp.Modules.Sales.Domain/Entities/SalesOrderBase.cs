@@ -49,6 +49,7 @@ public sealed class SalesOrderBase : AuditableEntity<Guid>, ITenantEntity
     public Guid TenantId { get; set; }
 
     // Navigation
+    [DynamicDetail(typeof(OrderItemBase))]
     public ICollection<OrderItemBase> Items { get; private set; } = [];
 
     private SalesOrderBase() { }

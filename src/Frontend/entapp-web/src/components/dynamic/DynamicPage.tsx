@@ -12,6 +12,7 @@ import { useSignalR, type EntityChangePayload } from "@/lib/hooks/use-signalr";
 import { DynamicToolbar } from "./DynamicToolbar";
 import { DynamicTable } from "./DynamicTable";
 import { DynamicForm } from "./DynamicForm";
+import { DynamicDetailTable } from "./DynamicDetailTable";
 import { DynamicExport } from "./DynamicExport";
 import { DynamicImport } from "./DynamicImport";
 import { DynamicFilters, type FilterValues } from "./DynamicFilters";
@@ -35,6 +36,7 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
@@ -112,6 +114,11 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
     setEditingRow(row);
     setFormMode("edit");
     setFormOpen(true);
+  }, []);
+
+  const handleRowClick = useCallback((row: Record<string, unknown>) => {
+    const id = String(row.id);
+    setSelectedRowId((prev) => (prev === id ? null : id));
   }, []);
 
   const handleDeleteClick = useCallback(
@@ -217,7 +224,23 @@ export function DynamicPage({ entityName }: DynamicPageProps) {
         canDelete={metadata.actions.delete}
         highlightId={highlightId}
         deletingId={deletingId}
+        onRowClick={metadata.details && metadata.details.length > 0 ? handleRowClick : undefined}
+        selectedRowId={selectedRowId}
       />
+
+      {/* Master-Detail Tables */}
+      {metadata.details && metadata.details.length > 0 && selectedRowId && (
+        <div className="mt-4 space-y-3 pl-4 border-l-2 border-indigo-500/20">
+          {metadata.details.map((detail) => (
+            <DynamicDetailTable
+              key={detail.name}
+              detail={detail}
+              masterId={selectedRowId}
+              masterEntity={entityName}
+            />
+          ))}
+        </div>
+      )}
 
       <DynamicForm
         fields={metadata.fields}

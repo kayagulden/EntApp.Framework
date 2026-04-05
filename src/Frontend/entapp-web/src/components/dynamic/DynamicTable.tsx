@@ -30,6 +30,10 @@ interface DynamicTableProps {
   highlightId?: string | null;
   /** SignalR: silinen satır ID → fade-out animasyonu */
   deletingId?: string | null;
+  /** Master-detail: satır tıklandığında tetiklenir */
+  onRowClick?: (row: Record<string, unknown>) => void;
+  /** Master-detail: seçili satır ID'si */
+  selectedRowId?: string | null;
 }
 
 /**
@@ -50,6 +54,8 @@ export function DynamicTable({
   canDelete,
   highlightId,
   deletingId,
+  onRowClick,
+  selectedRowId,
 }: DynamicTableProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -158,10 +164,13 @@ export function DynamicTable({
                   return (
                     <tr
                       key={rowId}
+                      onClick={() => onRowClick?.(row)}
                       className={cn(
                         "transition-all duration-300",
+                        onRowClick ? "cursor-pointer" : "",
                         "hover:bg-[var(--color-bg)]/30",
                         idx % 2 === 0 ? "bg-transparent" : "bg-[var(--color-bg)]/10",
+                        selectedRowId === rowId && "bg-indigo-500/10 border-l-2 border-l-indigo-500",
                         highlightId === rowId && "animate-row-highlight",
                         deletingId === rowId && "animate-row-delete"
                       )}
