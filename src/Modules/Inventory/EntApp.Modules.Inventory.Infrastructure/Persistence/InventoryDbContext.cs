@@ -1,14 +1,16 @@
 using EntApp.Modules.Inventory.Domain.Entities;
 using EntApp.Modules.Inventory.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Inventory.Infrastructure.Persistence;
 
 /// <summary>Inventory modülü DbContext — schema: inv</summary>
-public sealed class InventoryDbContext : DbContext
+public sealed class InventoryDbContext : BaseDbContext
 {
     public const string Schema = "inv";
+    protected override string SchemaName => Schema;
 
     public DbSet<ProductBase> Products => Set<ProductBase>();
     public DbSet<WarehouseBase> Warehouses => Set<WarehouseBase>();
@@ -19,7 +21,6 @@ public sealed class InventoryDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<ProductBase>(e =>
         {

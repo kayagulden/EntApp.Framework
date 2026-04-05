@@ -1,15 +1,17 @@
 using EntApp.Modules.HR.Domain.Entities;
 using EntApp.Modules.HR.Domain.Enums;
 using EntApp.Modules.HR.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.HR.Infrastructure.Persistence;
 
 /// <summary>HR modülü DbContext — schema: hr</summary>
-public sealed class HrDbContext : DbContext
+public sealed class HrDbContext : BaseDbContext
 {
     public const string Schema = "hr";
+    protected override string SchemaName => Schema;
 
     public DbSet<EmployeeBase> Employees => Set<EmployeeBase>();
     public DbSet<LeaveRequestBase> LeaveRequests => Set<LeaveRequestBase>();
@@ -20,7 +22,6 @@ public sealed class HrDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<EmployeeBase>(e =>
         {

@@ -1,5 +1,6 @@
 using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
@@ -7,9 +8,10 @@ using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
 namespace EntApp.Modules.TaskManagement.Infrastructure.Persistence;
 
 /// <summary>TaskManagement modülü DbContext — schema: pm</summary>
-public sealed class TaskManagementDbContext : DbContext
+public sealed class TaskManagementDbContext : BaseDbContext
 {
     public const string Schema = "pm";
+    protected override string SchemaName => Schema;
 
     public DbSet<ProjectBase> Projects => Set<ProjectBase>();
     public DbSet<TaskItemBase> Tasks => Set<TaskItemBase>();
@@ -21,7 +23,6 @@ public sealed class TaskManagementDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<ProjectBase>(e =>
         {

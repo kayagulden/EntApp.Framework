@@ -1,14 +1,16 @@
 using EntApp.Modules.Procurement.Domain.Entities;
 using EntApp.Modules.Procurement.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Procurement.Infrastructure.Persistence;
 
 /// <summary>Procurement modülü DbContext — schema: proc</summary>
-public sealed class ProcurementDbContext : DbContext
+public sealed class ProcurementDbContext : BaseDbContext
 {
     public const string Schema = "proc";
+    protected override string SchemaName => Schema;
 
     public DbSet<SupplierBase> Suppliers => Set<SupplierBase>();
     public DbSet<PurchaseRequestBase> PurchaseRequests => Set<PurchaseRequestBase>();
@@ -19,7 +21,6 @@ public sealed class ProcurementDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<SupplierBase>(e =>
         {

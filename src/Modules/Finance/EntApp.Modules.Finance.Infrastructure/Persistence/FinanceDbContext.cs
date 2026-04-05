@@ -1,14 +1,16 @@
 using EntApp.Modules.Finance.Domain.Entities;
 using EntApp.Modules.Finance.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.Finance.Infrastructure.Persistence;
 
 /// <summary>Finance modülü DbContext — schema: fin</summary>
-public sealed class FinanceDbContext : DbContext
+public sealed class FinanceDbContext : BaseDbContext
 {
     public const string Schema = "fin";
+    protected override string SchemaName => Schema;
 
     public DbSet<AccountBase> Accounts => Set<AccountBase>();
     public DbSet<InvoiceBase> Invoices => Set<InvoiceBase>();
@@ -20,7 +22,6 @@ public sealed class FinanceDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.HasDefaultSchema(Schema);
 
         modelBuilder.Entity<AccountBase>(e =>
         {
