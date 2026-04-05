@@ -1,0 +1,79 @@
+"use client";
+
+import { useState } from "react";
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+
+export default function ProfilePage() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useState(() => setMounted(true));
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--color-text)]">Profilim</h1>
+        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          Kişisel ayarlarınızı düzenleyin.
+        </p>
+      </div>
+
+      {/* Profil Bilgileri */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+            KG
+          </div>
+          <div>
+            <h3 className="font-semibold text-[var(--color-text)]">Kullanıcı</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">admin@entapp.com</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tema */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <h3 className="font-semibold text-[var(--color-text)] mb-3">Tema</h3>
+        <div className="flex gap-3">
+          {(["light", "dark", "system"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                mounted && theme === t
+                  ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                  : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]"
+              )}
+            >
+              {t === "light" ? "Açık" : t === "dark" ? "Koyu" : "Sistem"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Dil */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <h3 className="font-semibold text-[var(--color-text)] mb-3">Dil</h3>
+        <select className="px-4 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-sm text-[var(--color-text)] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none">
+          <option>Türkçe</option>
+          <option>English</option>
+        </select>
+      </div>
+
+      {/* Bildirimler */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <h3 className="font-semibold text-[var(--color-text)] mb-3">Bildirimler</h3>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div className="relative">
+            <input type="checkbox" defaultChecked className="sr-only peer" />
+            <div className="w-11 h-6 bg-[var(--color-border)] rounded-full peer peer-checked:bg-indigo-500 transition-colors" />
+            <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
+          </div>
+          <span className="text-sm text-[var(--color-text)]">E-posta bildirimleri</span>
+        </label>
+      </div>
+    </div>
+  );
+}
