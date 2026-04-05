@@ -1,5 +1,7 @@
+using EntApp.Modules.Configuration.Infrastructure.DynamicUI;
 using EntApp.Modules.Configuration.Infrastructure.Persistence;
 using EntApp.Shared.Contracts.Modules;
+using EntApp.Shared.Infrastructure.DynamicCrud;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,5 +22,8 @@ public class ConfigModuleInstaller : IModuleInstaller
 
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(ConfigModuleInstaller).Assembly));
+
+        // Dynamic UI konfigürasyon sağlayıcısı
+        services.AddScoped<IDynamicUIConfigProvider, DynamicUIConfigProvider>();
     }
 }

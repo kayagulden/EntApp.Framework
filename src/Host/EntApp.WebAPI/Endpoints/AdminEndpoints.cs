@@ -5,6 +5,7 @@ using EntApp.Modules.Configuration.Domain.Entities;
 using EntApp.Modules.Configuration.Infrastructure.Persistence;
 using EntApp.Modules.MultiTenancy.Domain.Entities;
 using EntApp.Modules.MultiTenancy.Infrastructure.Persistence;
+using EntApp.Shared.Infrastructure.DynamicCrud;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -365,6 +366,70 @@ public static class AdminEndpoints
         }).WithName("AdminListPrompts");
 
         // ═══════════════════════════════════════════════════════
+        //  DYNAMIC UI CONFIG
+        // ═══════════════════════════════════════════════════════
+        var uiConfigs = admin.MapGroup("/ui-configs").WithTags("Admin - UI Config");
+
+        uiConfigs.MapGet("/", async (ConfigDbContext db) =>
+        {
+            var items = await db.DynamicUIConfigs.AsNoTracking()
+                .OrderBy(c => c.EntityName)
+                .Select(c => new { c.Id, c.EntityName, c.TenantId, c.ConfigJson, c.CreatedAt, c.UpdatedAt })
+                .ToListAsync();
+            return Results.Ok(items);
+        }).WithName("AdminListUIConfigs").WithSummary("Tüm UI override konfigürasyonları");
+
+        uiConfigs.MapGet("/{entityName}", async (string entityName, ConfigDbContext db, Guid? tenantId = null) =>
+        {
+            var config = await db.DynamicUIConfigs.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.EntityName == entityName && c.TenantId == tenantId);
+            return config is null
+                ? Results.NotFound(new { error = $"'{entityName}' için UI config bulunamadı." })
+                : Results.Ok(new { config.Id, config.EntityName, config.TenantId, config.ConfigJson, config.CreatedAt, config.UpdatedAt });
+        }).WithName("AdminGetUIConfig");
+
+        uiConfigs.MapPut("/{entityName}", async (
+            string entityName,
+            UpsertUIConfigRequest req,
+            ConfigDbContext db,
+            IDynamicUIConfigProvider configProvider) =>
+        {
+            var existing = await db.DynamicUIConfigs
+                .FirstOrDefaultAsync(c => c.EntityName == entityName && c.TenantId == req.TenantId);
+
+            if (existing is not null)
+            {
+                existing.UpdateConfig(req.ConfigJson);
+            }
+            else
+            {
+                existing = DynamicUIConfig.Create(entityName, req.ConfigJson, req.TenantId);
+                db.DynamicUIConfigs.Add(existing);
+            }
+
+            await db.SaveChangesAsync();
+            configProvider.InvalidateCache(entityName, req.TenantId);
+            return Results.Ok(new { existing.Id, existing.EntityName, message = "UI config kaydedildi." });
+        }).WithName("AdminUpsertUIConfig").WithSummary("Entity UI override konfigürasyonunu kaydet/güncelle");
+
+        uiConfigs.MapDelete("/{entityName}", async (
+            string entityName,
+            ConfigDbContext db,
+            IDynamicUIConfigProvider configProvider,
+            Guid? tenantId = null) =>
+        {
+            var config = await db.DynamicUIConfigs
+                .FirstOrDefaultAsync(c => c.EntityName == entityName && c.TenantId == tenantId);
+            if (config is null)
+                return Results.NotFound(new { error = $"'{entityName}' için UI config bulunamadı." });
+
+            db.DynamicUIConfigs.Remove(config);
+            await db.SaveChangesAsync();
+            configProvider.InvalidateCache(entityName, tenantId);
+            return Results.Ok(new { message = $"'{entityName}' UI config silindi — convention'a dönüldü." });
+        }).WithName("AdminDeleteUIConfig").WithSummary("Entity UI override'ı sil (convention'a dön)");
+
+        // ═══════════════════════════════════════════════════════
         //  CACHE YÖNETİMİ
         // ═══════════════════════════════════════════════════════
         var cache = admin.MapGroup("/cache").WithTags("Admin - Cache");
@@ -406,3 +471,6 @@ public sealed record CreateFeatureFlagRequest(string Name, string DisplayName,
     string? AllowedRoles = null);
 
 public sealed record ScheduleFlagRequest(DateTime? EnabledFrom, DateTime? EnabledUntil);
+
+public sealed record UpsertUIConfigRequest(string ConfigJson, Guid? TenantId = null);
+

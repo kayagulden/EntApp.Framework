@@ -17,6 +17,10 @@ public sealed record EntityMetadataDto
     /// <summary>Sidebar menu grubu.</summary>
     public string? MenuGroup { get; init; }
 
+    /// <summary>Sidebar ikonu (ör: "globe", "map-pin").</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Icon { get; init; }
+
     /// <summary>Detail entity mi (master-detail alt tarafı)?</summary>
     public bool IsDetail { get; init; }
 
@@ -74,6 +78,20 @@ public sealed record FieldMetadataDto
     /// <summary>Hesaplanan alan ifadesi.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Computed { get; init; }
+
+    /// <summary>Listede gösterilsin mi? (default: convention-based)</summary>
+    public bool ShowInList { get; init; } = true;
+
+    /// <summary>Sıralama (default: property sırası).</summary>
+    public int Order { get; init; }
+
+    /// <summary>Kolon genişliği (ör: "sm", "md", "lg", "xl").</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Width { get; init; }
+
+    /// <summary>Gizli alan mı? (true ise metadata'dan çıkarılır).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Hidden { get; init; }
 
     /// <summary>Enum seçenekleri (enum tipli alanlar için).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

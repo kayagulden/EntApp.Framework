@@ -14,10 +14,23 @@ public class ConfigDbContext : DbContext
     public DbSet<Country> Countries => Set<Country>();
     public DbSet<City> Cities => Set<City>();
     public DbSet<Currency> Currencies => Set<Currency>();
+    public DbSet<DynamicUIConfig> DynamicUIConfigs => Set<DynamicUIConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+
+        // ── DynamicUIConfig ─────────────────────────────
+        modelBuilder.Entity<DynamicUIConfig>(e =>
+        {
+            e.ToTable("DynamicUIConfigs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EntityName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ConfigJson).HasColumnType("jsonb").IsRequired();
+
+            // EntityName + TenantId unique — aynı entity için tenant başına tek override
+            e.HasIndex(x => new { x.EntityName, x.TenantId }).IsUnique();
+        });
 
         modelBuilder.Entity<AppSetting>(e =>
         {

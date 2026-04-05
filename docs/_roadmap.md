@@ -277,7 +277,7 @@
 - [x] `DynamicLookup.tsx` — async arama destekli combobox *(Faz 8e'de implemente edildi)*
 - [x] `DynamicFilters.tsx` — gelişmiş filtreleme paneli *(Faz 8e'de implemente edildi)*
 - [ ] `DynamicDetailTable.tsx` — master-detail alt tablo *(→ Faz 11, SalesOrder/OrderItem gerekli)*
-- [ ] Override mekanizmaları: config, fieldOverrides, detailOverrides *(→ Faz 13)*
+- [x] Override mekanizmaları: config, fieldOverrides, detailOverrides *(→ Faz 13c'de tamamlandı)*
 
 ### 8c — Import/Export Engine ✅
 
@@ -537,22 +537,20 @@
 
 ---
 
-## Faz 13 — Admin Panel
-
-> [!IMPORTANT]
-> **Faz 8b'den ertelenen:** Override mekanizmaları (config, fieldOverrides, detailOverrides) bu fazda `DynamicUIConfigs` DB tablosu ile birlikte implemente edilecek.
+## Faz 13 — Admin Panel ✅
 
 ### 13a — Backend Admin Endpoints ✅
 
 > **Tamamlanma:** 2026-04-05
 
-- [x] `AdminEndpoints.cs` — 24 endpoint, 6 grup
+- [x] `AdminEndpoints.cs` — 28 endpoint, 7 grup
 - [x] **Tenant Yönetimi** (8 endpoint): list, get, create, update, activate, suspend, deactivate, settings
 - [x] **Feature Flags** (5 endpoint): list, create, toggle, schedule, delete
 - [x] **Audit Viewer** (3 endpoint): list (filtreli), get, stats (aksiyon/entity/user bazlı)
 - [x] **System Health** (3 endpoint): health (detaylı), modules (16 modül), info (runtime/OS/memory)
 - [x] **AI İstatistikleri** (3 endpoint): stats (model/gün/maliyet), models, prompts
 - [x] **Cache Yönetimi** (2 endpoint): status, clear/{key}
+- [x] **UI Config** (4 endpoint): list, get, upsert, delete — *Faz 13c'de eklendi*
 
 ### 13b — Frontend Admin Panel ✅
 
@@ -565,9 +563,24 @@
 - [x] Audit Logs page (`/admin/audit-logs`) — filtreli tablo, stats, pagination
 - [x] System Health page (`/admin/system`) — health checks, system info, cache, modules
 - [x] Frontend build: ✓ Compiled successfully
-- [ ] **DynamicUIConfigs DB Tablosu** — sonraki fazda
 
-**Çıktı:** Tek yerden framework yönetimi ✅
+### 13c — DynamicUIConfigs DB Tablosu & 3-Tier Metadata Fallback ✅
+
+> **Tamamlanma:** 2026-04-05
+>
+> Faz 8b'den ertelenen override mekanizmaları (config, fieldOverrides, detailOverrides) bu fazda tamamlandı.
+
+- [x] `DynamicUIConfig` entity (Configuration.Domain) — EntityName, TenantId, ConfigJson (jsonb)
+- [x] `ConfigDbContext` güncelleme (DbSet + unique index: EntityName+TenantId)
+- [x] `DynamicUIConfigOverrideDto` — field/action/entity seviyesinde override deserialization
+- [x] `IDynamicUIConfigProvider` + `DynamicUIConfigProvider` — tenant > global fallback + in-memory cache
+- [x] `MetadataService` → 3-tier async fallback (DB → Convention → Attribute) + `MergeOverride()`
+- [x] `EntityMetadataDto` yeni alanlar: ShowInList, Order, Width, Hidden, Icon
+- [x] Admin API: 4 endpoint (`/api/admin/ui-configs` — list, get, upsert, delete)
+- [x] EF Migration: `AddDynamicUIConfigs` oluşturuldu ve uygulandı
+- [x] 6 unit test (MetadataServiceOverrideTests) — tümü geçti
+
+**Çıktı:** Tek yerden framework yönetimi + runtime UI konfigürasyonu ✅
 
 ---
 

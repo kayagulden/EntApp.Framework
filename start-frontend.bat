@@ -1,0 +1,4 @@
+@echo off
+echo Starting Frontend...
+powershell -ExecutionPolicy Bypass -File "%~dp0start-frontend.ps1"
+pause

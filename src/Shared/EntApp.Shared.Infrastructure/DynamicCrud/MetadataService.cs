@@ -9,13 +9,15 @@ namespace EntApp.Shared.Infrastructure.DynamicCrud;
 
 /// <summary>
 /// Reflection ile entity CLR tipinden metadata JSON schema üretir.
-/// Convention-based fallback: attribute yoksa property adından otomatik türetim.
-/// Üretilen metadata cache'lenir (entity başına tek seferlik).
+/// 3-tier fallback: DB override → Convention-based → Attribute.
+/// Convention/Attribute tabanlı metadata cache'lenir (entity başına tek seferlik).
+/// DB override'ları async çağrıda merge edilir.
 /// </summary>
 public sealed partial class MetadataService : IMetadataService
 {
     private readonly IDynamicEntityRegistry _registry;
-    private readonly ConcurrentDictionary<string, EntityMetadataDto> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IDynamicUIConfigProvider? _configProvider;
+    private static readonly ConcurrentDictionary<string, EntityMetadataDto> _baseCache = new(StringComparer.OrdinalIgnoreCase);
 
     // BaseEntity/AuditableEntity'den gelen infrastructure property'leri — metadata'da gösterilmez
     private static readonly HashSet<string> ExcludedProperties = new(StringComparer.OrdinalIgnoreCase)
@@ -29,22 +31,38 @@ public sealed partial class MetadataService : IMetadataService
         nameof(AuditableEntity<Guid>.ModifiedBy)
     };
 
-    public MetadataService(IDynamicEntityRegistry registry)
+    public MetadataService(IDynamicEntityRegistry registry, IDynamicUIConfigProvider? configProvider = null)
     {
         _registry = registry;
+        _configProvider = configProvider;
     }
 
+    /// <summary>
+    /// Sync metadata — sadece attribute/convention (geriye uyumluluk).
+    /// </summary>
     public EntityMetadataDto? GetMetadata(string entityName)
     {
-        if (_cache.TryGetValue(entityName, out var cached))
-            return cached;
+        return GetBaseMetadata(entityName);
+    }
 
-        var info = _registry.GetByName(entityName);
-        if (info is null) return null;
+    /// <summary>
+    /// Async metadata — DB override merge'li, 3-tier fallback.
+    /// </summary>
+    public async Task<EntityMetadataDto?> GetMetadataAsync(
+        string entityName, Guid? tenantId = null, CancellationToken ct = default)
+    {
+        var baseMeta = GetBaseMetadata(entityName);
+        if (baseMeta is null) return null;
 
-        var metadata = BuildMetadata(info);
-        _cache.TryAdd(entityName, metadata);
-        return metadata;
+        // DB override yoksa veya provider yoksa → base döndür
+        if (_configProvider is null)
+            return baseMeta;
+
+        var overrideConfig = await _configProvider.GetOverrideAsync(entityName, tenantId, ct);
+        if (overrideConfig is null)
+            return baseMeta;
+
+        return MergeOverride(baseMeta, overrideConfig);
     }
 
     public IReadOnlyList<MenuGroupDto> GetMenu()
@@ -70,8 +88,21 @@ public sealed partial class MetadataService : IMetadataService
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  PRIVATE — Metadata Builder
+    //  PRIVATE — Base Metadata (Attribute + Convention)
     // ═══════════════════════════════════════════════════════════
+
+    private EntityMetadataDto? GetBaseMetadata(string entityName)
+    {
+        if (_baseCache.TryGetValue(entityName, out var cached))
+            return cached;
+
+        var info = _registry.GetByName(entityName);
+        if (info is null) return null;
+
+        var metadata = BuildMetadata(info);
+        _baseCache.TryAdd(entityName, metadata);
+        return metadata;
+    }
 
     private EntityMetadataDto BuildMetadata(DynamicEntityInfo info)
     {
@@ -99,6 +130,7 @@ public sealed partial class MetadataService : IMetadataService
     private List<FieldMetadataDto> BuildFieldMetadata(Type type)
     {
         var fields = new List<FieldMetadataDto>();
+        var order = 0;
 
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && !ExcludedProperties.Contains(p.Name));
@@ -128,6 +160,8 @@ public sealed partial class MetadataService : IMetadataService
                 Max = fieldAttr is not null && fieldAttr.Max != double.MaxValue ? fieldAttr.Max : null,
                 DefaultValue = fieldAttr?.DefaultValue,
                 Computed = fieldAttr?.Computed,
+                ShowInList = true,
+                Order = order++,
                 Options = ResolveEnumOptions(prop),
                 Lookup = lookupAttr is not null ? ResolveLookupInfo(lookupAttr) : null
             };
@@ -160,6 +194,65 @@ public sealed partial class MetadataService : IMetadataService
         }
 
         return details;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  PRIVATE — DB Override Merge
+    // ═══════════════════════════════════════════════════════════
+
+    private static EntityMetadataDto MergeOverride(EntityMetadataDto baseMeta, DynamicUIConfigOverrideDto overrideConfig)
+    {
+        // Entity-level override
+        var title = overrideConfig.Title ?? baseMeta.Title;
+        var icon = overrideConfig.Icon ?? baseMeta.Icon;
+
+        // Actions override
+        var actions = baseMeta.Actions;
+        if (overrideConfig.Actions is not null)
+        {
+            actions = new EntityActionsDto
+            {
+                Create = overrideConfig.Actions.Create ?? actions.Create,
+                Edit = overrideConfig.Actions.Edit ?? actions.Edit,
+                Delete = overrideConfig.Actions.Delete ?? actions.Delete,
+                Export = overrideConfig.Actions.Export ?? actions.Export
+            };
+        }
+
+        // Field-level override
+        var fields = baseMeta.Fields;
+        if (overrideConfig.Fields is { Count: > 0 })
+        {
+            fields = baseMeta.Fields
+                .Select(f =>
+                {
+                    if (!overrideConfig.Fields.TryGetValue(f.Name, out var fieldOverride))
+                        return f;
+
+                    return f with
+                    {
+                        Label = fieldOverride.Label ?? f.Label,
+                        Order = fieldOverride.Order ?? f.Order,
+                        Width = fieldOverride.Width ?? f.Width,
+                        ShowInList = fieldOverride.ShowInList ?? f.ShowInList,
+                        Hidden = fieldOverride.Hidden ?? f.Hidden,
+                        Searchable = fieldOverride.Searchable ?? f.Searchable,
+                        ReadOnly = fieldOverride.ReadOnly ?? f.ReadOnly,
+                        Required = fieldOverride.Required ?? f.Required
+                    };
+                })
+                .Where(f => !f.Hidden) // Hidden alanları metadata'dan çıkar
+                .OrderBy(f => f.Order)
+                .ToList();
+        }
+
+        return baseMeta with
+        {
+            Title = title,
+            Icon = icon,
+            Actions = actions,
+            Fields = fields
+        };
     }
 
     // ═══════════════════════════════════════════════════════════

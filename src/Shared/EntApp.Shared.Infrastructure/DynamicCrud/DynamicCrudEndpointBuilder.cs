@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using EntApp.Shared.Contracts.Common;
+using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Infrastructure.DynamicCrud.Export;
 using EntApp.Shared.Infrastructure.DynamicCrud.Import;
 using EntApp.Shared.Infrastructure.DynamicCrud.Models;
@@ -92,9 +93,14 @@ public static class DynamicCrudEndpointBuilder
         return Results.Ok(menu);
     }
 
-    private static IResult GetMetadata(string entityName, IMetadataService metadataService)
+    private static async Task<IResult> GetMetadata(
+        string entityName,
+        IMetadataService metadataService,
+        ICurrentTenant? currentTenant = null,
+        CancellationToken ct = default)
     {
-        var metadata = metadataService.GetMetadata(entityName);
+        var tenantId = currentTenant?.IsAvailable == true ? currentTenant.TenantId : (Guid?)null;
+        var metadata = await metadataService.GetMetadataAsync(entityName, tenantId, ct);
         if (metadata is null)
             return Results.NotFound(new { error = $"Entity '{entityName}' not found." });
 

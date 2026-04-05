@@ -35,9 +35,11 @@ public static class DynamicCrudServiceCollectionExtensions
             return registry;
         });
 
-        // Singleton metadata service (cache'li)
-        services.AddSingleton<IMetadataService>(sp =>
-            new MetadataService(sp.GetRequiredService<IDynamicEntityRegistry>()));
+        // Scoped metadata service (DB override gerektiği için scoped — static base cache ile performans korunur)
+        services.AddScoped<IMetadataService>(sp =>
+            new MetadataService(
+                sp.GetRequiredService<IDynamicEntityRegistry>(),
+                sp.GetService<IDynamicUIConfigProvider>()));
 
         // Scoped DbContext provider — static map'ten okur
         services.AddScoped<IDynamicDbContextProvider>(sp =>
