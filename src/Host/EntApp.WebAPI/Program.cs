@@ -188,7 +188,8 @@ try
     builder.Services.AddDynamicCrud(
         typeof(EntApp.Modules.IAM.Infrastructure.IamModuleInstaller).Assembly,
         typeof(EntApp.Modules.Configuration.Domain.Entities.Country).Assembly,
-        typeof(EntApp.Modules.AI.Domain.Entities.AiModel).Assembly
+        typeof(EntApp.Modules.AI.Domain.Entities.AiModel).Assembly,
+        typeof(EntApp.Modules.CRM.Domain.Entities.CustomerBase).Assembly
     );
 
     // Dynamic entity → DbContext eşleştirmesi
@@ -203,6 +204,14 @@ try
         EntApp.Modules.AI.Infrastructure.Persistence.AiDbContext>(
         typeof(EntApp.Modules.AI.Domain.Entities.AiModel),
         typeof(EntApp.Modules.AI.Domain.Entities.PromptTemplate)
+    );
+
+    builder.Services.AddDynamicDbContext<
+        EntApp.Modules.CRM.Infrastructure.Persistence.CrmDbContext>(
+        typeof(EntApp.Modules.CRM.Domain.Entities.CustomerBase),
+        typeof(EntApp.Modules.CRM.Domain.Entities.ContactBase),
+        typeof(EntApp.Modules.CRM.Domain.Entities.OpportunityBase),
+        typeof(EntApp.Modules.CRM.Domain.Entities.ActivityBase)
     );
 
     // ═════════════════════════════════════════════════════════

@@ -420,7 +420,7 @@
 - [x] Pipeline özet endpoint'i (`/api/crm/opportunities/pipeline`)
 - [x] `CrmDbContext` — schema: `crm`, 4 tablo, 7 index
 - [x] Integration Events — **Faz 12e'de** tamamlandı ✅
-- [ ] Dynamic UI ile ekranlar — sonraki fazda
+- [x] Dynamic UI ile ekranlar — `[DynamicEntity]` + `[DynamicField]` + `[DynamicLookup]` attribute'leri eklendi, `Program.cs`'de kayıt yapıldı
 
 ### 11b — HR ✅
 

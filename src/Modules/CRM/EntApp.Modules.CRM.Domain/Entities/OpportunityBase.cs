@@ -8,6 +8,8 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 [DynamicEntity("Opportunity", MenuGroup = "CRM")]
 public sealed class OpportunityBase : AuditableEntity<Guid>, ITenantEntity
 {
+    [DynamicField(FieldType = FieldType.Lookup, Required = true)]
+    [DynamicLookup(typeof(CustomerBase), DisplayField = "Name")]
     public Guid CustomerId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 200, Searchable = true)]
@@ -22,14 +24,19 @@ public sealed class OpportunityBase : AuditableEntity<Guid>, ITenantEntity
     [DynamicField(FieldType = FieldType.String, MaxLength = 10)]
     public string Currency { get; private set; } = "TRY";
 
+    [DynamicField(FieldType = FieldType.Enum)]
     public OpportunityStage Stage { get; private set; } = OpportunityStage.Lead;
 
     [DynamicField(FieldType = FieldType.Number)]
     public int Probability { get; private set; } = 10;
 
+    [DynamicField(FieldType = FieldType.Date)]
     public DateTime? ExpectedCloseDate { get; private set; }
+
+    [DynamicField(FieldType = FieldType.Date)]
     public DateTime? ActualCloseDate { get; private set; }
 
+    [DynamicField(FieldType = FieldType.Lookup)]
     public Guid? AssignedUserId { get; private set; }
     public string? LostReason { get; private set; }
 

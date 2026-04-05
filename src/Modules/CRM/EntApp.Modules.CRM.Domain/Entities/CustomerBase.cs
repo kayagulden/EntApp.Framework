@@ -32,8 +32,13 @@ public sealed class CustomerBase : AuditableEntity<Guid>, ITenantEntity
     [DynamicField(FieldType = FieldType.String, MaxLength = 20)]
     public string? TaxNumber { get; private set; }
 
+    [DynamicField(FieldType = FieldType.Enum)]
     public CustomerType CustomerType { get; private set; } = CustomerType.Company;
+
+    [DynamicField(FieldType = FieldType.Enum)]
     public CustomerSegment Segment { get; private set; } = CustomerSegment.Standard;
+
+    [DynamicField(FieldType = FieldType.Boolean)]
     public bool IsActive { get; private set; } = true;
 
     public Guid TenantId { get; set; }

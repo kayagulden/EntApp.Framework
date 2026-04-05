@@ -7,6 +7,8 @@ namespace EntApp.Modules.CRM.Domain.Entities;
 [DynamicEntity("Contact", MenuGroup = "CRM")]
 public sealed class ContactBase : AuditableEntity<Guid>, ITenantEntity
 {
+    [DynamicField(FieldType = FieldType.Lookup, Required = true)]
+    [DynamicLookup(typeof(CustomerBase), DisplayField = "Name")]
     public Guid CustomerId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 100, Searchable = true)]
@@ -27,7 +29,10 @@ public sealed class ContactBase : AuditableEntity<Guid>, ITenantEntity
     [DynamicField(FieldType = FieldType.String, MaxLength = 100)]
     public string? Department { get; private set; }
 
+    [DynamicField(FieldType = FieldType.Boolean)]
     public bool IsPrimary { get; private set; }
+
+    [DynamicField(FieldType = FieldType.Boolean)]
     public bool IsActive { get; private set; } = true;
 
     public Guid TenantId { get; set; }
