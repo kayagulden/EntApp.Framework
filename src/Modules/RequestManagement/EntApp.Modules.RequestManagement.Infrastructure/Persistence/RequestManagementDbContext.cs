@@ -102,6 +102,7 @@ public sealed class RequestManagementDbContext : BaseDbContext
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Channel).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.FormDataJson).HasColumnType("jsonb");
             e.Property(x => x.RowVersion).IsRowVersion();
             e.HasQueryFilter(x => !x.IsDeleted);
 

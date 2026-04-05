@@ -131,7 +131,8 @@ public sealed class CreateTicketHandler(
 
         var ticket = Ticket.Create(number, request.Title,
             new RequestCategoryId(request.CategoryId), new DepartmentId(request.DepartmentId),
-            currentUser.UserId, request.Description, request.Priority, request.Channel);
+            currentUser.UserId, request.Description, request.Priority, request.Channel,
+            request.FormDataJson);
 
         // SLA hesapla
         var category = await db.Categories

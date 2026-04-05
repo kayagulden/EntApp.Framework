@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:5212/api/ai/:path*",
       },
       {
+        source: "/api/req/:path*",
+        destination: "http://localhost:5212/api/req/:path*",
+      },
+      {
         source: "/api/v:version/:path*",
         destination: "http://localhost:5212/api/v:version/:path*",
       },

@@ -32,6 +32,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public Guid? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
+    /// <summary>Dinamik form verileri (JSON). RequestCategory.FormSchemaJson'a göre doldurulan alan değerleri.</summary>
+    public string? FormDataJson { get; private set; }
+
     // Zaman damgaları
     public DateTime? FirstResponseAt { get; private set; }
     public DateTime? ResolvedAt { get; private set; }
@@ -50,7 +53,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public static Ticket Create(string number, string title, RequestCategoryId categoryId,
         DepartmentId departmentId, Guid reporterUserId,
         string? description = null, TicketPriority priority = TicketPriority.Medium,
-        TicketChannel channel = TicketChannel.Portal)
+        TicketChannel channel = TicketChannel.Portal,
+        string? formDataJson = null)
     {
         return new Ticket
         {
@@ -62,9 +66,12 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
             Channel = channel,
             CategoryId = categoryId,
             DepartmentId = departmentId,
-            ReporterUserId = reporterUserId
+            ReporterUserId = reporterUserId,
+            FormDataJson = formDataJson
         };
     }
+
+    public void SetFormData(string? formDataJson) => FormDataJson = formDataJson;
 
     public void SetSlaDeadlines(DateTime? responseDeadline, DateTime? resolutionDeadline)
     {

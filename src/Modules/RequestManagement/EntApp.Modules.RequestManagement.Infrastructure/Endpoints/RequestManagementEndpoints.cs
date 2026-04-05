@@ -116,7 +116,7 @@ public static class RequestManagementEndpoints
         {
             var id = await mediator.Send(new CreateTicketCommand(
                 req.Title, req.CategoryId, req.DepartmentId,
-                req.Description, req.Priority, req.Channel));
+                req.Description, req.Priority, req.Channel, req.FormDataJson));
             return Results.Created($"/api/req/tickets/{id}", new { id });
         }).WithName("CreateTicket");
 
@@ -151,6 +151,23 @@ public static class RequestManagementEndpoints
             return Results.Created($"/api/req/tickets/{id}/comments/{commentId}", new { id = commentId });
         }).WithName("AddTicketComment");
 
+        // ═══════════ Form Schema ═══════════
+        cats.MapGet("/{id:guid}/form-schema", async (Guid id, ISender mediator) =>
+        {
+            var cat = await mediator.Send(new GetCategoryQuery(id));
+            if (cat is null) return Results.NotFound();
+            if (string.IsNullOrWhiteSpace(cat.FormSchemaJson)) return Results.Ok(Array.Empty<object>());
+            return Results.Text(cat.FormSchemaJson, "application/json");
+        }).WithName("GetCategoryFormSchema");
+
+        tickets.MapGet("/{id:guid}/form-data", async (Guid id, ISender mediator) =>
+        {
+            var ticket = await mediator.Send(new GetTicketQuery(id));
+            if (ticket is null) return Results.NotFound();
+            if (string.IsNullOrWhiteSpace(ticket.FormDataJson)) return Results.Ok(new { });
+            return Results.Text(ticket.FormDataJson, "application/json");
+        }).WithName("GetTicketFormData");
+
         return app;
     }
 }
@@ -162,7 +179,7 @@ public sealed record CreateCategoryRequest(string Name, string Code, Guid Depart
 public sealed record UpdateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold);
 public sealed record CreateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
 public sealed record UpdateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
-public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel);
+public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null);
 public sealed record UpdateTicketRequest(string Title, string? Description, TicketPriority Priority);
 public sealed record AssignTicketRequest(Guid AssigneeUserId);
 public sealed record ChangeStatusRequest(TicketStatus NewStatus, string? Reason);
