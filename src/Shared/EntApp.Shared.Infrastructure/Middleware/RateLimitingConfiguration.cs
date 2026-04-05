@@ -59,7 +59,7 @@ public static class RateLimitingConfiguration
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         AutoReplenishment = true,
-                        PermitLimit = 60,
+                        PermitLimit = 600,
                         Window = TimeSpan.FromMinutes(1)
                     });
             });
