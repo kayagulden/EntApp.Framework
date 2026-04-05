@@ -55,8 +55,12 @@ try
     // ── HttpContextAccessor ─────────────────────────────────
     builder.Services.AddHttpContextAccessor();
 
-    // ── Authentication (Keycloak JWT) ───────────────────────
+    // ── CORS ─────────────────────────────────────────────────
+    builder.Services.AddEntAppCors(builder.Configuration);
+
+    // ── Authentication (Keycloak JWT + API Key) ─────────────
     builder.Services.AddKeycloakAuthentication(builder.Configuration);
+    builder.Services.AddApiKeyAuthentication();
 
     // ── Authorization (Permission-based RBAC) ───────────────
     builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
@@ -295,9 +299,22 @@ try
         });
     }
 
+    // ── Security Headers (OWASP) ────────────────────────────
+    app.UseSecurityHeaders(enableHsts: !app.Environment.IsDevelopment());
+
+    // ── HTTPS Redirection (Production) ──────────────────────
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseHsts();
+        app.UseHttpsRedirection();
+    }
+
     // ── Request Logging ─────────────────────────────────────
     app.UseMiddleware<RequestLoggingMiddleware>();
     app.UseSerilogRequestLogging();
+
+    // ── CORS ─────────────────────────────────────────────────
+    app.UseEntAppCors();
 
     // ── Rate Limiting ───────────────────────────────────────
     app.UseRateLimiter();

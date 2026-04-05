@@ -658,12 +658,16 @@
 - [ ] PostgreSQL, Redis, RabbitMQ Kubernetes operator'ları veya managed servis konfigürasyonu
 - [ ] Horizontal Pod Autoscaler (HPA)
 
-### 15d — Güvenlik
-- [ ] OWASP kontrol listesi gözden geçirme
-- [ ] Rate limiting (YARP + middleware)
-- [ ] CORS konfigürasyonu
-- [ ] HTTPS enforcement
-- [ ] API key yönetimi (dış sistemler için)
+### 15d — Güvenlik ✅
+
+> **Tamamlanma:** 2026-04-05
+
+- [x] OWASP güvenlik header'ları — `SecurityHeadersMiddleware.cs` (CSP, X-Frame-Options, Permissions-Policy, Referrer-Policy)
+- [x] Rate limiting — `RateLimitingConfiguration.cs` (Faz 3e'de tamamlanmıştı)
+- [x] CORS konfigürasyonu — `CorsConfiguration.cs` (config-driven AllowedOrigins)
+- [x] HTTPS/HSTS enforcement — production ortamında aktif
+- [x] API key yönetimi — `ApiKeyAuthenticationHandler.cs` (X-API-Key header, dual scheme: Bearer + ApiKey)
+- [x] `appsettings.json` Security section eklendi
 
 **Çıktı:** CI/CD otomatik, monitoring hazır, Kubernetes'e deploy edilebilir.
 
