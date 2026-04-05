@@ -673,6 +673,103 @@
 
 ---
 
+## Faz 16 — Delivery Platform (ALM/ITSM Modülleri)
+
+> **Kaynak:** [delivery-platform-modules.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-modules.md)
+
+**Hedef:** Framework'e genel amaçlı ALM (Application Lifecycle Management) ve ITSM (IT Service Management) yetenekleri eklemek. Mevcut TaskManagement modülü basit kullanım için kalır — bu modüller gelişmiş proje teslim süreçleri içindir.
+
+### 16a — Request Management (Talep Yönetimi)
+- [ ] `Ticket`, `TicketComment`, `TicketStatusHistory`, `SlaDefinition`, `Department`, `RequestCategory` entity'leri
+- [ ] Talep oluşturma + SLA takibi + eskalasyon
+- [ ] Departman/kategori bazlı dinamik form (RequestCategory.FormSchema → Dynamic UI)
+- [ ] Workflow entegrasyonu (kategori bazlı onay akışları)
+- [ ] Integration Events: `TicketCreatedEvent`, `TicketSlaBreachedEvent`, `TicketConvertedToProjectEvent`
+- [ ] Talep sahibi portalı (basit self-service UI)
+
+### 16b — Project & Portfolio Management
+- [ ] `Program`, `Project` (genişletilmiş), `BacklogItem`, `Sprint`, `SprintRetrospective`, `BoardColumn`, `TeamMember` entity'leri
+- [ ] Metodoloji desteği: Scrum / Kanban / ScrumBan
+- [ ] Sprint planlama + burndown + velocity metrikleri
+- [ ] Kanban board: drag & drop, WIP limit, swim lanes
+- [ ] Backlog hiyerarşisi: Epic → User Story → Task → Sub-task
+- [ ] Efor tahmini: Story Points, Saat, T-Shirt, AI tahmini
+- [ ] WSJF (Weighted Shortest Job First) önceliklendirme
+
+### 16c — Requirements & Analysis
+- [ ] `Requirement`, `BusinessRule`, `Mockup`, `MockupVersion`, `AnalysisDocument`, `RequirementApproval` entity'leri
+- [ ] Gereksinim durumları + onay akışı (Workflow modülü ile)
+- [ ] Traceability matrix (Gereksinim → Backlog → Test → Release)
+- [ ] Mockup versiyonlama + Figma/Miro link desteği
+
+### 16d — Test Management
+- [ ] `TestScenario`, `TestStep`, `TestPlan`, `TestPlanScenario`, `TestExecution` entity'leri
+- [ ] Test planı oluşturma + senaryo atama
+- [ ] Test execution: Pass/Fail/Blocked + Bug oluşturma (→ BacklogItem)
+- [ ] Test coverage raporu (gereksinim, sprint, release bazlı)
+
+### 16e — Release Management
+- [ ] `Release`, `ReleaseItem`, `GoNoGoChecklist`, `GoNoGoItem`, `ReleaseNote` entity'leri
+- [ ] Release akışı: Planning → Code Freeze → Testing → Go/No-Go → Deployed
+- [ ] Go/No-Go kontrol listesi (Dev/QA/Ops/Security kategorileri)
+- [ ] Release note otomatik üretimi (backlog item'lardan)
+
+### 16f — Scheduling Engine
+- [ ] Otomatik takvim hesaplama (bağımlılık, kapasite, öncelik)
+- [ ] Scrum: Sprint bazlı yerleştirme / Kanban: Sürekli akış tahmini
+- [ ] Yeniden hesaplama: periyodik (Hangfire) + manuel
+- [ ] Kayma tespit + bildirim
+
+### 16g — Knowledge Base / Wiki
+- [ ] `WikiSpace`, `WikiPage`, `WikiPageVersion` entity'leri
+- [ ] Sayfa hiyerarşisi + rich text editör + versiyon geçmişi
+- [ ] Full-text + AI semantic search entegrasyonu
+
+### 16h — Ek Modüller
+- [ ] Change Request Management (değişiklik talebi + onay + etki analizi)
+- [ ] Risk Management (risk matrisi, olasılık × etki)
+- [ ] Automation Rules (Trigger → Condition → Action engine)
+- [ ] Developer Tools — Git webhook, commit link, VS Code extension (opsiyonel)
+
+### 16i — Reporting & Analytics
+- [ ] Dashboard'lar: Yönetici, PM, BA, QA, Talep Sahibi
+- [ ] SLA raporları (ilk yanıt, çözüm süresi, uyum oranı)
+- [ ] Scrum metrikleri (velocity, burndown, sprint hedef tutturma)
+- [ ] Kanban metrikleri (lead time, cycle time, throughput, cumulative flow)
+
+### 16j — Cross-Module Entegrasyon
+- [ ] Modüller arası event haritası (dokümdaki event akışı)
+- [ ] Cross-project dependency (projeler arası bağımlılık)
+- [ ] Entegrasyon testleri
+
+**Çıktı:** Tam özellikli ALM/ITSM platformu — talep yönetimi, proje/portfolio, gereksinim, test, release, wiki, risk, otomasyon.
+
+---
+
+## Özet Tablo
+
+| Faz | Başlık | Tahmini Süre |
+|-----|--------|-------------|
+| 1 | Solution & Docker Compose & Walking Skeleton | 1-2 gün |
+| 2 | Shared.Kernel (+ StronglyTypedId, RowVersion, Specification) | 2-3 gün |
+| 3 | Shared.Contracts & Infrastructure (+ MultiTenancy altyapısı, RFC 7807, Rate Limiting) | 1-2 hafta |
+| 4 | Host/WebAPI (+ Migration stratejisi, Seed altyapısı) | 2-3 gün |
+| 5 | Frontend Scaffold (+ Vitest/Playwright, Orval) | 3-4 gün |
+| 6 | IAM Modülü | 1-2 hafta |
+| 7 | Diğer Core Modüller (6 modül) | 3-4 hafta |
+| 8 | Dynamic UI Engine | 2-3 hafta |
+| 9 | AI Module | 2-3 hafta |
+| 10 | Workflow Engine | 1-2 hafta |
+| 11 | Business Framework Tier 1 (4 modül) | 3-4 hafta |
+| 12 | Business Framework Tier 2 (3 modül + entegrasyon) | 3-4 hafta |
+| 13 | Admin Panel | 1-2 hafta |
+| 14 | CLI Scaffolding | 3-4 gün |
+| 15 | DevOps & Production | 1-2 hafta |
+| 16 | Delivery Platform (ALM/ITSM) | 6-10 hafta |
+| | **Toplam** | **~26-38 hafta** |
+
+---
+
 ## ❌ Not Planned
 
 Aşağıdaki özellikler değerlendirilmiş ancak çeşitli nedenlerle kapsam dışı bırakılmıştır.
