@@ -1,8 +1,10 @@
 using System.Text.Json;
+using EntApp.Modules.Workflow.Application.IntegrationEvents;
 using EntApp.Modules.Workflow.Application.Interfaces;
 using EntApp.Modules.Workflow.Domain.Entities;
 using EntApp.Modules.Workflow.Domain.Enums;
 using EntApp.Modules.Workflow.Infrastructure.Persistence;
+using EntApp.Shared.Contracts.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -14,11 +16,13 @@ namespace EntApp.Modules.Workflow.Infrastructure.Services;
 public sealed class WorkflowEngine : IWorkflowEngine
 {
     private readonly WorkflowDbContext _db;
+    private readonly IEventBus _eventBus;
     private readonly ILogger<WorkflowEngine> _logger;
 
-    public WorkflowEngine(WorkflowDbContext db, ILogger<WorkflowEngine> logger)
+    public WorkflowEngine(WorkflowDbContext db, IEventBus eventBus, ILogger<WorkflowEngine> logger)
     {
         _db = db;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -116,6 +120,12 @@ public sealed class WorkflowEngine : IWorkflowEngine
 
         await _db.SaveChangesAsync(ct);
 
+        // Integration event yayınla
+        await _eventBus.PublishAsync(new ApprovalRejectedEvent(
+            instance.Id, instance.Definition.Id, instance.Definition.Name,
+            instance.ReferenceType, instance.ReferenceId,
+            instance.InitiatorUserId, userId, comment), ct);
+
         _logger.LogInformation("[WF] Instance {Id} rejected at step '{Step}' by {UserId}",
             instanceId, step.StepName, userId);
 
@@ -154,6 +164,11 @@ public sealed class WorkflowEngine : IWorkflowEngine
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Integration event yayınla
+        await _eventBus.PublishAsync(new ApprovalCancelledEvent(
+            instance.Id, instance.Definition.Id, instance.Definition.Name,
+            instance.ReferenceType, instance.ReferenceId), ct);
 
         _logger.LogInformation("[WF] Instance {Id} cancelled", instanceId);
         return instance;
@@ -230,6 +245,18 @@ public sealed class WorkflowEngine : IWorkflowEngine
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Workflow tamamlandıysa integration event yayınla
+        if (instance.Status == WorkflowStatus.Completed)
+        {
+            await _eventBus.PublishAsync(new ApprovalCompletedEvent(
+                instance.Id, instance.Definition.Id, instance.Definition.Name,
+                instance.ReferenceType, instance.ReferenceId,
+                instance.InitiatorUserId, instance.Status.ToString(),
+                instance.CompletedAt ?? DateTime.UtcNow), ct);
+
+            _logger.LogInformation("[WF] Instance {Id} completed — ApprovalCompletedEvent published", instance.Id);
+        }
     }
 }
 

@@ -397,9 +397,9 @@
 - [x] Zaman aşımı (dueDate) ve eskalasyon desteği
 - [x] Workflow geçmişi ve takip (`/api/workflows/{id}`)
 - [x] 13 API endpoint (definition CRUD, start, approve, reject, escalate, cancel, pending)
-- [ ] Dinamik form desteği — sonraki fazda
-- [ ] Frontend: onay bekleyen görevler listesi — sonraki fazda
-- [ ] `ApprovalCompletedIntegrationEvent` — sonraki fazda
+- [ ] Dinamik form desteği — Faz 16a öncesi yapılacak
+- [x] Frontend: onay bekleyen görevler listesi (`/dashboard/approvals`) ✅
+- [x] `ApprovalCompletedIntegrationEvent` + `ApprovalRejectedEvent` + `ApprovalCancelledEvent` ✅
 
 **Çıktı:** Basit onay akışları oluşturulup çalıştırılabilir.
 
@@ -600,19 +600,41 @@
 
 ---
 
-## Faz 14 — CLI Scaffolding
+## Faz 14 — CQRS Application Layer & CLI Template ✅
 
+> **Tamamlanma:** 2026-04-05
+
+**Hedef:** Tüm modülleri formal CQRS/MediatR Application Layer mimarisine taşı, CLI template'i güncelle.
+
+### 14a — CQRS/MediatR Refactoring (9 Modül) ✅
+- [x] Tüm modüllere Application layer ekle: Commands, Queries, Validators
+- [x] Tüm modüllere Infrastructure/Handlers ekle: IRequestHandler implementasyonları
+- [x] Tüm endpoint'leri ISender thin proxy pattern'ine geçir
+- [x] **HR** (11 endpoint) — 6 query, 5 command, 2 validator ✅
+- [x] **CRM** (11 endpoint) — 6 query, 5 command, 3 validator ✅
+- [x] **Finance** (11 endpoint) — 7 query, 4 command, 3 validator ✅
+- [x] **Inventory** (9 endpoint) — 6 query, 3 command, 3 validator ✅
+- [x] **Sales** (10 endpoint) — 4 query, 6 command, 2 validator ✅
+- [x] **Procurement** (12 endpoint) — 4 query, 8 command, 2 validator ✅
+- [x] **TaskManagement** (13 endpoint) — 7 query, 6 command, 4 validator ✅
+- [x] **AI** (5 endpoint) — 2 query, 3 command, 2 validator ✅
+- [x] **Workflow** (10 endpoint) — 5 query, 6 command, 4 validator ✅
+- [x] **Toplam:** 47 query, 46 command, 25 validator, 9 handler dosyası
+
+### 14b — CLI Template Güncelleme ✅
+- [x] `templates/entapp-module/` CQRS dosyaları eklendi (Commands, Queries, Validators, Handlers)
+- [x] Endpoint template ISender thin proxy'ye dönüştürüldü
+- [x] README.md mimari kurallar ile güncellendi
+
+### 14c — CLI Paketleme (İleride)
 - [ ] `dotnet new` template paketi oluştur
 - [ ] `dotnet new entapp-module --name {ModuleName}` komutu
-- [ ] Template: Domain, Application, Infrastructure, API projeleri
-- [ ] Template: boş DbContext, örnek entity, örnek Command/Query
 - [ ] Template: test projesi
 - [ ] Template: frontend route klasörü (opsiyonel flag)
 - [ ] Template: migration klasörü
-- [ ] Template: `README.md` (modül dokümantasyonu)
 - [ ] NuGet paketi olarak yayınlama
 
-**Çıktı:** `dotnet new entapp-module --name Logistics` → tüm boilerplate hazır.
+**Çıktı:** Tüm modüller CQRS/MediatR mimarisinde, CLI template güncel ✅
 
 ---
 
@@ -664,7 +686,7 @@
 | 11 | Business Framework Tier 1 (4 modül) | 3-4 hafta |
 | 12 | Business Framework Tier 2 (3 modül + entegrasyon) | 3-4 hafta |
 | 13 | Admin Panel | 1-2 hafta |
-| 14 | CLI Scaffolding | 3-4 gün |
+| 14 | CQRS Application Layer & CLI Template | 3-4 gün |
 | 15 | DevOps & Production | 1-2 hafta |
 | | **Toplam** | **~20-28 hafta** |
 
@@ -677,7 +699,16 @@
 
 > **Kaynak:** [delivery-platform-modules.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-modules.md)
 
-**Hedef:** Framework'e genel amaçlı ALM (Application Lifecycle Management) ve ITSM (IT Service Management) yetenekleri eklemek. Mevcut TaskManagement modülü basit kullanım için kalır — bu modüller gelişmiş proje teslim süreçleri içindir.
+> [!IMPORTANT]
+> **Ön Koşullar (Faz 10 tamamlanmalı):**
+> 1. ✅ `ApprovalCompletedIntegrationEvent` — Faz 16 modülleri bu event'i dinleyerek onay sonrası aksiyonları tetikler
+> 2. ✅ Frontend: Bekleyen onaylar listesi — tüm Faz 16 onay akışları bu generic UI'ı kullanır
+> 3. `Dinamik form desteği` — 16a (Request Mgmt) başlamadan önce Workflow stepDefinitionsJson + Dynamic UI form schema entegrasyonu yapılmalı
+>
+> **Mimari ilke:** Faz 16 modülleri Workflow modülünü **loosely coupled** olarak tüketir:
+> - Event tanımları → `Workflow.Application/IntegrationEvents/`
+> - Event handler'ları → her Faz 16 modülünün kendi `Infrastructure/Handlers/` klasöründe
+> - Workflow'u başlatma → `IWorkflowEngine.StartAsync()` ile (ISender üzerinden)
 
 ### 16a — Request Management (Talep Yönetimi)
 - [ ] `Ticket`, `TicketComment`, `TicketStatusHistory`, `SlaDefinition`, `Department`, `RequestCategory` entity'leri
@@ -763,7 +794,7 @@
 | 11 | Business Framework Tier 1 (4 modül) | 3-4 hafta |
 | 12 | Business Framework Tier 2 (3 modül + entegrasyon) | 3-4 hafta |
 | 13 | Admin Panel | 1-2 hafta |
-| 14 | CLI Scaffolding | 3-4 gün |
+| 14 | CQRS Application Layer & CLI Template | 3-4 gün |
 | 15 | DevOps & Production | 1-2 hafta |
 | 16 | Delivery Platform (ALM/ITSM) | 6-10 hafta |
 | | **Toplam** | **~26-38 hafta** |

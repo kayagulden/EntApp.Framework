@@ -13,6 +13,7 @@ import {
   Shield,
   Wrench,
   User,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
@@ -135,6 +136,24 @@ export function Sidebar() {
             </div>
           )}
           <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/dashboard/approvals"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+                  "transition-all duration-200",
+                  pathname === "/dashboard/approvals"
+                    ? "bg-[var(--color-sidebar-active)] text-white"
+                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+                )}
+                title={sidebarCollapsed ? "Bekleyen Onaylar" : undefined}
+              >
+                <ClipboardCheck className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && (
+                  <span className="animate-fade-in">Bekleyen Onaylar</span>
+                )}
+              </Link>
+            </li>
             <li>
               <Link
                 href="/dashboard/profile"
