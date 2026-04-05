@@ -367,7 +367,7 @@
 - [x] Versiyonlama (aynı key, otomatik versiyon artışı)
 - [x] Şablon engine (Scriban) — `{{variable}}` desteği
 - [x] Render/test endpoint'leri (DB'den + inline)
-- [ ] Frontend: prompt düzenleme ekranı (Admin Panel'e entegre) — sonraki fazda
+- [x] Frontend: prompt düzenleme ekranı — Admin (`/admin/prompts` CRUD + render/test) + Manage (`/manage/prompts` read-only)
 
 ### 9e — Maliyet Kontrolü ✅
 
