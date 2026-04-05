@@ -500,8 +500,8 @@ GET    /api/v1/meta/menu             → Otomatik menü
 ## 9. Yeni Modül Ekleme Checklist
 
 - [ ] `Modules/{Name}/` altında 4 proje oluştur (Domain, Application, Infrastructure, API)
-- [ ] Strongly Typed ID'leri `Domain/Ids/` altında tanımla
-- [ ] Entity'leri `BaseEntity`/`AuditableEntity` + `ITenantEntity`'den türet
+- [ ] Strongly Typed ID'leri `Domain/Ids/` altında tanımla (`IEntityId` implement et)
+- [ ] Aggregate root entity'leri `AggregateRoot<TId>` + `ITenantEntity`'den, diğerlerini `AuditableEntity<TId>`'den türet
 - [ ] `{Name}DbContext` oluştur, kendi schema'sını kullan
 - [ ] `IModuleInstaller` implement et → otomatik DI registration
 - [ ] Domain Event'leri `Domain/Events/` altına koy
