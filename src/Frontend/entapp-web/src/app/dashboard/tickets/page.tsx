@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Ticket,
   Plus,
@@ -16,8 +16,13 @@ import {
   Building2,
   User,
   MessageSquare,
+  X,
+  Save,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── Interfaces ──────────────────────────────────────────────
 
 interface TicketData {
   id: string;
@@ -27,6 +32,7 @@ interface TicketData {
   status: string;
   priority: string;
   channel: string;
+  routingSource?: string;
   slaResponseDeadline?: string;
   slaResolutionDeadline?: string;
   slaResponseBreached: boolean;
@@ -35,6 +41,7 @@ interface TicketData {
   reporterUserId: string;
   category?: { name: string };
   department?: { name: string };
+  serviceQueue?: { name: string; code: string };
   createdAt: string;
   resolvedAt?: string;
 }
@@ -43,6 +50,29 @@ interface TicketListResult {
   items: TicketData[];
   totalCount: number;
 }
+
+interface DepartmentOption {
+  id: { value: string } | string;
+  name: string;
+  code: string;
+}
+
+interface CategoryOption {
+  id: { value: string } | string;
+  name: string;
+  code: string;
+  departmentId: { value: string } | string;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+
+function extractId(id: { value: string } | string | undefined): string {
+  if (!id) return "";
+  if (typeof id === "string") return id;
+  return id.value;
+}
+
+// ── Config ──────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
   New: { color: "bg-blue-500/10 text-blue-400 border-blue-500/20", icon: Plus, label: "Yeni" },
@@ -64,6 +94,24 @@ const PRIORITY_CONFIG: Record<string, { color: string; label: string }> = {
   Urgent: { color: "text-rose-500", label: "Acil" },
 };
 
+const CHANNEL_OPTIONS = [
+  { value: "Portal", label: "Portal" },
+  { value: "Email", label: "E-posta" },
+  { value: "Phone", label: "Telefon" },
+  { value: "Chat", label: "Canlı Destek" },
+  { value: "Internal", label: "İç Talep" },
+];
+
+const ROUTING_LABELS: Record<string, string> = {
+  Manual: "Manuel",
+  CategoryDefault: "Kategori",
+  DepartmentDefault: "Departman",
+  WorkflowRule: "İş Akışı",
+  Unrouted: "Atanmamış",
+};
+
+// ── Component ───────────────────────────────────────────────
+
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -74,7 +122,21 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const fetchTickets = async () => {
+  // ── Create form state ──
+  const [showCreate, setShowCreate] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [formTitle, setFormTitle] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formDepartmentId, setFormDepartmentId] = useState("");
+  const [formCategoryId, setFormCategoryId] = useState("");
+  const [formPriority, setFormPriority] = useState("Medium");
+  const [formChannel, setFormChannel] = useState("Portal");
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  // ── Fetch tickets ──
+  const fetchTickets = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -94,13 +156,83 @@ export default function TicketsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, statusFilter, priorityFilter]);
 
   useEffect(() => {
     fetchTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, priorityFilter]);
+  }, [fetchTickets]);
 
+  // ── Fetch departments & categories for form ──
+  useEffect(() => {
+    if (!showCreate) return;
+    fetch("/api/req/departments")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setDepartments(Array.isArray(data) ? data : []))
+      .catch(() => setDepartments([]));
+
+    fetch("/api/req/categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, [showCreate]);
+
+  // ── Filtered categories by selected department ──
+  const filteredCategories = formDepartmentId
+    ? categories.filter((c) => extractId(c.departmentId) === formDepartmentId)
+    : categories;
+
+  // Reset category when department changes
+  useEffect(() => {
+    setFormCategoryId("");
+  }, [formDepartmentId]);
+
+  // ── Create ticket ──
+  const handleCreate = async () => {
+    if (!formTitle.trim() || !formDepartmentId || !formCategoryId) {
+      setFormError("Başlık, departman ve kategori zorunludur.");
+      return;
+    }
+    setFormSaving(true);
+    setFormError("");
+    try {
+      const res = await fetch("/api/req/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          categoryId: formCategoryId,
+          departmentId: formDepartmentId,
+          description: formDescription.trim() || null,
+          priority: formPriority,
+          channel: formChannel,
+        }),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        resetForm();
+        await fetchTickets();
+      } else {
+        const errText = await res.text();
+        setFormError(`Hata: ${res.status} — ${errText.substring(0, 200)}`);
+      }
+    } catch (err) {
+      setFormError("Bağlantı hatası oluştu.");
+    } finally {
+      setFormSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormTitle("");
+    setFormDescription("");
+    setFormDepartmentId("");
+    setFormCategoryId("");
+    setFormPriority("Medium");
+    setFormChannel("Portal");
+    setFormError("");
+  };
+
+  // ── Search filter ──
   const filteredTickets = searchTerm
     ? tickets.filter(
         (t) =>
@@ -112,7 +244,7 @@ export default function TicketsPage() {
   const isSlaWarning = (deadline?: string) => {
     if (!deadline) return false;
     const diff = new Date(deadline).getTime() - Date.now();
-    return diff > 0 && diff < 2 * 60 * 60 * 1000; // 2 saat
+    return diff > 0 && diff < 2 * 60 * 60 * 1000;
   };
 
   return (
@@ -128,6 +260,7 @@ export default function TicketsPage() {
           </p>
         </div>
         <button
+          onClick={() => setShowCreate(true)}
           className={cn(
             "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium",
             "bg-indigo-600 text-white",
@@ -237,6 +370,7 @@ export default function TicketsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Öncelik</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Departman</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Kategori</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Kuyruk</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SLA</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tarih</th>
               </tr>
@@ -249,7 +383,7 @@ export default function TicketsPage() {
 
                 return (
                   <tr
-                    key={ticket.id}
+                    key={ticket.number}
                     className="hover:bg-[var(--color-border)]/30 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3">
@@ -285,6 +419,17 @@ export default function TicketsPage() {
                       <span className="text-sm text-[var(--color-text-muted)]">
                         {ticket.category?.name || "—"}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {ticket.serviceQueue ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                          {ticket.serviceQueue.name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                          Atanmamış
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {ticket.slaResolutionBreached ? (
@@ -340,6 +485,185 @@ export default function TicketsPage() {
           </div>
         )}
       </div>
+
+      {/* ═══════════ Create Ticket Panel ═══════════ */}
+      {showCreate && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setShowCreate(false); resetForm(); }}
+          />
+          <div className="fixed right-0 top-0 z-50 h-full w-full max-w-lg bg-[var(--color-card-bg)] border-l border-[var(--color-border)] shadow-2xl flex flex-col animate-slide-in-right">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <Send className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[var(--color-text)]">Yeni Talep</h2>
+                  <p className="text-xs text-[var(--color-text-muted)]">Talep bilgilerini girin</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowCreate(false); resetForm(); }}
+                className="p-2 rounded-lg hover:bg-[var(--color-border)] transition-colors"
+              >
+                <X className="w-5 h-5 text-[var(--color-text-muted)]" />
+              </button>
+            </div>
+
+            {/* Panel Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                  Başlık <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="Talebinizi kısaca özetleyin..."
+                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                />
+              </div>
+
+              {/* Department + Category row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                    Departman <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formDepartmentId}
+                    onChange={(e) => setFormDepartmentId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    <option value="">Departman seçin</option>
+                    {departments.map((d) => (
+                      <option key={extractId(d.id)} value={extractId(d.id)}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                    Kategori <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={formCategoryId}
+                    onChange={(e) => setFormCategoryId(e.target.value)}
+                    disabled={!formDepartmentId}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-40"
+                  >
+                    <option value="">
+                      {formDepartmentId ? "Kategori seçin" : "Önce departman seçin"}
+                    </option>
+                    {filteredCategories.map((c) => (
+                      <option key={extractId(c.id)} value={extractId(c.id)}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Priority + Channel row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                    Öncelik
+                  </label>
+                  <select
+                    value={formPriority}
+                    onChange={(e) => setFormPriority(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                    Kanal
+                  </label>
+                  <select
+                    value={formChannel}
+                    onChange={(e) => setFormChannel(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    {CHANNEL_OPTIONS.map((ch) => (
+                      <option key={ch.value} value={ch.value}>{ch.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                  Açıklama
+                </label>
+                <textarea
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  rows={5}
+                  placeholder="Talebinizi detaylı açıklayın..."
+                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                />
+              </div>
+
+              {/* Routing info hint */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10">
+                <Building2 className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Talep, seçilen kategorinin varsayılan kuyruğuna otomatik yönlendirilecektir.
+                  Kuyruk atanmamışsa departman varsayılan kuyruğu kullanılır.
+                </p>
+              </div>
+
+              {/* Error */}
+              {formError && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-red-400">{formError}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Panel Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)]">
+              <button
+                onClick={() => { setShowCreate(false); resetForm(); }}
+                className="px-4 py-2.5 rounded-lg text-sm border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)] transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={formSaving || !formTitle.trim() || !formDepartmentId || !formCategoryId}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium",
+                  "bg-indigo-600 text-white hover:bg-indigo-700",
+                  "shadow-md shadow-indigo-500/20",
+                  "disabled:opacity-40 disabled:cursor-not-allowed",
+                  "transition-all"
+                )}
+              >
+                {formSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Talep Oluştur
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

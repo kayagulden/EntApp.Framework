@@ -19,6 +19,7 @@ public sealed record ListSlaDefinitionsQuery(bool? ActiveOnly = true) : IRequest
 public sealed record ListTicketsQuery(
     TicketStatus? Status, TicketPriority? Priority,
     Guid? AssigneeUserId, Guid? DepartmentId,
+    Guid? ServiceQueueId = null,
     int Page = 1, int PageSize = 20) : IRequest<TicketListResult>;
 
 public sealed record GetTicketQuery(Guid Id) : IRequest<Ticket?>;

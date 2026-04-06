@@ -29,14 +29,16 @@ public static class RequestManagementEndpoints
         depts.MapPost("/", async (CreateDepartmentRequest req, ISender mediator) =>
         {
             var id = await mediator.Send(new CreateDepartmentCommand(
-                req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId));
+                req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId,
+                req.DefaultQueueId));
             return Results.Created($"/api/req/departments/{id}", new { id });
         }).WithName("CreateDepartment");
 
         depts.MapPut("/{id:guid}", async (Guid id, UpdateDepartmentRequest req, ISender mediator) =>
         {
             await mediator.Send(new UpdateDepartmentCommand(
-                id, req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId));
+                id, req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId,
+                req.DefaultQueueId));
             return Results.NoContent();
         }).WithName("UpdateDepartment");
 
@@ -58,7 +60,7 @@ public static class RequestManagementEndpoints
             var id = await mediator.Send(new CreateCategoryCommand(
                 req.Name, req.Code, req.DepartmentId, req.Description,
                 req.SlaDefinitionId, req.WorkflowDefinitionId,
-                req.FormSchemaJson, req.AutoProjectThreshold));
+                req.FormSchemaJson, req.AutoProjectThreshold, req.DefaultQueueId));
             return Results.Created($"/api/req/categories/{id}", new { id });
         }).WithName("CreateCategory");
 
@@ -67,7 +69,7 @@ public static class RequestManagementEndpoints
             await mediator.Send(new UpdateCategoryCommand(
                 id, req.Name, req.Code, req.DepartmentId, req.Description,
                 req.SlaDefinitionId, req.WorkflowDefinitionId,
-                req.FormSchemaJson, req.AutoProjectThreshold));
+                req.FormSchemaJson, req.AutoProjectThreshold, req.DefaultQueueId));
             return Results.NoContent();
         }).WithName("UpdateCategory");
 
@@ -96,9 +98,10 @@ public static class RequestManagementEndpoints
         var tickets = app.MapGroup("/api/req/tickets").WithTags("Request Mgmt - Tickets");
 
         tickets.MapGet("/", async (ISender mediator, TicketStatus? status, TicketPriority? priority,
-            Guid? assigneeUserId, Guid? departmentId, int page = 1, int pageSize = 20) =>
+            Guid? assigneeUserId, Guid? departmentId, Guid? serviceQueueId,
+            int page = 1, int pageSize = 20) =>
             Results.Ok(await mediator.Send(new ListTicketsQuery(
-                status, priority, assigneeUserId, departmentId, page, pageSize))))
+                status, priority, assigneeUserId, departmentId, serviceQueueId, page, pageSize))))
             .WithName("ListTickets");
 
         tickets.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
@@ -116,7 +119,8 @@ public static class RequestManagementEndpoints
         {
             var id = await mediator.Send(new CreateTicketCommand(
                 req.Title, req.CategoryId, req.DepartmentId,
-                req.Description, req.Priority, req.Channel, req.FormDataJson));
+                req.Description, req.Priority, req.Channel, req.FormDataJson,
+                req.ServiceQueueId));
             return Results.Created($"/api/req/tickets/{id}", new { id });
         }).WithName("CreateTicket");
 
@@ -151,6 +155,13 @@ public static class RequestManagementEndpoints
             return Results.Created($"/api/req/tickets/{id}/comments/{commentId}", new { id = commentId });
         }).WithName("AddTicketComment");
 
+        // ═══════════ Queue Routing ═══════════
+        tickets.MapPost("/{id:guid}/route", async (Guid id, RouteTicketRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new RouteTicketToQueueCommand(id, req.QueueId));
+            return Results.NoContent();
+        }).WithName("RouteTicketToQueue");
+
         // ═══════════ Form Schema ═══════════
         cats.MapGet("/{id:guid}/form-schema", async (Guid id, ISender mediator) =>
         {
@@ -173,15 +184,17 @@ public static class RequestManagementEndpoints
 }
 
 // ── Request DTOs ──────────────────────────────────────────────
-public sealed record CreateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId);
-public sealed record UpdateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId);
-public sealed record CreateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold);
-public sealed record UpdateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold);
+public sealed record CreateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId, Guid? DefaultQueueId = null);
+public sealed record UpdateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId, Guid? DefaultQueueId = null);
+public sealed record CreateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold, Guid? DefaultQueueId = null);
+public sealed record UpdateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold, Guid? DefaultQueueId = null);
 public sealed record CreateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
 public sealed record UpdateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
-public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null);
+public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null, Guid? ServiceQueueId = null);
 public sealed record UpdateTicketRequest(string Title, string? Description, TicketPriority Priority);
 public sealed record AssignTicketRequest(Guid AssigneeUserId);
 public sealed record ChangeStatusRequest(TicketStatus NewStatus, string? Reason);
 public sealed record CloseTicketRequest(string? Reason);
 public sealed record AddCommentRequest(string Content, bool IsInternal);
+public sealed record RouteTicketRequest(Guid QueueId);
+

@@ -170,6 +170,14 @@ try
     // ── Controllers ──────────────────────────────────────────
     builder.Services.AddControllers();
 
+    // ── JSON Serialization — Minimal API ─────────────────────
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
     // ── Event Bus ────────────────────────────────────────────
     builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 

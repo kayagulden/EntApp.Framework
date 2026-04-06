@@ -29,6 +29,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     // İlişkiler
     public RequestCategoryId CategoryId { get; private set; }
     public DepartmentId DepartmentId { get; private set; }
+    public ServiceQueueId? ServiceQueueId { get; private set; }
+    public TicketRoutingSource RoutingSource { get; private set; } = TicketRoutingSource.Unrouted;
     public Guid? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
@@ -45,6 +47,7 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     // Navigation
     public RequestCategory Category { get; private set; } = null!;
     public Department Department { get; private set; } = null!;
+    public ServiceQueue? ServiceQueue { get; private set; }
     public ICollection<TicketComment> Comments { get; private set; } = [];
     public ICollection<TicketStatusHistory> StatusHistory { get; private set; } = [];
 
@@ -54,7 +57,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         DepartmentId departmentId, Guid reporterUserId,
         string? description = null, TicketPriority priority = TicketPriority.Medium,
         TicketChannel channel = TicketChannel.Portal,
-        string? formDataJson = null)
+        string? formDataJson = null,
+        ServiceQueueId? serviceQueueId = null,
+        TicketRoutingSource routingSource = TicketRoutingSource.Unrouted)
     {
         return new Ticket
         {
@@ -67,7 +72,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
             CategoryId = categoryId,
             DepartmentId = departmentId,
             ReporterUserId = reporterUserId,
-            FormDataJson = formDataJson
+            FormDataJson = formDataJson,
+            ServiceQueueId = serviceQueueId,
+            RoutingSource = routingSource
         };
     }
 
@@ -107,6 +114,20 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
 
     public void LinkWorkflow(Guid workflowInstanceId) => WorkflowInstanceId = workflowInstanceId;
     public void LinkProject(Guid projectId) => ProjectId = projectId;
+
+    /// <summary>Ticket'ı belirtilen queue'ya yönlendirir.</summary>
+    public void RouteToQueue(ServiceQueueId queueId, TicketRoutingSource source)
+    {
+        ServiceQueueId = queueId;
+        RoutingSource = source;
+    }
+
+    /// <summary>Ticket'ın queue atamasını kaldırır (unrouted durumuna döner).</summary>
+    public void UnrouteFromQueue()
+    {
+        ServiceQueueId = null;
+        RoutingSource = TicketRoutingSource.Unrouted;
+    }
 
     public void Update(string title, string? description, TicketPriority priority)
     {

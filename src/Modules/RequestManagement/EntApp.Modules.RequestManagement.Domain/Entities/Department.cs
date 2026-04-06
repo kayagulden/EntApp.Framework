@@ -20,6 +20,9 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
     public Guid? ManagerUserId { get; private set; }
     public DepartmentId? ParentDepartmentId { get; private set; }
 
+    /// <summary>Bu departmana gelen taleplerin otomatik yönlendirileceği varsayılan kuyruk.</summary>
+    public ServiceQueueId? DefaultQueueId { get; private set; }
+
     [DynamicField(FieldType = FieldType.Boolean)]
     public bool IsActive { get; private set; } = true;
 
@@ -27,13 +30,15 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
 
     // Navigation
     public Department? ParentDepartment { get; private set; }
+    public ServiceQueue? DefaultQueue { get; private set; }
     public ICollection<Department> SubDepartments { get; private set; } = [];
     public ICollection<RequestCategory> Categories { get; private set; } = [];
 
     private Department() { }
 
     public static Department Create(string name, string code, string? description = null,
-        Guid? managerUserId = null, DepartmentId? parentDepartmentId = null)
+        Guid? managerUserId = null, DepartmentId? parentDepartmentId = null,
+        ServiceQueueId? defaultQueueId = null)
     {
         return new Department
         {
@@ -42,17 +47,20 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
             Code = code,
             Description = description,
             ManagerUserId = managerUserId,
-            ParentDepartmentId = parentDepartmentId
+            ParentDepartmentId = parentDepartmentId,
+            DefaultQueueId = defaultQueueId
         };
     }
 
-    public void Update(string name, string code, string? description, Guid? managerUserId, DepartmentId? parentId)
+    public void Update(string name, string code, string? description, Guid? managerUserId,
+        DepartmentId? parentId, ServiceQueueId? defaultQueueId = null)
     {
         Name = name;
         Code = code;
         Description = description;
         ManagerUserId = managerUserId;
         ParentDepartmentId = parentId;
+        DefaultQueueId = defaultQueueId;
     }
 
     public void Deactivate() => IsActive = false;

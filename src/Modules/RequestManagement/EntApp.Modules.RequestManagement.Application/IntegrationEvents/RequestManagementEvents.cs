@@ -5,8 +5,9 @@ namespace EntApp.Modules.RequestManagement.Application.IntegrationEvents;
 /// <summary>Yeni ticket oluşturulduğunda → Notification, SLA sayacı, Workflow başlatma.</summary>
 public sealed record TicketCreatedEvent(
     Guid TicketId, string TicketNumber, string Title,
-    Guid CategoryId, Guid DepartmentId,
-    Guid ReporterUserId, string Priority, string Channel) : IntegrationEvent;
+    Guid CategoryId, Guid DepartmentId, Guid? ServiceQueueId,
+    Guid ReporterUserId, string Priority, string Channel,
+    string RoutingSource) : IntegrationEvent;
 
 /// <summary>Ticket atandığında → Notification.</summary>
 public sealed record TicketAssignedEvent(

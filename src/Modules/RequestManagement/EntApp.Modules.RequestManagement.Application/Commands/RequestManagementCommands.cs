@@ -7,24 +7,26 @@ namespace EntApp.Modules.RequestManagement.Application.Commands;
 // ── Department ───────────────────────────────────────────────
 public sealed record CreateDepartmentCommand(
     string Name, string Code, string? Description,
-    Guid? ManagerUserId, Guid? ParentDepartmentId) : IRequest<Guid>;
+    Guid? ManagerUserId, Guid? ParentDepartmentId,
+    Guid? DefaultQueueId = null) : IRequest<Guid>;
 
 public sealed record UpdateDepartmentCommand(
     Guid Id, string Name, string Code, string? Description,
-    Guid? ManagerUserId, Guid? ParentDepartmentId) : IRequest;
+    Guid? ManagerUserId, Guid? ParentDepartmentId,
+    Guid? DefaultQueueId = null) : IRequest;
 
 // ── RequestCategory ──────────────────────────────────────────
 public sealed record CreateCategoryCommand(
     string Name, string Code, Guid DepartmentId,
     string? Description, Guid? SlaDefinitionId,
     Guid? WorkflowDefinitionId, string? FormSchemaJson,
-    int? AutoProjectThreshold) : IRequest<Guid>;
+    int? AutoProjectThreshold, Guid? DefaultQueueId = null) : IRequest<Guid>;
 
 public sealed record UpdateCategoryCommand(
     Guid Id, string Name, string Code, Guid DepartmentId,
     string? Description, Guid? SlaDefinitionId,
     Guid? WorkflowDefinitionId, string? FormSchemaJson,
-    int? AutoProjectThreshold) : IRequest;
+    int? AutoProjectThreshold, Guid? DefaultQueueId = null) : IRequest;
 
 // ── SlaDefinition ────────────────────────────────────────────
 public sealed record CreateSlaCommand(
@@ -39,7 +41,8 @@ public sealed record UpdateSlaCommand(
 public sealed record CreateTicketCommand(
     string Title, Guid CategoryId, Guid DepartmentId,
     string? Description, TicketPriority Priority,
-    TicketChannel Channel, string? FormDataJson = null) : IRequest<Guid>;
+    TicketChannel Channel, string? FormDataJson = null,
+    Guid? ServiceQueueId = null) : IRequest<Guid>;
 
 public sealed record UpdateTicketCommand(
     Guid Id, string Title, string? Description,
@@ -51,6 +54,9 @@ public sealed record ChangeTicketStatusCommand(
     Guid TicketId, TicketStatus NewStatus, string? Reason) : IRequest;
 
 public sealed record CloseTicketCommand(Guid TicketId, string? Reason) : IRequest;
+
+/// <summary>Ticket'ı belirtilen queue'ya manuel olarak yönlendirir (dispatcher işlemi).</summary>
+public sealed record RouteTicketToQueueCommand(Guid TicketId, Guid QueueId) : IRequest;
 
 // ── TicketComment ────────────────────────────────────────────
 public sealed record AddCommentCommand(

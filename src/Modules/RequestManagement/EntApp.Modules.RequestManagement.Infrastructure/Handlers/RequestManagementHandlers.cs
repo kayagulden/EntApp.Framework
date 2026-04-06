@@ -24,7 +24,8 @@ public sealed class CreateDepartmentHandler(RequestManagementDbContext db)
     {
         var dept = Department.Create(request.Name, request.Code, request.Description,
             request.ManagerUserId,
-            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null);
+            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null,
+            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
 
         db.Departments.Add(dept);
         await db.SaveChangesAsync(ct);
@@ -42,7 +43,8 @@ public sealed class UpdateDepartmentHandler(RequestManagementDbContext db)
 
         dept.Update(request.Name, request.Code, request.Description,
             request.ManagerUserId,
-            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null);
+            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null,
+            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
 
         await db.SaveChangesAsync(ct);
     }
@@ -61,7 +63,8 @@ public sealed class CreateCategoryHandler(RequestManagementDbContext db)
             request.Name, request.Code, new DepartmentId(request.DepartmentId),
             request.Description,
             request.SlaDefinitionId.HasValue ? new SlaDefinitionId(request.SlaDefinitionId.Value) : null,
-            request.WorkflowDefinitionId, request.FormSchemaJson, request.AutoProjectThreshold);
+            request.WorkflowDefinitionId, request.FormSchemaJson, request.AutoProjectThreshold,
+            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
 
         db.Categories.Add(category);
         await db.SaveChangesAsync(ct);
@@ -80,7 +83,8 @@ public sealed class UpdateCategoryHandler(RequestManagementDbContext db)
         cat.Update(request.Name, request.Code, new DepartmentId(request.DepartmentId),
             request.Description,
             request.SlaDefinitionId.HasValue ? new SlaDefinitionId(request.SlaDefinitionId.Value) : null,
-            request.WorkflowDefinitionId, request.FormSchemaJson, request.AutoProjectThreshold);
+            request.WorkflowDefinitionId, request.FormSchemaJson, request.AutoProjectThreshold,
+            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
 
         await db.SaveChangesAsync(ct);
     }
@@ -129,16 +133,28 @@ public sealed class CreateTicketHandler(
     {
         var number = await TicketNumberGenerator.NextAsync(db, ct);
 
-        var ticket = Ticket.Create(number, request.Title,
-            new RequestCategoryId(request.CategoryId), new DepartmentId(request.DepartmentId),
-            currentUser.UserId, request.Description, request.Priority, request.Channel,
-            request.FormDataJson);
-
-        // SLA hesapla
+        // Kategori ve departmanı yükle (SLA + routing için)
         var category = await db.Categories
             .Include(c => c.SlaDefinitionEntity)
             .FirstOrDefaultAsync(c => c.Id == new RequestCategoryId(request.CategoryId), ct);
 
+        var department = await db.Departments
+            .FirstOrDefaultAsync(d => d.Id == new DepartmentId(request.DepartmentId), ct);
+
+        // Queue routing — waterfall: Explicit → Category → Department → Unrouted
+        var explicitQueueId = request.ServiceQueueId.HasValue
+            ? new ServiceQueueId(request.ServiceQueueId.Value)
+            : (ServiceQueueId?)null;
+
+        var (resolvedQueueId, routingSource) = TicketRoutingService.ResolveQueue(
+            explicitQueueId, category, department);
+
+        var ticket = Ticket.Create(number, request.Title,
+            new RequestCategoryId(request.CategoryId), new DepartmentId(request.DepartmentId),
+            currentUser.UserId, request.Description, request.Priority, request.Channel,
+            request.FormDataJson, resolvedQueueId, routingSource);
+
+        // SLA hesapla
         if (category?.SlaDefinitionEntity is not null)
         {
             var sla = category.SlaDefinitionEntity;
@@ -154,7 +170,9 @@ public sealed class CreateTicketHandler(
         await eventBus.PublishAsync(new TicketCreatedEvent(
             ticket.Id.Value, ticket.Number, ticket.Title,
             request.CategoryId, request.DepartmentId,
-            currentUser.UserId, request.Priority.ToString(), request.Channel.ToString()), ct);
+            resolvedQueueId?.Value,
+            currentUser.UserId, request.Priority.ToString(), request.Channel.ToString(),
+            routingSource.ToString()), ct);
 
         return ticket.Id.Value;
     }
@@ -247,6 +265,22 @@ public sealed class AddCommentHandler(RequestManagementDbContext db, ICurrentUse
     }
 }
 
+public sealed class RouteTicketToQueueHandler(RequestManagementDbContext db)
+    : IRequestHandler<RouteTicketToQueueCommand>
+{
+    public async Task Handle(RouteTicketToQueueCommand request, CancellationToken ct)
+    {
+        var ticket = await db.Tickets.FindAsync([new TicketId(request.TicketId)], ct)
+            ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
+
+        var queue = await db.ServiceQueues.FindAsync([new ServiceQueueId(request.QueueId)], ct)
+            ?? throw new KeyNotFoundException($"ServiceQueue '{request.QueueId}' not found.");
+
+        ticket.RouteToQueue(queue.Id, TicketRoutingSource.Manual);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Query Handlers
 // ═══════════════════════════════════════════════════════════════
@@ -318,12 +352,14 @@ public sealed class ListTicketsHandler(RequestManagementDbContext db)
         var query = db.Tickets
             .Include(t => t.Category)
             .Include(t => t.Department)
+            .Include(t => t.ServiceQueue)
             .AsQueryable();
 
         if (request.Status.HasValue) query = query.Where(t => t.Status == request.Status.Value);
         if (request.Priority.HasValue) query = query.Where(t => t.Priority == request.Priority.Value);
         if (request.AssigneeUserId.HasValue) query = query.Where(t => t.AssigneeUserId == request.AssigneeUserId.Value);
         if (request.DepartmentId.HasValue) query = query.Where(t => t.DepartmentId == new DepartmentId(request.DepartmentId.Value));
+        if (request.ServiceQueueId.HasValue) query = query.Where(t => t.ServiceQueueId == new ServiceQueueId(request.ServiceQueueId.Value));
 
         var totalCount = await query.CountAsync(ct);
         var items = await query
@@ -344,6 +380,7 @@ public sealed class GetTicketHandler(RequestManagementDbContext db)
         return await db.Tickets
             .Include(t => t.Category)
             .Include(t => t.Department)
+            .Include(t => t.ServiceQueue)
             .Include(t => t.Comments.OrderByDescending(c => c.CreatedAt))
             .Include(t => t.StatusHistory.OrderByDescending(h => h.ChangedAt))
             .FirstOrDefaultAsync(t => t.Id == new TicketId(request.Id), ct);

@@ -26,6 +26,9 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
     /// <summary>Dinamik form şeması (JSON). Talep oluşturma formunda render edilir.</summary>
     public string? FormSchemaJson { get; private set; }
 
+    /// <summary>Bu kategoriye gelen taleplerin otomatik yönlendirileceği varsayılan kuyruk.</summary>
+    public ServiceQueueId? DefaultQueueId { get; private set; }
+
     /// <summary>Efor eşiği — bu değerin üzerinde talepler otomatik proje adayı olur.</summary>
     public int? AutoProjectThreshold { get; private set; }
 
@@ -37,6 +40,7 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
     // Navigation
     public Department Department { get; private set; } = null!;
     public SlaDefinition? SlaDefinitionEntity { get; private set; }
+    public ServiceQueue? DefaultQueue { get; private set; }
     public ICollection<Ticket> Tickets { get; private set; } = [];
 
     private RequestCategory() { }
@@ -44,7 +48,7 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
     public static RequestCategory Create(string name, string code, DepartmentId departmentId,
         string? description = null, SlaDefinitionId? slaDefinitionId = null,
         Guid? workflowDefinitionId = null, string? formSchemaJson = null,
-        int? autoProjectThreshold = null)
+        int? autoProjectThreshold = null, ServiceQueueId? defaultQueueId = null)
     {
         return new RequestCategory
         {
@@ -56,13 +60,15 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
             SlaDefinitionId = slaDefinitionId,
             WorkflowDefinitionId = workflowDefinitionId,
             FormSchemaJson = formSchemaJson,
-            AutoProjectThreshold = autoProjectThreshold
+            AutoProjectThreshold = autoProjectThreshold,
+            DefaultQueueId = defaultQueueId
         };
     }
 
     public void Update(string name, string code, DepartmentId departmentId,
         string? description, SlaDefinitionId? slaDefinitionId,
-        Guid? workflowDefinitionId, string? formSchemaJson, int? autoProjectThreshold)
+        Guid? workflowDefinitionId, string? formSchemaJson, int? autoProjectThreshold,
+        ServiceQueueId? defaultQueueId = null)
     {
         Name = name;
         Code = code;
@@ -72,6 +78,7 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
         WorkflowDefinitionId = workflowDefinitionId;
         FormSchemaJson = formSchemaJson;
         AutoProjectThreshold = autoProjectThreshold;
+        DefaultQueueId = defaultQueueId;
     }
 
     public void Deactivate() => IsActive = false;

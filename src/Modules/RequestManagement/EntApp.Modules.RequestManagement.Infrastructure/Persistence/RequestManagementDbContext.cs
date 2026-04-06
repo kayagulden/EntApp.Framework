@@ -45,9 +45,18 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 v => v.HasValue ? v.Value.Value : (Guid?)null,
                 v => v.HasValue ? new DepartmentId(v.Value) : null);
 
+            e.Property(x => x.DefaultQueueId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new ServiceQueueId(v.Value) : null);
+
             e.HasOne(x => x.ParentDepartment)
                 .WithMany(x => x.SubDepartments)
                 .HasForeignKey(x => x.ParentDepartmentId);
+
+            e.HasOne(x => x.DefaultQueue)
+                .WithMany()
+                .HasForeignKey(x => x.DefaultQueueId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── SlaDefinition ───────────────────────────────────────
@@ -83,8 +92,16 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 v => v.HasValue ? v.Value.Value : (Guid?)null,
                 v => v.HasValue ? new SlaDefinitionId(v.Value) : null);
 
+            e.Property(x => x.DefaultQueueId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new ServiceQueueId(v.Value) : null);
+
             e.HasOne(x => x.Department).WithMany(d => d.Categories).HasForeignKey(x => x.DepartmentId);
             e.HasOne(x => x.SlaDefinitionEntity).WithMany(s => s.Categories).HasForeignKey(x => x.SlaDefinitionId);
+            e.HasOne(x => x.DefaultQueue)
+                .WithMany()
+                .HasForeignKey(x => x.DefaultQueueId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Ticket ──────────────────────────────────────────────
@@ -110,9 +127,19 @@ public sealed class RequestManagementDbContext : BaseDbContext
 
             e.Property(x => x.CategoryId).HasConversion(new StronglyTypedIdValueConverter<RequestCategoryId>());
             e.Property(x => x.DepartmentId).HasConversion(new StronglyTypedIdValueConverter<DepartmentId>());
+            e.Property(x => x.ServiceQueueId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new ServiceQueueId(v.Value) : null);
+            e.Property(x => x.RoutingSource).HasConversion<string>().HasMaxLength(30);
+
+            e.HasIndex(x => x.ServiceQueueId);
 
             e.HasOne(x => x.Category).WithMany(c => c.Tickets).HasForeignKey(x => x.CategoryId);
             e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId);
+            e.HasOne(x => x.ServiceQueue)
+                .WithMany()
+                .HasForeignKey(x => x.ServiceQueueId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── TicketComment ───────────────────────────────────────

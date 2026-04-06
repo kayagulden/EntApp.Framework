@@ -30,3 +30,18 @@ public enum TicketChannel
     Chat = 3,
     Internal = 4
 }
+
+/// <summary>Ticket'ın queue'ya nasıl yönlendirildiğini belirtir (audit amaçlı).</summary>
+public enum TicketRoutingSource
+{
+    /// <summary>Kullanıcı açıkça bir queue seçti.</summary>
+    Manual = 0,
+    /// <summary>RequestCategory'nin default queue'sundan otomatik atandı.</summary>
+    CategoryDefault = 1,
+    /// <summary>Department'ın default queue'sundan otomatik atandı.</summary>
+    DepartmentDefault = 2,
+    /// <summary>Elsa workflow kuralı ile atandı.</summary>
+    WorkflowRule = 3,
+    /// <summary>Hiçbir routing kuralı eşleşmedi — dispatcher ataması bekleniyor.</summary>
+    Unrouted = 4
+}
