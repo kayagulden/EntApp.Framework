@@ -69,10 +69,12 @@ public static class RequestManagementEndpoints
         var tickets = app.MapGroup("/api/req/tickets").WithTags("Request Mgmt - Tickets");
 
         tickets.MapGet("/", async (ISender mediator, TicketStatus? status, TicketPriority? priority,
-            Guid? assigneeUserId, Guid? departmentId, Guid? serviceQueueId,
+            Guid? assigneeUserId, Guid? reporterUserId, Guid? departmentId, Guid? serviceQueueId,
+            string? queueIds, bool unassignedOnly = false,
             int page = 1, int pageSize = 20) =>
             Results.Ok(await mediator.Send(new ListTicketsQuery(
-                status, priority, assigneeUserId, departmentId, serviceQueueId, page, pageSize))))
+                status, priority, assigneeUserId, reporterUserId, departmentId, serviceQueueId,
+                queueIds, unassignedOnly, page, pageSize))))
             .WithName("ListTickets");
 
         tickets.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
@@ -133,6 +135,12 @@ public static class RequestManagementEndpoints
             return Results.NoContent();
         }).WithName("RouteTicketToQueue");
 
+        tickets.MapPost("/{id:guid}/claim", async (Guid id, ClaimTicketRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new ClaimTicketCommand(id, req.ClaimerUserId));
+            return Results.NoContent();
+        }).WithName("ClaimTicket");
+
         // ═══════════ Form Schema ═══════════
         cats.MapGet("/{id:guid}/form-schema", async (Guid id, ISender mediator) =>
         {
@@ -150,6 +158,13 @@ public static class RequestManagementEndpoints
             return Results.Text(ticket.FormDataJson, "application/json");
         }).WithName("GetTicketFormData");
 
+        // ═══════════ My Queues ═══════════
+        var queues = app.MapGroup("/api/req/my-queues").WithTags("Request Mgmt - My Queues");
+
+        queues.MapGet("/{userId:guid}", async (Guid userId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new GetMyQueuesQuery(userId))))
+            .WithName("GetMyQueues");
+
         return app;
     }
 }
@@ -166,4 +181,5 @@ public sealed record ChangeStatusRequest(TicketStatus NewStatus, string? Reason)
 public sealed record CloseTicketRequest(string? Reason);
 public sealed record AddCommentRequest(string Content, bool IsInternal);
 public sealed record RouteTicketRequest(Guid QueueId);
+public sealed record ClaimTicketRequest(Guid ClaimerUserId);
 

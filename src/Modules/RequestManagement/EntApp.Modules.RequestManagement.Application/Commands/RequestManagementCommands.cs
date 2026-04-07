@@ -47,6 +47,9 @@ public sealed record CloseTicketCommand(Guid TicketId, string? Reason) : IReques
 /// <summary>Ticket'ı belirtilen queue'ya manuel olarak yönlendirir (dispatcher işlemi).</summary>
 public sealed record RouteTicketToQueueCommand(Guid TicketId, Guid QueueId) : IRequest;
 
+/// <summary>Kullanıcı ticket'ı kendi üzerine alır (claim). Queue havuzundan self-assign.</summary>
+public sealed record ClaimTicketCommand(Guid TicketId, Guid ClaimerUserId) : IRequest;
+
 // ── TicketComment ────────────────────────────────────────────
 public sealed record AddCommentCommand(
     Guid TicketId, string Content, bool IsInternal) : IRequest<Guid>;

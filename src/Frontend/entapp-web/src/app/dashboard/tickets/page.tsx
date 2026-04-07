@@ -1,31 +1,35 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Ticket,
   Plus,
   Search,
-  Filter,
   Clock,
   AlertTriangle,
   CheckCircle2,
   XCircle,
   ArrowUpRight,
-  ChevronDown,
   Loader2,
   Building2,
   User,
+  Users,
   MessageSquare,
   X,
-  Save,
   Send,
+  Inbox,
+  ClipboardList,
+  UserCheck,
+  Hand,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Interfaces ──────────────────────────────────────────────
 
 interface TicketData {
-  id: string;
+  id: { value: string } | string;
   number: string;
   title: string;
   description?: string;
@@ -64,12 +68,52 @@ interface CategoryOption {
   departmentId: { value: string } | string;
 }
 
+interface MyQueueData {
+  queueId: string;
+  name: string;
+  code: string;
+  description?: string;
+  departmentName?: string;
+  role: string;
+  ticketCount: number;
+  unassignedCount: number;
+}
+
+interface IamUser {
+  id: string;
+  userName: string;
+  fullName: string;
+}
+
+type TabKey = "my-requests" | "my-assignments" | "queue-pool";
+
 // ── Helpers ─────────────────────────────────────────────────
 
 function extractId(id: { value: string } | string | undefined): string {
   if (!id) return "";
   if (typeof id === "string") return id;
   return id.value;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Az önce";
+  if (mins < 60) return `${mins}dk`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}s`;
+  const days = Math.floor(hours / 24);
+  return `${days}g`;
+}
+
+function slaTimeLeft(deadline?: string): string | null {
+  if (!deadline) return null;
+  const diff = new Date(deadline).getTime() - Date.now();
+  if (diff <= 0) return "Aşıldı";
+  const hours = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (hours > 0) return `${hours}s ${mins}dk`;
+  return `${mins}dk`;
 }
 
 // ── Config ──────────────────────────────────────────────────
@@ -86,12 +130,12 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ComponentType<{
   Reopened: { color: "bg-orange-500/10 text-orange-400 border-orange-500/20", icon: ArrowUpRight, label: "Yeniden Açıldı" },
 };
 
-const PRIORITY_CONFIG: Record<string, { color: string; label: string }> = {
-  Low: { color: "text-slate-400", label: "Düşük" },
-  Medium: { color: "text-blue-400", label: "Orta" },
-  High: { color: "text-amber-400", label: "Yüksek" },
-  Critical: { color: "text-red-400", label: "Kritik" },
-  Urgent: { color: "text-rose-500", label: "Acil" },
+const PRIORITY_CONFIG: Record<string, { color: string; dot: string; label: string }> = {
+  Low: { color: "text-slate-400", dot: "bg-slate-400", label: "Düşük" },
+  Medium: { color: "text-blue-400", dot: "bg-blue-400", label: "Orta" },
+  High: { color: "text-amber-400", dot: "bg-amber-400", label: "Yüksek" },
+  Critical: { color: "text-red-400", dot: "bg-red-400", label: "Kritik" },
+  Urgent: { color: "text-rose-500", dot: "bg-rose-500", label: "Acil" },
 };
 
 const CHANNEL_OPTIONS = [
@@ -102,17 +146,17 @@ const CHANNEL_OPTIONS = [
   { value: "Internal", label: "İç Talep" },
 ];
 
-const ROUTING_LABELS: Record<string, string> = {
-  Manual: "Manuel",
-  CategoryDefault: "Kategori",
-  DepartmentDefault: "Departman",
-  WorkflowRule: "İş Akışı",
-  Unrouted: "Atanmamış",
-};
+const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "my-requests", label: "Taleplerim", icon: ClipboardList },
+  { key: "my-assignments", label: "Üzerimde", icon: UserCheck },
+  { key: "queue-pool", label: "Kuyruk Havuzu", icon: Inbox },
+];
 
 // ── Component ───────────────────────────────────────────────
 
 export default function TicketsPage() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabKey>("my-requests");
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -121,6 +165,17 @@ export default function TicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
+
+  // ── Mock user ──
+  const [users, setUsers] = useState<IamUser[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [myQueues, setMyQueues] = useState<MyQueueData[]>([]);
+  const [selectedQueueFilter, setSelectedQueueFilter] = useState<string>("all");
+
+  // ── Tab counts ──
+  const [myRequestsCount, setMyRequestsCount] = useState(0);
+  const [myAssignmentsCount, setMyAssignmentsCount] = useState(0);
+  const [queuePoolCount, setQueuePoolCount] = useState(0);
 
   // ── Create form state ──
   const [showCreate, setShowCreate] = useState(false);
@@ -135,8 +190,40 @@ export default function TicketsPage() {
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // ── Claiming state ──
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+
+  // ── Dev-mode hardcoded users (from seed data) ──
+  useEffect(() => {
+    const seedUsers: IamUser[] = [
+      { id: "868b6d11-0110-4182-9cc3-9a155f140fe4", userName: "ahmet.yilmaz", fullName: "Ahmet Yılmaz" },
+      { id: "b7dd400d-9aa8-4cc3-b973-a362e34ff39b", userName: "elif.demir", fullName: "Elif Demir" },
+      { id: "dfbd1ff2-8ba9-424d-8e3b-00e5e35d8edc", userName: "mehmet.kaya", fullName: "Mehmet Kaya" },
+      { id: "84188840-d0dc-4080-845a-c0f25192ce22", userName: "ayse.celik", fullName: "Ayşe Çelik" },
+      { id: "96a07d00-94c7-4f08-bc30-80b32fbbb139", userName: "can.ozturk", fullName: "Can Öztürk" },
+    ];
+    setUsers(seedUsers);
+    if (!currentUserId) {
+      setCurrentUserId(seedUsers[0].id);
+    }
+  }, []);
+
+  // ── Fetch my queues ──
+  useEffect(() => {
+    if (!currentUserId) return;
+    fetch(`/api/req/my-queues/${currentUserId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setMyQueues(list);
+        setQueuePoolCount(list.reduce((sum: number, q: MyQueueData) => sum + q.unassignedCount, 0));
+      })
+      .catch(() => setMyQueues([]));
+  }, [currentUserId]);
+
   // ── Fetch tickets ──
   const fetchTickets = useCallback(async () => {
+    if (!currentUserId) return;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -144,6 +231,18 @@ export default function TicketsPage() {
       params.set("pageSize", pageSize.toString());
       if (statusFilter) params.set("status", statusFilter);
       if (priorityFilter) params.set("priority", priorityFilter);
+
+      if (activeTab === "my-requests") {
+        params.set("reporterUserId", currentUserId);
+      } else if (activeTab === "my-assignments") {
+        params.set("assigneeUserId", currentUserId);
+      } else if (activeTab === "queue-pool") {
+        const queueIds = selectedQueueFilter === "all"
+          ? myQueues.map((q) => q.queueId).join(",")
+          : selectedQueueFilter;
+        if (queueIds) params.set("queueIds", queueIds);
+        params.set("unassignedOnly", "true");
+      }
 
       const res = await fetch(`/api/req/tickets?${params}`);
       if (res.ok) {
@@ -156,11 +255,26 @@ export default function TicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, priorityFilter]);
+  }, [currentUserId, activeTab, page, statusFilter, priorityFilter, myQueues, selectedQueueFilter]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+  // ── Fetch tab counts ──
+  useEffect(() => {
+    if (!currentUserId) return;
+    // My requests count
+    fetch(`/api/req/tickets?reporterUserId=${currentUserId}&pageSize=1`)
+      .then((r) => r.ok ? r.json() : { totalCount: 0 })
+      .then((d) => setMyRequestsCount(d.totalCount ?? 0))
+      .catch(() => {});
+    // My assignments count
+    fetch(`/api/req/tickets?assigneeUserId=${currentUserId}&pageSize=1`)
+      .then((r) => r.ok ? r.json() : { totalCount: 0 })
+      .then((d) => setMyAssignmentsCount(d.totalCount ?? 0))
+      .catch(() => {});
+  }, [currentUserId, tickets]);
 
   // ── Fetch departments & categories for form ──
   useEffect(() => {
@@ -169,22 +283,17 @@ export default function TicketsPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setDepartments(Array.isArray(data) ? data : []))
       .catch(() => setDepartments([]));
-
     fetch("/api/req/categories")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setCategories(Array.isArray(data) ? data : []))
       .catch(() => setCategories([]));
   }, [showCreate]);
 
-  // ── Filtered categories by selected department ──
   const filteredCategories = formDepartmentId
     ? categories.filter((c) => extractId(c.departmentId) === formDepartmentId)
     : categories;
 
-  // Reset category when department changes
-  useEffect(() => {
-    setFormCategoryId("");
-  }, [formDepartmentId]);
+  useEffect(() => { setFormCategoryId(""); }, [formDepartmentId]);
 
   // ── Create ticket ──
   const handleCreate = async () => {
@@ -215,7 +324,7 @@ export default function TicketsPage() {
         const errText = await res.text();
         setFormError(`Hata: ${res.status} — ${errText.substring(0, 200)}`);
       }
-    } catch (err) {
+    } catch {
       setFormError("Bağlantı hatası oluştu.");
     } finally {
       setFormSaving(false);
@@ -230,6 +339,29 @@ export default function TicketsPage() {
     setFormPriority("Medium");
     setFormChannel("Portal");
     setFormError("");
+  };
+
+  // ── Claim ticket ──
+  const handleClaim = async (ticketId: string) => {
+    if (!currentUserId) return;
+    setClaimingId(ticketId);
+    try {
+      const res = await fetch(`/api/req/tickets/${ticketId}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimerUserId: currentUserId }),
+      });
+      if (res.ok) {
+        await fetchTickets();
+      } else {
+        const errText = await res.text();
+        alert(`Claim hatası: ${errText.substring(0, 200)}`);
+      }
+    } catch {
+      alert("Bağlantı hatası");
+    } finally {
+      setClaimingId(null);
+    }
   };
 
   // ── Search filter ──
@@ -247,57 +379,138 @@ export default function TicketsPage() {
     return diff > 0 && diff < 2 * 60 * 60 * 1000;
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text)]">
-            Talepler
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            {totalCount} talep bulundu
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium",
-            "bg-indigo-600 text-white",
-            "hover:bg-indigo-700 active:bg-indigo-800",
-            "shadow-lg shadow-indigo-500/20",
-            "transition-all duration-200"
-          )}
-        >
-          <Plus className="w-4 h-4" />
-          Yeni Talep
-        </button>
-      </div>
+  const tabCounts: Record<TabKey, number> = {
+    "my-requests": myRequestsCount,
+    "my-assignments": myAssignmentsCount,
+    "queue-pool": queuePoolCount,
+  };
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Açık", value: tickets.filter((t) => ["New", "Open", "InProgress"].includes(t.status)).length, color: "text-blue-400", bg: "bg-blue-500/10" },
-          { label: "SLA Risk", value: tickets.filter((t) => t.slaResolutionBreached || isSlaWarning(t.slaResolutionDeadline)).length, color: "text-red-400", bg: "bg-red-500/10" },
-          { label: "Çözülen", value: tickets.filter((t) => t.status === "Resolved").length, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-          { label: "Toplam", value: totalCount, color: "text-slate-300", bg: "bg-slate-500/10" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className={cn(
-              "p-4 rounded-xl border border-[var(--color-border)]",
-              "bg-[var(--color-card-bg)]"
-            )}
-          >
-            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
-              {stat.label}
-            </p>
-            <p className={cn("text-2xl font-bold mt-1", stat.color)}>
-              {stat.value}
+  const currentUserRole = (queueId: string) => {
+    const q = myQueues.find((q) => q.queueId === queueId);
+    return q?.role ?? "Member";
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Dev-mode user selector + Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--color-text)]">Talepler</h1>
+            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+              {totalCount} talep
             </p>
           </div>
-        ))}
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Dev-mode user picker */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <User className="w-3.5 h-3.5 text-amber-400" />
+            <select
+              value={currentUserId}
+              onChange={(e) => {
+                setCurrentUserId(e.target.value);
+                setPage(1);
+              }}
+              className="text-xs bg-transparent border-none text-amber-300 focus:outline-none cursor-pointer"
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName} ({u.userName})
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-amber-500/60 font-mono">DEV</span>
+          </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium",
+              "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800",
+              "shadow-lg shadow-indigo-500/20 transition-all duration-200"
+            )}
+          >
+            <Plus className="w-4 h-4" />
+            Yeni Talep
+          </button>
+        </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-bg)]/80 border border-[var(--color-border)] w-fit">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          const count = tabCounts[tab.key];
+          // Hide queue tab if user has no queues
+          if (tab.key === "queue-pool" && myQueues.length === 0) return null;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setPage(1); setStatusFilter(""); setPriorityFilter(""); }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                isActive
+                  ? "bg-[var(--color-card-bg)] text-[var(--color-text)] shadow-sm border border-[var(--color-border)]"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-card-bg)]/50"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+              {count > 0 && (
+                <span className={cn(
+                  "inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold",
+                  isActive
+                    ? "bg-indigo-500/20 text-indigo-400"
+                    : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Queue selector (only for queue-pool tab) */}
+      {activeTab === "queue-pool" && myQueues.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setSelectedQueueFilter("all"); setPage(1); }}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+              selectedQueueFilter === "all"
+                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-bg)]"
+            )}
+          >
+            Tümü ({myQueues.reduce((s, q) => s + q.unassignedCount, 0)})
+          </button>
+          {myQueues.map((q) => (
+            <button
+              key={q.queueId}
+              onClick={() => { setSelectedQueueFilter(q.queueId); setPage(1); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                selectedQueueFilter === q.queueId
+                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                  : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-bg)]"
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                {q.name}
+                <span className="opacity-60">({q.unassignedCount})</span>
+                <span className={cn(
+                  "text-[10px] px-1 py-0.5 rounded font-mono uppercase",
+                  q.role === "Lead" ? "bg-purple-500/15 text-purple-400" :
+                  q.role === "Dispatcher" ? "bg-amber-500/15 text-amber-400" :
+                  "bg-slate-500/15 text-slate-400"
+                )}>{q.role}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -316,30 +529,20 @@ export default function TicketsPage() {
             )}
           />
         </div>
-
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className={cn(
-            "px-3 py-2 rounded-lg text-sm",
-            "bg-[var(--color-input-bg)] border border-[var(--color-border)]",
-            "text-[var(--color-text)]"
-          )}
+          className="px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]"
         >
           <option value="">Tüm Durumlar</option>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <option key={key} value={key}>{cfg.label}</option>
           ))}
         </select>
-
         <select
           value={priorityFilter}
           onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
-          className={cn(
-            "px-3 py-2 rounded-lg text-sm",
-            "bg-[var(--color-input-bg)] border border-[var(--color-border)]",
-            "text-[var(--color-text)]"
-          )}
+          className="px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]"
         >
           <option value="">Tüm Öncelikler</option>
           {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
@@ -348,7 +551,7 @@ export default function TicketsPage() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Ticket Table */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -357,8 +560,19 @@ export default function TicketsPage() {
         ) : filteredTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-muted)]">
             <Ticket className="w-12 h-12 opacity-30 mb-3" />
-            <p className="text-sm">Henüz talep bulunmuyor</p>
-            <p className="text-xs mt-1 opacity-60">Yeni bir talep oluşturun</p>
+            <p className="text-sm">
+              {activeTab === "my-requests" && "Henüz talep oluşturmadınız"}
+              {activeTab === "my-assignments" && "Üzerinize atanmış talep yok"}
+              {activeTab === "queue-pool" && "Kuyruk havuzunda bekleyen talep yok"}
+            </p>
+            {activeTab === "my-requests" && (
+              <button
+                onClick={() => setShowCreate(true)}
+                className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                + Yeni Talep Oluştur
+              </button>
+            )}
           </div>
         ) : (
           <table className="w-full">
@@ -368,11 +582,14 @@ export default function TicketsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Başlık</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Durum</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Öncelik</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Departman</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Kategori</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Kuyruk</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  {activeTab === "queue-pool" ? "Kuyruk" : "Departman"}
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SLA</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tarih</th>
+                {activeTab === "queue-pool" && (
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Aksiyon</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
@@ -380,18 +597,22 @@ export default function TicketsPage() {
                 const statusCfg = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.New;
                 const priorityCfg = PRIORITY_CONFIG[ticket.priority] || PRIORITY_CONFIG.Medium;
                 const StatusIcon = statusCfg.icon;
+                const queueRole = ticket.serviceQueue
+                  ? currentUserRole(ticket.serviceQueue.code === ticket.serviceQueue.code ? (myQueues.find((q) => q.name === ticket.serviceQueue!.name)?.queueId ?? "") : "")
+                  : "Member";
 
                 return (
                   <tr
-                    key={ticket.number}
-                    className="hover:bg-[var(--color-border)]/30 transition-colors cursor-pointer"
+                    key={extractId(ticket.id)}
+                    onClick={() => router.push(`/dashboard/tickets/${extractId(ticket.id)}`)}
+                    className="hover:bg-[var(--color-border)]/30 transition-colors cursor-pointer group"
                   >
                     <td className="px-4 py-3">
-                      <span className="text-sm font-mono font-medium text-indigo-400">
+                      <span className="text-sm font-mono font-medium text-indigo-400 group-hover:text-indigo-300 transition-colors">
                         {ticket.number}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 max-w-[280px]">
                       <span className="text-sm text-[var(--color-text)] line-clamp-1">
                         {ticket.title}
                       </span>
@@ -406,28 +627,23 @@ export default function TicketsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("text-sm font-medium", priorityCfg.color)}>
-                        {priorityCfg.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-[var(--color-text-muted)]">
-                        {ticket.department?.name || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-[var(--color-text-muted)]">
-                        {ticket.category?.name || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {ticket.serviceQueue ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                          {ticket.serviceQueue.name}
+                      <span className="flex items-center gap-1.5">
+                        <span className={cn("w-2 h-2 rounded-full", priorityCfg.dot)} />
+                        <span className={cn("text-sm font-medium", priorityCfg.color)}>
+                          {priorityCfg.label}
                         </span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {activeTab === "queue-pool" ? (
+                        ticket.serviceQueue ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                            {ticket.serviceQueue.name}
+                          </span>
+                        ) : <span className="text-xs text-[var(--color-text-muted)]">—</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                          Atanmamış
+                        <span className="text-sm text-[var(--color-text-muted)]">
+                          {ticket.department?.name || "—"}
                         </span>
                       )}
                     </td>
@@ -437,12 +653,12 @@ export default function TicketsPage() {
                           <AlertTriangle className="w-3 h-3" /> İhlal
                         </span>
                       ) : isSlaWarning(ticket.slaResolutionDeadline) ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-400">
-                          <Clock className="w-3 h-3" /> Risk
+                        <span className="inline-flex items-center gap-1 text-xs text-amber-400 animate-pulse">
+                          <Clock className="w-3 h-3" /> {slaTimeLeft(ticket.slaResolutionDeadline)}
                         </span>
                       ) : ticket.slaResolutionDeadline ? (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
-                          <CheckCircle2 className="w-3 h-3" /> Normal
+                          <CheckCircle2 className="w-3 h-3" /> {slaTimeLeft(ticket.slaResolutionDeadline)}
                         </span>
                       ) : (
                         <span className="text-xs text-[var(--color-text-muted)]">—</span>
@@ -450,9 +666,32 @@ export default function TicketsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-[var(--color-text-muted)]">
-                        {new Date(ticket.createdAt).toLocaleDateString("tr-TR")}
+                        {timeAgo(ticket.createdAt)}
                       </span>
                     </td>
+                    {activeTab === "queue-pool" && (
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <button
+                            onClick={() => handleClaim(extractId(ticket.id))}
+                            disabled={claimingId === extractId(ticket.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium",
+                              "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+                              "hover:bg-emerald-500/20 transition-all",
+                              "disabled:opacity-40 disabled:cursor-not-allowed"
+                            )}
+                          >
+                            {claimingId === ticket.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Hand className="w-3 h-3" />
+                            )}
+                            Üzerime Al
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -515,7 +754,6 @@ export default function TicketsPage() {
 
             {/* Panel Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
                   Başlık <span className="text-red-400">*</span>
@@ -529,7 +767,6 @@ export default function TicketsPage() {
                 />
               </div>
 
-              {/* Department + Category row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
@@ -542,9 +779,7 @@ export default function TicketsPage() {
                   >
                     <option value="">Departman seçin</option>
                     {departments.map((d) => (
-                      <option key={extractId(d.id)} value={extractId(d.id)}>
-                        {d.name}
-                      </option>
+                      <option key={extractId(d.id)} value={extractId(d.id)}>{d.name}</option>
                     ))}
                   </select>
                 </div>
@@ -558,24 +793,17 @@ export default function TicketsPage() {
                     disabled={!formDepartmentId}
                     className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-40"
                   >
-                    <option value="">
-                      {formDepartmentId ? "Kategori seçin" : "Önce departman seçin"}
-                    </option>
+                    <option value="">{formDepartmentId ? "Kategori seçin" : "Önce departman seçin"}</option>
                     {filteredCategories.map((c) => (
-                      <option key={extractId(c.id)} value={extractId(c.id)}>
-                        {c.name}
-                      </option>
+                      <option key={extractId(c.id)} value={extractId(c.id)}>{c.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Priority + Channel row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
-                    Öncelik
-                  </label>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Öncelik</label>
                   <select
                     value={formPriority}
                     onChange={(e) => setFormPriority(e.target.value)}
@@ -587,9 +815,7 @@ export default function TicketsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
-                    Kanal
-                  </label>
+                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Kanal</label>
                   <select
                     value={formChannel}
                     onChange={(e) => setFormChannel(e.target.value)}
@@ -602,11 +828,8 @@ export default function TicketsPage() {
                 </div>
               </div>
 
-              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
-                  Açıklama
-                </label>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Açıklama</label>
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
@@ -616,16 +839,13 @@ export default function TicketsPage() {
                 />
               </div>
 
-              {/* Routing info hint */}
               <div className="flex items-start gap-2 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10">
                 <Building2 className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-[var(--color-text-muted)]">
                   Talep, seçilen kategorinin varsayılan kuyruğuna otomatik yönlendirilecektir.
-                  Kuyruk atanmamışsa departman varsayılan kuyruğu kullanılır.
                 </p>
               </div>
 
-              {/* Error */}
               {formError && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                   <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
@@ -649,15 +869,10 @@ export default function TicketsPage() {
                   "flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium",
                   "bg-indigo-600 text-white hover:bg-indigo-700",
                   "shadow-md shadow-indigo-500/20",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                  "transition-all"
+                  "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 )}
               >
-                {formSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
+                {formSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Talep Oluştur
               </button>
             </div>

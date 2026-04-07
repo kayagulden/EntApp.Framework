@@ -301,8 +301,22 @@ public sealed class ListTicketsHandler(RequestManagementDbContext db)
         if (request.Status.HasValue) query = query.Where(t => t.Status == request.Status.Value);
         if (request.Priority.HasValue) query = query.Where(t => t.Priority == request.Priority.Value);
         if (request.AssigneeUserId.HasValue) query = query.Where(t => t.AssigneeUserId == request.AssigneeUserId.Value);
+        if (request.ReporterUserId.HasValue) query = query.Where(t => t.ReporterUserId == request.ReporterUserId.Value);
         if (request.DepartmentId.HasValue) query = query.Where(t => t.DepartmentId == new DepartmentId(request.DepartmentId.Value));
         if (request.ServiceQueueId.HasValue) query = query.Where(t => t.ServiceQueueId == new ServiceQueueId(request.ServiceQueueId.Value));
+
+        // Kuyruk havuzu filtresi: virgülle ayrılmış queue ID'leri
+        if (!string.IsNullOrWhiteSpace(request.QueueIds))
+        {
+            var queueGuids = request.QueueIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => new ServiceQueueId(Guid.Parse(s.Trim())))
+                .ToList();
+            query = query.Where(t => t.ServiceQueueId.HasValue && queueGuids.Contains(t.ServiceQueueId.Value));
+        }
+
+        // Sadece atanmamış ticket'lar
+        if (request.UnassignedOnly)
+            query = query.Where(t => t.AssigneeUserId == null);
 
         var totalCount = await query.CountAsync(ct);
         var items = await query
@@ -347,5 +361,89 @@ public sealed class GetMyTicketsHandler(RequestManagementDbContext db)
             .ToListAsync(ct);
 
         return new TicketListResult(items, totalCount);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Claim Ticket Handler
+// ═══════════════════════════════════════════════════════════════
+
+public sealed class ClaimTicketHandler(RequestManagementDbContext db, IEventBus eventBus)
+    : IRequestHandler<ClaimTicketCommand>
+{
+    public async Task Handle(ClaimTicketCommand request, CancellationToken ct)
+    {
+        var ticket = await db.Tickets.FindAsync([new TicketId(request.TicketId)], ct)
+            ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
+
+        if (ticket.AssigneeUserId.HasValue)
+            throw new InvalidOperationException("Ticket is already assigned.");
+
+        // Kullanıcının ticket'ın kuyruğunda üye olup olmadığını kontrol et
+        if (ticket.ServiceQueueId.HasValue)
+        {
+            var isMember = await db.QueueMemberships.AnyAsync(
+                m => m.QueueId == ticket.ServiceQueueId.Value && m.UserId == request.ClaimerUserId && m.IsActive, ct);
+            if (!isMember)
+                throw new InvalidOperationException("You are not a member of this ticket's queue.");
+        }
+
+        var previousAssignee = ticket.AssigneeUserId;
+        ticket.Assign(request.ClaimerUserId);
+        await db.SaveChangesAsync(ct);
+
+        await eventBus.PublishAsync(new TicketAssignedEvent(
+            ticket.Id.Value, ticket.Number, request.ClaimerUserId, previousAssignee), ct);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GetMyQueues Handler
+// ═══════════════════════════════════════════════════════════════
+
+public sealed class GetMyQueuesHandler(RequestManagementDbContext db)
+    : IRequestHandler<GetMyQueuesQuery, IReadOnlyList<MyQueueDto>>
+{
+    public async Task<IReadOnlyList<MyQueueDto>> Handle(GetMyQueuesQuery request, CancellationToken ct)
+    {
+        // Kullanıcının üye olduğu kuyrukları bul
+        var memberships = await db.QueueMemberships
+            .Where(m => m.UserId == request.UserId && m.IsActive)
+            .Include(m => m.Queue)
+                .ThenInclude(q => q.Department)
+            .ToListAsync(ct);
+
+        if (memberships.Count == 0) return [];
+
+        var queueIds = memberships.Select(m => m.QueueId).ToHashSet();
+
+        // Her kuyruk için ticket sayıları — raw SQL-friendly yaklaşım
+        // Tüm aktif ticket'ları queue bazlı gruplayarak çek
+        var allQueueTickets = await db.Tickets
+            .Where(t => t.ServiceQueueId.HasValue
+                && t.Status != TicketStatus.Closed && t.Status != TicketStatus.Cancelled)
+            .GroupBy(t => t.ServiceQueueId!.Value)
+            .Select(g => new
+            {
+                QueueId = g.Key,
+                Total = g.Count(),
+                Unassigned = g.Count(t => t.AssigneeUserId == null)
+            })
+            .ToListAsync(ct);
+
+        // Client-side: sadece ilgili kuyrukları filtrele
+        var countMap = allQueueTickets
+            .Where(c => queueIds.Contains(c.QueueId))
+            .ToDictionary(c => c.QueueId);
+
+        return memberships.Select(m =>
+        {
+            var q = m.Queue;
+            countMap.TryGetValue(m.QueueId, out var counts);
+            return new MyQueueDto(
+                q.Id.Value, q.Name, q.Code, q.Description,
+                q.Department?.Name, m.Role,
+                counts?.Total ?? 0, counts?.Unassigned ?? 0);
+        }).OrderBy(q => q.Name).ToList();
     }
 }

@@ -14,8 +14,10 @@ public sealed record ListSlaDefinitionsQuery(bool? ActiveOnly = true) : IRequest
 // ── Ticket ───────────────────────────────────────────────────
 public sealed record ListTicketsQuery(
     TicketStatus? Status, TicketPriority? Priority,
-    Guid? AssigneeUserId, Guid? DepartmentId,
+    Guid? AssigneeUserId, Guid? ReporterUserId, Guid? DepartmentId,
     Guid? ServiceQueueId = null,
+    string? QueueIds = null,
+    bool UnassignedOnly = false,
     int Page = 1, int PageSize = 20) : IRequest<TicketListResult>;
 
 public sealed record GetTicketQuery(Guid Id) : IRequest<Ticket?>;
@@ -23,5 +25,13 @@ public sealed record GetTicketQuery(Guid Id) : IRequest<Ticket?>;
 public sealed record GetMyTicketsQuery(Guid ReporterUserId, int Page = 1, int PageSize = 20)
     : IRequest<TicketListResult>;
 
+// ── Queue ────────────────────────────────────────────────────
+/// <summary>Belirtilen kullanıcının üyesi olduğu kuyrukları döndürür (rolle birlikte).</summary>
+public sealed record GetMyQueuesQuery(Guid UserId) : IRequest<IReadOnlyList<MyQueueDto>>;
+
 // ── Result Types ─────────────────────────────────────────────
 public sealed record TicketListResult(IReadOnlyList<Ticket> Items, int TotalCount);
+
+public sealed record MyQueueDto(
+    Guid QueueId, string Name, string Code, string? Description,
+    string? DepartmentName, string Role, int TicketCount, int UnassignedCount);
