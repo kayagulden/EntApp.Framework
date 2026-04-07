@@ -2,6 +2,8 @@ using EntApp.Modules.IAM.Application.DTOs;
 using EntApp.Modules.IAM.Application.Queries;
 using EntApp.Modules.IAM.Infrastructure.Persistence;
 using EntApp.Shared.Contracts.Common;
+using EntApp.Shared.Infrastructure.Persistence;
+using EntApp.Shared.Kernel.Domain.Entities;
 using EntApp.Shared.Kernel.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -40,8 +42,8 @@ public sealed class GetUserByIdHandler : IRequestHandler<GetUserByIdQuery, Resul
         user.FullName,
         user.PhoneNumber,
         user.Status.ToString(),
-        user.OrganizationId,
-        user.DepartmentId,
+        user.OrganizationId?.Value,
+        user.DepartmentId?.Value,
         user.LastLoginAt.HasValue ? new DateTimeOffset(user.LastLoginAt.Value, TimeSpan.Zero) : null,
         new DateTimeOffset(user.CreatedAt, TimeSpan.Zero),
         user.UserRoles.Select(ur => ur.Role.Name).ToList());
@@ -97,8 +99,8 @@ public sealed class GetUsersPagedHandler : IRequestHandler<GetUsersPagedQuery, R
             u.FullName,
             u.PhoneNumber,
             u.Status.ToString(),
-            u.OrganizationId,
-            u.DepartmentId,
+            u.OrganizationId?.Value,
+            u.DepartmentId?.Value,
             u.LastLoginAt.HasValue ? new DateTimeOffset(u.LastLoginAt.Value, TimeSpan.Zero) : null,
             new DateTimeOffset(u.CreatedAt, TimeSpan.Zero),
             u.UserRoles.Select(ur => ur.Role.Name).ToList()))
@@ -141,13 +143,13 @@ public sealed class GetRolesHandler : IRequestHandler<GetRolesQuery, Result<IRea
 // ─── GetOrganizationTree ────────────────────────────────────
 public sealed class GetOrganizationTreeHandler : IRequestHandler<GetOrganizationTreeQuery, Result<IReadOnlyList<OrganizationDto>>>
 {
-    private readonly IamDbContext _db;
+    private readonly OrganizationDbContext _orgDb;
 
-    public GetOrganizationTreeHandler(IamDbContext db) => _db = db;
+    public GetOrganizationTreeHandler(OrganizationDbContext orgDb) => _orgDb = orgDb;
 
     public async Task<Result<IReadOnlyList<OrganizationDto>>> Handle(GetOrganizationTreeQuery request, CancellationToken cancellationToken)
     {
-        var allOrgs = await _db.Organizations
+        var allOrgs = await _orgDb.Organizations
             .AsNoTracking()
             .OrderBy(o => o.Name)
             .ToListAsync(cancellationToken);
@@ -161,7 +163,7 @@ public sealed class GetOrganizationTreeHandler : IRequestHandler<GetOrganization
         return Result<IReadOnlyList<OrganizationDto>>.Success(rootOrgs);
     }
 
-    private static OrganizationDto BuildTree(Domain.Entities.Organization org, List<Domain.Entities.Organization> allOrgs)
+    private static OrganizationDto BuildTree(Organization org, List<Organization> allOrgs)
     {
         var children = allOrgs
             .Where(o => o.ParentId == org.Id)
@@ -169,10 +171,10 @@ public sealed class GetOrganizationTreeHandler : IRequestHandler<GetOrganization
             .ToList();
 
         return new OrganizationDto(
-            org.Id,
+            org.Id.Value,
             org.Name,
             org.Code,
-            org.ParentId,
+            org.ParentId?.Value,
             org.IsActive,
             children);
     }

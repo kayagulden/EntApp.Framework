@@ -3,6 +3,8 @@ using EntApp.Modules.RequestManagement.Application.Queries;
 using EntApp.Modules.RequestManagement.Domain.Entities;
 using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Modules.RequestManagement.Infrastructure.Persistence;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 

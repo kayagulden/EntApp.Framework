@@ -4,17 +4,6 @@ using MediatR;
 
 namespace EntApp.Modules.RequestManagement.Application.Commands;
 
-// ── Department ───────────────────────────────────────────────
-public sealed record CreateDepartmentCommand(
-    string Name, string Code, string? Description,
-    Guid? ManagerUserId, Guid? ParentDepartmentId,
-    Guid? DefaultQueueId = null) : IRequest<Guid>;
-
-public sealed record UpdateDepartmentCommand(
-    Guid Id, string Name, string Code, string? Description,
-    Guid? ManagerUserId, Guid? ParentDepartmentId,
-    Guid? DefaultQueueId = null) : IRequest;
-
 // ── RequestCategory ──────────────────────────────────────────
 public sealed record CreateCategoryCommand(
     string Name, string Code, Guid DepartmentId,

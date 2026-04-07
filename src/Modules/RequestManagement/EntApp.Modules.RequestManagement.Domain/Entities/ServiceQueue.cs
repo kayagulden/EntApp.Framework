@@ -1,5 +1,7 @@
 using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 
 namespace EntApp.Modules.RequestManagement.Domain.Entities;
 

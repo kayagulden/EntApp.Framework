@@ -1,4 +1,6 @@
 using EntApp.Shared.Kernel.Domain;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 
 namespace EntApp.Modules.IAM.Domain.Entities;
 
@@ -29,12 +31,12 @@ public sealed class User : AggregateRoot<Guid>
     /// <summary>Telefon.</summary>
     public string? PhoneNumber { get; private set; }
 
-    /// <summary>Departman.</summary>
-    public Guid? DepartmentId { get; private set; }
+    /// <summary>Departman (Shared Kernel — org.departments).</summary>
+    public DepartmentId? DepartmentId { get; private set; }
     public Department? Department { get; private set; }
 
-    /// <summary>Organizasyon.</summary>
-    public Guid? OrganizationId { get; private set; }
+    /// <summary>Organizasyon (Shared Kernel — org.organizations).</summary>
+    public OrganizationId? OrganizationId { get; private set; }
     public Organization? Organization { get; private set; }
 
     /// <summary>Kullanıcı durumu.</summary>
@@ -106,7 +108,7 @@ public sealed class User : AggregateRoot<Guid>
         if (ur is not null) _userRoles.Remove(ur);
     }
 
-    public void AssignToOrganization(Guid organizationId, Guid? departmentId = null)
+    public void AssignToOrganization(OrganizationId organizationId, DepartmentId? departmentId = null)
     {
         OrganizationId = organizationId;
         DepartmentId = departmentId;

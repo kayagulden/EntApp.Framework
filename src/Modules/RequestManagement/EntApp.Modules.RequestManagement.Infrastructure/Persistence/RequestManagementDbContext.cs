@@ -2,6 +2,8 @@ using EntApp.Modules.RequestManagement.Domain.Entities;
 using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.RequestManagement.Infrastructure.Persistence;
@@ -12,7 +14,6 @@ public sealed class RequestManagementDbContext : BaseDbContext
     public const string Schema = "req";
     protected override string SchemaName => Schema;
 
-    public DbSet<Department> Departments => Set<Department>();
     public DbSet<RequestCategory> Categories => Set<RequestCategory>();
     public DbSet<SlaDefinition> SlaDefinitions => Set<SlaDefinition>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
@@ -27,36 +28,30 @@ public sealed class RequestManagementDbContext : BaseDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // ── Department ──────────────────────────────────────────
+        // ── Organization & Department (org schema — read-only mapping for navigation) ──
+        modelBuilder.Entity<Organization>(e =>
+        {
+            e.ToTable("organizations", OrganizationDbContext.Schema);
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Code).HasMaxLength(20);
+        });
+
         modelBuilder.Entity<Department>(e =>
         {
-            e.ToTable("departments");
+            e.ToTable("departments", OrganizationDbContext.Schema);
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<DepartmentId>());
-            e.HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = false");
-            e.HasIndex(x => x.Name);
-            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Code).HasMaxLength(50);
             e.Property(x => x.Description).HasMaxLength(500);
-            e.Property(x => x.RowVersion).IsRowVersion();
-            e.HasQueryFilter(x => !x.IsDeleted);
 
-            e.Property(x => x.ParentDepartmentId).HasConversion(
-                v => v.HasValue ? v.Value.Value : (Guid?)null,
-                v => v.HasValue ? new DepartmentId(v.Value) : null);
-
-            e.Property(x => x.DefaultQueueId).HasConversion(
-                v => v.HasValue ? v.Value.Value : (Guid?)null,
-                v => v.HasValue ? new ServiceQueueId(v.Value) : null);
+            e.HasOne(x => x.Organization)
+                .WithMany(o => o.Departments)
+                .HasForeignKey(x => x.OrganizationId);
 
             e.HasOne(x => x.ParentDepartment)
                 .WithMany(x => x.SubDepartments)
                 .HasForeignKey(x => x.ParentDepartmentId);
-
-            e.HasOne(x => x.DefaultQueue)
-                .WithMany()
-                .HasForeignKey(x => x.DefaultQueueId)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── SlaDefinition ───────────────────────────────────────
@@ -96,7 +91,7 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 v => v.HasValue ? v.Value.Value : (Guid?)null,
                 v => v.HasValue ? new ServiceQueueId(v.Value) : null);
 
-            e.HasOne(x => x.Department).WithMany(d => d.Categories).HasForeignKey(x => x.DepartmentId);
+            e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId);
             e.HasOne(x => x.SlaDefinitionEntity).WithMany(s => s.Categories).HasForeignKey(x => x.SlaDefinitionId);
             e.HasOne(x => x.DefaultQueue)
                 .WithMany()

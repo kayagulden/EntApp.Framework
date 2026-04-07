@@ -13,35 +13,6 @@ public static class RequestManagementEndpoints
 {
     public static IEndpointRouteBuilder MapRequestManagementEndpoints(this IEndpointRouteBuilder app)
     {
-        // ═══════════ Departments ═══════════
-        var depts = app.MapGroup("/api/req/departments").WithTags("Request Mgmt - Departments");
-
-        depts.MapGet("/", async (ISender mediator, bool? activeOnly) =>
-            Results.Ok(await mediator.Send(new ListDepartmentsQuery(activeOnly ?? true))))
-            .WithName("ListDepartments");
-
-        depts.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
-        {
-            var result = await mediator.Send(new GetDepartmentQuery(id));
-            return result is null ? Results.NotFound() : Results.Ok(result);
-        }).WithName("GetDepartment");
-
-        depts.MapPost("/", async (CreateDepartmentRequest req, ISender mediator) =>
-        {
-            var id = await mediator.Send(new CreateDepartmentCommand(
-                req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId,
-                req.DefaultQueueId));
-            return Results.Created($"/api/req/departments/{id}", new { id });
-        }).WithName("CreateDepartment");
-
-        depts.MapPut("/{id:guid}", async (Guid id, UpdateDepartmentRequest req, ISender mediator) =>
-        {
-            await mediator.Send(new UpdateDepartmentCommand(
-                id, req.Name, req.Code, req.Description, req.ManagerUserId, req.ParentDepartmentId,
-                req.DefaultQueueId));
-            return Results.NoContent();
-        }).WithName("UpdateDepartment");
-
         // ═══════════ Categories ═══════════
         var cats = app.MapGroup("/api/req/categories").WithTags("Request Mgmt - Categories");
 
@@ -184,8 +155,6 @@ public static class RequestManagementEndpoints
 }
 
 // ── Request DTOs ──────────────────────────────────────────────
-public sealed record CreateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId, Guid? DefaultQueueId = null);
-public sealed record UpdateDepartmentRequest(string Name, string Code, string? Description, Guid? ManagerUserId, Guid? ParentDepartmentId, Guid? DefaultQueueId = null);
 public sealed record CreateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold, Guid? DefaultQueueId = null);
 public sealed record UpdateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, Guid? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold, Guid? DefaultQueueId = null);
 public sealed record CreateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);

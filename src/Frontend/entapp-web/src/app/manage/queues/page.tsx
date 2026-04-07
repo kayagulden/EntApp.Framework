@@ -67,7 +67,7 @@ export default function QueuesPage() {
   const [departments, setDepartments] = useState<ReqDepartment[]>([]);
 
   useEffect(() => {
-    fetch("/api/req/departments")
+    fetch("/api/v1/org/departments")
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setDepartments(Array.isArray(data) ? data : []))
       .catch(() => setDepartments([]));

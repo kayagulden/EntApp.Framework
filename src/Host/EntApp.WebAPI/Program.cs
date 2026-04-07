@@ -181,6 +181,15 @@ try
     // ── Event Bus ────────────────────────────────────────────
     builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
 
+    // ── Organization DbContext (Shared — org schema) ────────
+    builder.Services.AddDbContext<EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext>(options =>
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            npgsql =>
+            {
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext.Schema);
+            }));
+
     // ── Module Auto-Discovery ────────────────────────────────
     // Tüm modül assembly'leri — IModuleInstaller otomatik keşfedilir
     builder.Services.AddModules(
@@ -263,14 +272,33 @@ try
             var db = provider.GetRequiredService<T>();
             try
             {
+                // GenerateCreateScript ile tüm SQL'i al, sonra her statement'ı ayrı çalıştır
+                // Bu sayede cross-schema referansları olan tablolar (org.*) zaten varsa
+                // sadece o statement atlanır, diğerleri oluşturulur.
                 var creator = ((IInfrastructure<IServiceProvider>)db.Database).Instance
                     .GetRequiredService<IRelationalDatabaseCreator>();
-                await creator.CreateTablesAsync();
-                Log.Information("[DB] Tables created for {Module}", typeof(T).Name);
+
+                var script = creator.GenerateCreateScript();
+                var statements = script.Split(["\r\n\r\n", "\n\n"], StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var stmt in statements)
+                {
+                    var trimmed = stmt.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync(trimmed);
+                    }
+                    catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07") // already exists
+                    {
+                        // Tablo zaten var — atla (cross-schema referanslar için normal)
+                    }
+                }
+                Log.Information("[DB] Tables ensured for {Module}", typeof(T).Name);
             }
-            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07") // already exists
+            catch (Exception ex)
             {
-                Log.Debug("[DB] Tables already exist for {Module}", typeof(T).Name);
+                Log.Debug(ex, "[DB] Tables already exist or partial creation for {Module}", typeof(T).Name);
             }
         }
 
@@ -285,6 +313,7 @@ try
         await EnsureModuleTables<EntApp.Modules.Procurement.Infrastructure.Persistence.ProcurementDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.TaskManagement.Infrastructure.Persistence.TaskManagementDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Configuration.Infrastructure.Persistence.ConfigDbContext>(sp);
+        await EnsureModuleTables<EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.IAM.Infrastructure.Persistence.IamDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Notification.Infrastructure.Persistence.NotificationDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Localization.Infrastructure.Persistence.LocalizationDbContext>(sp);
@@ -374,6 +403,7 @@ try
     app.MapTaskManagementEndpoints();
     app.MapRequestManagementEndpoints();
     app.MapServiceQueueEndpoints();
+    app.MapOrganizationEndpoints();
     app.MapAdminEndpoints();
     app.MapTenantManageEndpoints();
 

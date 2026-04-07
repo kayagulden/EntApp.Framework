@@ -52,7 +52,7 @@ interface TicketListResult {
 }
 
 interface DepartmentOption {
-  id: { value: string } | string;
+  id: string;
   name: string;
   code: string;
 }
@@ -165,7 +165,7 @@ export default function TicketsPage() {
   // ── Fetch departments & categories for form ──
   useEffect(() => {
     if (!showCreate) return;
-    fetch("/api/req/departments")
+    fetch("/api/v1/org/departments")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setDepartments(Array.isArray(data) ? data : []))
       .catch(() => setDepartments([]));

@@ -1,4 +1,7 @@
 using EntApp.Modules.IAM.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
+using EntApp.Shared.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.IAM.Infrastructure.Persistence;
@@ -6,6 +9,8 @@ namespace EntApp.Modules.IAM.Infrastructure.Persistence;
 /// <summary>
 /// IAM modülü EF Core DbContext.
 /// Kendi şeması: "iam"
+/// Organization ve Department artık Shared Kernel'da (org şeması).
+/// User entity cross-schema FK ile org.organizations/org.departments'a referans verir.
 /// </summary>
 public sealed class IamDbContext : DbContext
 {
@@ -14,8 +19,6 @@ public sealed class IamDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
-    public DbSet<Organization> Organizations => Set<Organization>();
-    public DbSet<Department> Departments => Set<Department>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
@@ -26,6 +29,55 @@ public sealed class IamDbContext : DbContext
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         modelBuilder.HasDefaultSchema(Schema);
+
+        // ── Organization & Department (org schema — read-only mapping for navigation) ──
+        modelBuilder.Entity<Organization>(entity =>
+        {
+            entity.ToTable("organizations", OrganizationDbContext.Schema);
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasConversion(
+                v => v.Value, v => new OrganizationId(v));
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(20);
+
+            entity.Property(e => e.ParentId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new OrganizationId(v.Value) : null);
+
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Department>(entity =>
+        {
+            entity.ToTable("departments", OrganizationDbContext.Schema);
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasConversion(
+                v => v.Value, v => new DepartmentId(v));
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.Property(e => e.OrganizationId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new OrganizationId(v.Value) : null);
+
+            entity.Property(e => e.ParentDepartmentId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new DepartmentId(v.Value) : null);
+
+            entity.HasOne(e => e.Organization)
+                .WithMany(o => o.Departments)
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ParentDepartment)
+                .WithMany(e => e.SubDepartments)
+                .HasForeignKey(e => e.ParentDepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // ── User ────────────────────────────────────────────
         modelBuilder.Entity<User>(entity =>
@@ -44,6 +96,14 @@ public sealed class IamDbContext : DbContext
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
             entity.Ignore(e => e.FullName);
 
+            // Strongly typed ID conversion for FK properties
+            entity.Property(e => e.OrganizationId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new OrganizationId(v.Value) : null);
+
+            entity.Property(e => e.DepartmentId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new DepartmentId(v.Value) : null);
 
             entity.HasOne(e => e.Organization)
                 .WithMany()
@@ -96,37 +156,6 @@ public sealed class IamDbContext : DbContext
             entity.HasKey(e => new { e.RoleId, e.PermissionId });
             entity.HasOne(e => e.Role).WithMany(r => r.RolePermissions).HasForeignKey(e => e.RoleId);
             entity.HasOne(e => e.Permission).WithMany().HasForeignKey(e => e.PermissionId);
-        });
-
-        // ── Organization ────────────────────────────────────
-        modelBuilder.Entity<Organization>(entity =>
-        {
-            entity.ToTable("organizations");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Code).HasMaxLength(20).IsRequired();
-            entity.HasIndex(e => e.Code).IsUnique();
-
-
-            entity.HasOne(e => e.Parent)
-                .WithMany(e => e.Children)
-                .HasForeignKey(e => e.ParentId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        // ── Department ──────────────────────────────────────
-        modelBuilder.Entity<Department>(entity =>
-        {
-            entity.ToTable("departments");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Code).HasMaxLength(20).IsRequired();
-
-
-            entity.HasOne(e => e.Organization)
-                .WithMany(o => o.Departments)
-                .HasForeignKey(e => e.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

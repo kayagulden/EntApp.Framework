@@ -8,47 +8,12 @@ using EntApp.Modules.RequestManagement.Infrastructure.Persistence;
 using EntApp.Modules.RequestManagement.Infrastructure.Services;
 using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Contracts.Messaging;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntApp.Modules.RequestManagement.Infrastructure.Handlers;
-
-// ═══════════════════════════════════════════════════════════════
-//  Department Handlers
-// ═══════════════════════════════════════════════════════════════
-
-public sealed class CreateDepartmentHandler(RequestManagementDbContext db)
-    : IRequestHandler<CreateDepartmentCommand, Guid>
-{
-    public async Task<Guid> Handle(CreateDepartmentCommand request, CancellationToken ct)
-    {
-        var dept = Department.Create(request.Name, request.Code, request.Description,
-            request.ManagerUserId,
-            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null,
-            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
-
-        db.Departments.Add(dept);
-        await db.SaveChangesAsync(ct);
-        return dept.Id.Value;
-    }
-}
-
-public sealed class UpdateDepartmentHandler(RequestManagementDbContext db)
-    : IRequestHandler<UpdateDepartmentCommand>
-{
-    public async Task Handle(UpdateDepartmentCommand request, CancellationToken ct)
-    {
-        var dept = await db.Departments.FindAsync([new DepartmentId(request.Id)], ct)
-            ?? throw new KeyNotFoundException($"Department '{request.Id}' not found.");
-
-        dept.Update(request.Name, request.Code, request.Description,
-            request.ManagerUserId,
-            request.ParentDepartmentId.HasValue ? new DepartmentId(request.ParentDepartmentId.Value) : null,
-            request.DefaultQueueId.HasValue ? new ServiceQueueId(request.DefaultQueueId.Value) : null);
-
-        await db.SaveChangesAsync(ct);
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════
 //  RequestCategory Handlers
@@ -138,8 +103,9 @@ public sealed class CreateTicketHandler(
             .Include(c => c.SlaDefinitionEntity)
             .FirstOrDefaultAsync(c => c.Id == new RequestCategoryId(request.CategoryId), ct);
 
-        var department = await db.Departments
-            .FirstOrDefaultAsync(d => d.Id == new DepartmentId(request.DepartmentId), ct);
+        var deptId = new DepartmentId(request.DepartmentId);
+        var department = await db.Set<Department>()
+            .FirstOrDefaultAsync(d => d.Id == deptId, ct);
 
         // Queue routing — waterfall: Explicit → Category → Department → Unrouted
         var explicitQueueId = request.ServiceQueueId.HasValue
@@ -150,7 +116,7 @@ public sealed class CreateTicketHandler(
             explicitQueueId, category, department);
 
         var ticket = Ticket.Create(number, request.Title,
-            new RequestCategoryId(request.CategoryId), new DepartmentId(request.DepartmentId),
+            new RequestCategoryId(request.CategoryId), deptId,
             currentUser.UserId, request.Description, request.Priority, request.Channel,
             request.FormDataJson, resolvedQueueId, routingSource);
 
@@ -284,29 +250,6 @@ public sealed class RouteTicketToQueueHandler(RequestManagementDbContext db)
 // ═══════════════════════════════════════════════════════════════
 //  Query Handlers
 // ═══════════════════════════════════════════════════════════════
-
-public sealed class ListDepartmentsHandler(RequestManagementDbContext db)
-    : IRequestHandler<ListDepartmentsQuery, IReadOnlyList<Department>>
-{
-    public async Task<IReadOnlyList<Department>> Handle(ListDepartmentsQuery request, CancellationToken ct)
-    {
-        var query = db.Departments.AsQueryable();
-        if (request.ActiveOnly == true) query = query.Where(d => d.IsActive);
-        return await query.OrderBy(d => d.Name).ToListAsync(ct);
-    }
-}
-
-public sealed class GetDepartmentHandler(RequestManagementDbContext db)
-    : IRequestHandler<GetDepartmentQuery, Department?>
-{
-    public async Task<Department?> Handle(GetDepartmentQuery request, CancellationToken ct)
-    {
-        return await db.Departments
-            .Include(d => d.Categories)
-            .Include(d => d.SubDepartments)
-            .FirstOrDefaultAsync(d => d.Id == new DepartmentId(request.Id), ct);
-    }
-}
 
 public sealed class ListCategoriesHandler(RequestManagementDbContext db)
     : IRequestHandler<ListCategoriesQuery, IReadOnlyList<RequestCategory>>

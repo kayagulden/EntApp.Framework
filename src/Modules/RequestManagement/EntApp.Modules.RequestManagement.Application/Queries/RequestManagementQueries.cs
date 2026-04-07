@@ -4,10 +4,6 @@ using MediatR;
 
 namespace EntApp.Modules.RequestManagement.Application.Queries;
 
-// ── Department ───────────────────────────────────────────────
-public sealed record ListDepartmentsQuery(bool? ActiveOnly = true) : IRequest<IReadOnlyList<Department>>;
-public sealed record GetDepartmentQuery(Guid Id) : IRequest<Department?>;
-
 // ── RequestCategory ──────────────────────────────────────────
 public sealed record ListCategoriesQuery(Guid? DepartmentId = null, bool? ActiveOnly = true) : IRequest<IReadOnlyList<RequestCategory>>;
 public sealed record GetCategoryQuery(Guid Id) : IRequest<RequestCategory?>;

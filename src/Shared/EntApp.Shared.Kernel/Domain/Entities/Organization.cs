@@ -1,12 +1,13 @@
-using EntApp.Shared.Kernel.Domain;
+using EntApp.Shared.Kernel.Domain.Ids;
 
-namespace EntApp.Modules.IAM.Domain.Entities;
+namespace EntApp.Shared.Kernel.Domain.Entities;
 
 /// <summary>
-/// IAM Organization entity — hiyerarşik organizasyon yapısı.
-/// Self-referencing tree (parentId ile).
+/// Organizasyon entity — hiyerarşik organizasyon yapısı.
+/// Self-referencing tree (ParentId ile).
+/// Shared Kernel referans verisi — tüm modüller tarafından kullanılır.
 /// </summary>
-public sealed class Organization : AuditableEntity<Guid>
+public sealed class Organization : AuditableEntity<OrganizationId>
 {
     /// <summary>Organizasyon adı.</summary>
     public string Name { get; private set; } = null!;
@@ -15,7 +16,7 @@ public sealed class Organization : AuditableEntity<Guid>
     public string Code { get; private set; } = null!;
 
     /// <summary>Üst organizasyon ID (root için null).</summary>
-    public Guid? ParentId { get; private set; }
+    public OrganizationId? ParentId { get; private set; }
 
     /// <summary>Üst organizasyon navigasyonu.</summary>
     public Organization? Parent { get; private set; }
@@ -33,14 +34,14 @@ public sealed class Organization : AuditableEntity<Guid>
 
     private Organization() { } // EF Core
 
-    public static Organization Create(string name, string code, Guid? parentId = null)
+    public static Organization Create(string name, string code, OrganizationId? parentId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
 
         return new Organization
         {
-            Id = Guid.NewGuid(),
+            Id = EntityId.New<OrganizationId>(),
             Name = name,
             Code = code.ToUpperInvariant(),
             ParentId = parentId,
@@ -60,6 +61,12 @@ public sealed class Organization : AuditableEntity<Guid>
     public void Deactivate()
     {
         IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -1,11 +1,13 @@
-using EntApp.Modules.RequestManagement.Domain.Ids;
-using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
+using EntApp.Shared.Kernel.Domain.Ids;
 
-namespace EntApp.Modules.RequestManagement.Domain.Entities;
+namespace EntApp.Shared.Kernel.Domain.Entities;
 
-/// <summary>Departman — talep yönlendirme ve organizasyon yapısı.</summary>
-[DynamicEntity("Department", MenuGroup = "Request Management")]
+/// <summary>
+/// Departman — organizasyona bağlı, hiyerarşik departman yapısı.
+/// Shared Kernel referans verisi — IAM ve RequestManagement dahil tüm modüller tarafından kullanılır.
+/// </summary>
+[DynamicEntity("Department", MenuGroup = "Organization")]
 public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
 {
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 200, Searchable = true)]
@@ -17,11 +19,17 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
     [DynamicField(FieldType = FieldType.Text, MaxLength = 500)]
     public string? Description { get; private set; }
 
+    /// <summary>Bağlı organizasyon.</summary>
+    public OrganizationId? OrganizationId { get; private set; }
+
+    /// <summary>Departman yöneticisi (IAM User ID).</summary>
     public Guid? ManagerUserId { get; private set; }
+
+    /// <summary>Üst departman — hiyerarşik yapı için.</summary>
     public DepartmentId? ParentDepartmentId { get; private set; }
 
-    /// <summary>Bu departmana gelen taleplerin otomatik yönlendirileceği varsayılan kuyruk.</summary>
-    public ServiceQueueId? DefaultQueueId { get; private set; }
+    /// <summary>Bu departmana gelen taleplerin otomatik yönlendirileceği varsayılan kuyruk (Guid, modül-agnostik).</summary>
+    public Guid? DefaultQueueId { get; private set; }
 
     [DynamicField(FieldType = FieldType.Boolean)]
     public bool IsActive { get; private set; } = true;
@@ -29,16 +37,15 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
     public Guid TenantId { get; set; }
 
     // Navigation
+    public Organization? Organization { get; private set; }
     public Department? ParentDepartment { get; private set; }
-    public ServiceQueue? DefaultQueue { get; private set; }
     public ICollection<Department> SubDepartments { get; private set; } = [];
-    public ICollection<RequestCategory> Categories { get; private set; } = [];
 
     private Department() { }
 
     public static Department Create(string name, string code, string? description = null,
-        Guid? managerUserId = null, DepartmentId? parentDepartmentId = null,
-        ServiceQueueId? defaultQueueId = null)
+        OrganizationId? organizationId = null, Guid? managerUserId = null,
+        DepartmentId? parentDepartmentId = null, Guid? defaultQueueId = null)
     {
         return new Department
         {
@@ -46,6 +53,7 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
             Name = name,
             Code = code,
             Description = description,
+            OrganizationId = organizationId,
             ManagerUserId = managerUserId,
             ParentDepartmentId = parentDepartmentId,
             DefaultQueueId = defaultQueueId
@@ -53,13 +61,14 @@ public sealed class Department : AuditableEntity<DepartmentId>, ITenantEntity
     }
 
     public void Update(string name, string code, string? description, Guid? managerUserId,
-        DepartmentId? parentId, ServiceQueueId? defaultQueueId = null)
+        DepartmentId? parentId, OrganizationId? organizationId = null, Guid? defaultQueueId = null)
     {
         Name = name;
         Code = code;
         Description = description;
         ManagerUserId = managerUserId;
         ParentDepartmentId = parentId;
+        OrganizationId = organizationId;
         DefaultQueueId = defaultQueueId;
     }
 

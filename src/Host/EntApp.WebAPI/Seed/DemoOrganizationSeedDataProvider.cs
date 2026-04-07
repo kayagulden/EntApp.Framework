@@ -1,15 +1,13 @@
 using EntApp.Shared.Infrastructure.Persistence;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-// Aliases to avoid ambiguity
 using IamDb = EntApp.Modules.IAM.Infrastructure.Persistence.IamDbContext;
-using IamOrg = EntApp.Modules.IAM.Domain.Entities.Organization;
-using IamDept = EntApp.Modules.IAM.Domain.Entities.Department;
 using IamUser = EntApp.Modules.IAM.Domain.Entities.User;
 using ReqDb = EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext;
-using ReqDept = EntApp.Modules.RequestManagement.Domain.Entities.Department;
 using EntApp.Modules.RequestManagement.Domain.Entities;
 using EntApp.Modules.RequestManagement.Domain.Enums;
 using EntApp.Modules.RequestManagement.Domain.Ids;
@@ -19,6 +17,7 @@ namespace EntApp.WebAPI.Seed;
 /// <summary>
 /// Demo tenant için organizasyon, departman, hizmet kuyrukları, SLA, kategoriler,
 /// queue routing bağlantıları ve örnek ticket'lar seed'ler.
+/// Tek kaynak: org schema → tüm modüller bu departmanları kullanır.
 /// </summary>
 public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
 {
@@ -29,35 +28,58 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
     {
         using var scope = serviceProvider.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<DemoOrganizationSeedDataProvider>>();
+        var orgDb = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
         var iamDb = scope.ServiceProvider.GetRequiredService<IamDb>();
         var reqDb = scope.ServiceProvider.GetRequiredService<ReqDb>();
 
         // ═══════════════════════════════════════════════════════
-        //  1. Organization + IAM Departments + Demo Users
+        //  1. Organization + Departments (Shared — org schema)
         // ═══════════════════════════════════════════════════════
-        if (!await iamDb.Organizations.AnyAsync(ct))
+        Organization rootOrg;
+        Department deptIt, deptHr, deptFin, deptSales, deptOps, deptLegal;
+
+        if (!await orgDb.Organizations.AnyAsync(ct))
         {
-            logger.LogInformation("[SEED] Creating demo organization structure...");
+            logger.LogInformation("[SEED] Creating demo organization + departments (org schema)...");
 
-            var rootOrg = IamOrg.Create("EntApp Demo Şirketi", "ENTAPP");
-            iamDb.Organizations.Add(rootOrg);
+            rootOrg = Organization.Create("EntApp Demo Şirketi", "ENTAPP");
+            orgDb.Organizations.Add(rootOrg);
 
-            var ist = IamOrg.Create("İstanbul Şubesi", "IST", rootOrg.Id);
-            var ank = IamOrg.Create("Ankara Şubesi", "ANK", rootOrg.Id);
-            iamDb.Organizations.AddRange(ist, ank);
+            var ist = Organization.Create("İstanbul Şubesi", "IST", rootOrg.Id);
+            var ank = Organization.Create("Ankara Şubesi", "ANK", rootOrg.Id);
+            orgDb.Organizations.AddRange(ist, ank);
 
-            var deptIt = IamDept.Create("Bilgi Teknolojileri", "IT", rootOrg.Id);
-            var deptHr = IamDept.Create("İnsan Kaynakları", "HR", rootOrg.Id);
-            var deptFin = IamDept.Create("Finans", "FIN", rootOrg.Id);
-            var deptSales = IamDept.Create("Satış & Pazarlama", "SALES", rootOrg.Id);
-            var deptOps = IamDept.Create("Operasyon", "OPS", rootOrg.Id);
-            var deptLegal = IamDept.Create("Hukuk", "LEGAL", rootOrg.Id);
-            iamDb.Departments.AddRange(deptIt, deptHr, deptFin, deptSales, deptOps, deptLegal);
+            // Departmanlar — tek kaynak, tüm modüller tarafından kullanılır
+            deptIt = Department.Create("Bilgi Teknolojileri", "IT", "IT hizmet masası ve altyapı yönetimi", rootOrg.Id);
+            deptHr = Department.Create("İnsan Kaynakları", "HR", "İK talep ve süreç yönetimi", rootOrg.Id);
+            deptFin = Department.Create("Finans", "FIN", "Finans ve muhasebe talepleri", rootOrg.Id);
+            deptSales = Department.Create("Satış & Pazarlama", "SALES", "Satış operasyonları", rootOrg.Id);
+            deptOps = Department.Create("Operasyon", "OPS", "Operasyon ve lojistik", rootOrg.Id);
+            deptLegal = Department.Create("Hukuk", "LEGAL", "Hukuk danışmanlık hizmetleri", rootOrg.Id);
+            orgDb.Departments.AddRange(deptIt, deptHr, deptFin, deptSales, deptOps, deptLegal);
 
-            await iamDb.SaveChangesAsync(ct);
-            logger.LogInformation("[SEED] Organization + 6 departments created.");
+            await orgDb.SaveChangesAsync(ct);
+            logger.LogInformation("[SEED] Organization + 6 departments created (org schema).");
+        }
+        else
+        {
+            rootOrg = (await orgDb.Organizations.FirstAsync(o => o.Code == "ENTAPP", ct))!;
+            var depts = await orgDb.Departments.ToListAsync(ct);
+            deptIt = depts.First(d => d.Code == "IT");
+            deptHr = depts.First(d => d.Code == "HR");
+            deptFin = depts.First(d => d.Code == "FIN");
+            deptSales = depts.First(d => d.Code == "SALES");
+            deptOps = depts.First(d => d.Code == "OPS");
+            deptLegal = depts.First(d => d.Code == "LEGAL");
+        }
 
-            // Demo kullanıcılar
+        // ═══════════════════════════════════════════════════════
+        //  2. IAM — Demo Users
+        // ═══════════════════════════════════════════════════════
+        if (!await iamDb.Users.AnyAsync(ct))
+        {
+            logger.LogInformation("[SEED] Creating demo users...");
+
             var u1 = IamUser.Create("kc-demo-001", "ahmet.yilmaz", "ahmet.yilmaz@entapp.demo", "Ahmet", "Yılmaz", "+905551001001");
             u1.AssignToOrganization(rootOrg.Id, deptIt.Id);
             var u2 = IamUser.Create("kc-demo-002", "elif.demir", "elif.demir@entapp.demo", "Elif", "Demir", "+905551001002");
@@ -75,15 +97,15 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         }
 
         // ═══════════════════════════════════════════════════════
-        //  2. RequestManagement — Full Seed
+        //  3. RequestManagement — SLA, Queue, Category, Tickets
         // ═══════════════════════════════════════════════════════
-        if (await reqDb.Departments.AnyAsync(ct))
+        if (await reqDb.SlaDefinitions.AnyAsync(ct))
         {
             logger.LogInformation("[SEED] RequestManagement data already seeded — skipping.");
             return;
         }
 
-        // ─── 2a. SLA Tanımları ────────────────────────────────
+        // ─── 3a. SLA Tanımları ────────────────────────────────
         var slaStandard = SlaDefinition.Create(
             "Standart SLA",
             "Genel talepler için standart yanıt ve çözüm süreleri",
@@ -106,62 +128,52 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         await reqDb.SaveChangesAsync(ct);
         logger.LogInformation("[SEED] 3 SLA definitions created.");
 
-        // ─── 2b. Departmanlar ─────────────────────────────────
-        // Not: DefaultQueueId sonradan set edilecek (queue oluşturulduktan sonra)
-        var reqDeptIt = ReqDept.Create("IT Hizmetleri", "IT-SVC", "Bilgi teknolojileri hizmet masası");
-        var reqDeptHr = ReqDept.Create("İK Hizmetleri", "HR-SVC", "İnsan kaynakları talep yönetimi");
-        var reqDeptFin = ReqDept.Create("Finans Hizmetleri", "FIN-SVC", "Finans ve muhasebe talepleri");
-        var reqDeptOps = ReqDept.Create("Operasyon Hizmetleri", "OPS-SVC", "Operasyon ve lojistik talepleri");
-        reqDb.Departments.AddRange(reqDeptIt, reqDeptHr, reqDeptFin, reqDeptOps);
-        await reqDb.SaveChangesAsync(ct);
-        logger.LogInformation("[SEED] 4 RequestManagement departments created.");
-
-        // ─── 2c. Service Queue'lar ────────────────────────────
+        // ─── 3b. Service Queue'lar ────────────────────────────
+        // Departmanlar artık org schema'sında — DepartmentId ile referans veriyoruz
         var qGeneral = ServiceQueue.Create("Genel Destek", "GENERAL-SUPPORT",
             "Tüm gelen taleplerin ilk düştüğü genel destek kuyruğu", null, null, null);
         var qSysNet = ServiceQueue.Create("Sistem / Network Destek", "SYS-NET",
-            "Sunucu, ağ, altyapı ve sistem yönetimi talepleri", reqDeptIt.Id, null, null);
+            "Sunucu, ağ, altyapı ve sistem yönetimi talepleri", deptIt.Id, null, null);
         var qAppSupport = ServiceQueue.Create("Uygulama Destek", "APP-SUPPORT",
-            "Mevcut uygulamalardaki sorunlar ve kullanıcı destek talepleri", reqDeptIt.Id, null, null);
+            "Mevcut uygulamalardaki sorunlar ve kullanıcı destek talepleri", deptIt.Id, null, null);
         var qFeature = ServiceQueue.Create("Yeni Özellik / Geliştirme", "FEATURE-REQ",
-            "Yeni özellik, iyileştirme ve uygulama geliştirme talepleri", reqDeptIt.Id, null, null);
+            "Yeni özellik, iyileştirme ve uygulama geliştirme talepleri", deptIt.Id, null, null);
         var qReport = ServiceQueue.Create("Ad-hoc Rapor", "ADHOC-REPORT",
-            "Anlık rapor, veri çekme ve analiz talepleri", reqDeptIt.Id, null, null);
+            "Anlık rapor, veri çekme ve analiz talepleri", deptIt.Id, null, null);
         var qProject = ServiceQueue.Create("Proje Talebi", "PROJECT-REQ",
             "Yeni proje başlatma, proje değerlendirme ve PMO talepleri", null, null, null);
         var qHr = ServiceQueue.Create("İK Talepleri", "HR-REQUESTS",
-            "İzin, özlük, işe alım ve diğer İK talepleri", reqDeptHr.Id, null, null);
+            "İzin, özlük, işe alım ve diğer İK talepleri", deptHr.Id, null, null);
         var qFin = ServiceQueue.Create("Finans Talepleri", "FIN-REQUESTS",
-            "Ödeme, fatura, masraf ve bütçe talepleri", reqDeptFin.Id, null, null);
+            "Ödeme, fatura, masraf ve bütçe talepleri", deptFin.Id, null, null);
 
         reqDb.ServiceQueues.AddRange(qGeneral, qSysNet, qAppSupport, qFeature, qReport, qProject, qHr, qFin);
         await reqDb.SaveChangesAsync(ct);
         logger.LogInformation("[SEED] 8 service queues created.");
 
-        // ─── 2d. Departman → DefaultQueue bağlantısı ──────────
-        reqDeptIt.Update(reqDeptIt.Name, reqDeptIt.Code, reqDeptIt.Description,
-            reqDeptIt.ManagerUserId, reqDeptIt.ParentDepartmentId, qGeneral.Id);
-        reqDeptHr.Update(reqDeptHr.Name, reqDeptHr.Code, reqDeptHr.Description,
-            reqDeptHr.ManagerUserId, reqDeptHr.ParentDepartmentId, qHr.Id);
-        reqDeptFin.Update(reqDeptFin.Name, reqDeptFin.Code, reqDeptFin.Description,
-            reqDeptFin.ManagerUserId, reqDeptFin.ParentDepartmentId, qFin.Id);
-        await reqDb.SaveChangesAsync(ct);
+        // ─── 3c. Departman → DefaultQueue bağlantısı ──────────
+        // org schema'daki departmanları güncelle — DefaultQueueId set et
+        deptIt.Update(deptIt.Name, deptIt.Code, deptIt.Description, deptIt.ManagerUserId,
+            deptIt.ParentDepartmentId, deptIt.OrganizationId, qGeneral.Id.Value);
+        deptHr.Update(deptHr.Name, deptHr.Code, deptHr.Description, deptHr.ManagerUserId,
+            deptHr.ParentDepartmentId, deptHr.OrganizationId, qHr.Id.Value);
+        deptFin.Update(deptFin.Name, deptFin.Code, deptFin.Description, deptFin.ManagerUserId,
+            deptFin.ParentDepartmentId, deptFin.OrganizationId, qFin.Id.Value);
+        await orgDb.SaveChangesAsync(ct);
         logger.LogInformation("[SEED] Department → DefaultQueue links set.");
 
-        // ─── 2e. Queue Membership ─────────────────────────────
+        // ─── 3d. Queue Membership ─────────────────────────────
         var users = await iamDb.Users.OrderBy(u => u.CreatedAt).Take(5).ToListAsync(ct);
         if (users.Count > 0)
         {
             logger.LogInformation("[SEED] Found {Count} users for queue membership.", users.Count);
 
-            // Ahmet Yılmaz — IT Lead, Genel Destek dispatcher
             reqDb.QueueMemberships.Add(QueueMembership.Create(qGeneral.Id, users[0].Id, "Dispatcher"));
             reqDb.QueueMemberships.Add(QueueMembership.Create(qSysNet.Id, users[0].Id, "Lead"));
             reqDb.QueueMemberships.Add(QueueMembership.Create(qAppSupport.Id, users[0].Id, "Lead"));
 
             if (users.Count > 1)
             {
-                // Elif Demir — IT Member
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qGeneral.Id, users[1].Id, "Member"));
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qSysNet.Id, users[1].Id, "Member"));
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qAppSupport.Id, users[1].Id, "Member"));
@@ -169,19 +181,16 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
             }
             if (users.Count > 2)
             {
-                // Mehmet Kaya — İK, Rapor Lead
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qReport.Id, users[2].Id, "Lead"));
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qHr.Id, users[2].Id, "Member"));
             }
             if (users.Count > 3)
             {
-                // Ayşe Çelik — İK Lead, Finans Lead
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qHr.Id, users[3].Id, "Lead"));
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qFin.Id, users[3].Id, "Lead"));
             }
             if (users.Count > 4)
             {
-                // Can Öztürk — Proje Lead, Finans Member
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qProject.Id, users[4].Id, "Lead"));
                 reqDb.QueueMemberships.Add(QueueMembership.Create(qFin.Id, users[4].Id, "Member"));
             }
@@ -194,44 +203,44 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
             logger.LogWarning("[SEED] No IAM users found — skipping queue membership seed.");
         }
 
-        // ─── 2f. Kategoriler (SLA + DefaultQueue bağlantılı) ──
-        var catSysNet = RequestCategory.Create("Sistem / Network Destek Talebi", "SYS-NET-REQ", reqDeptIt.Id,
+        // ─── 3e. Kategoriler (SLA + DefaultQueue bağlantılı) ──
+        var catSysNet = RequestCategory.Create("Sistem / Network Destek Talebi", "SYS-NET-REQ", deptIt.Id,
             "Sunucu, ağ, VPN, firewall ve altyapı sorunları",
             slaStandard.Id, defaultQueueId: qSysNet.Id);
 
-        var catAppSupport = RequestCategory.Create("Uygulama Destek Talebi", "APP-SUPPORT-REQ", reqDeptIt.Id,
+        var catAppSupport = RequestCategory.Create("Uygulama Destek Talebi", "APP-SUPPORT-REQ", deptIt.Id,
             "Mevcut uygulamalardaki hatalar, erişim sorunları ve kullanıcı destek",
             slaStandard.Id, defaultQueueId: qAppSupport.Id);
 
-        var catFeature = RequestCategory.Create("Yeni Özellik Talebi", "FEATURE-REQ-CAT", reqDeptIt.Id,
-            "Yeni fonksiyon, iyileştirme ve değişiklik talepleri", 
+        var catFeature = RequestCategory.Create("Yeni Özellik Talebi", "FEATURE-REQ-CAT", deptIt.Id,
+            "Yeni fonksiyon, iyileştirme ve değişiklik talepleri",
             slaStandard.Id, defaultQueueId: qFeature.Id);
 
-        var catReport = RequestCategory.Create("Ad-hoc Rapor Talebi", "ADHOC-REPORT-CAT", reqDeptIt.Id,
+        var catReport = RequestCategory.Create("Ad-hoc Rapor Talebi", "ADHOC-REPORT-CAT", deptIt.Id,
             "Anlık rapor, veri export ve analiz talepleri",
             slaStandard.Id, defaultQueueId: qReport.Id);
 
-        var catProject = RequestCategory.Create("Proje Talebi", "PROJECT-REQ-CAT", reqDeptIt.Id,
+        var catProject = RequestCategory.Create("Proje Talebi", "PROJECT-REQ-CAT", deptIt.Id,
             "Yeni proje başlatma, fizibilite ve PMO talepleri",
             slaStandard.Id, autoProjectThreshold: 40, defaultQueueId: qProject.Id);
 
-        var catLeave = RequestCategory.Create("İzin Talebi", "HR-LEAVE-REQ", reqDeptHr.Id,
+        var catLeave = RequestCategory.Create("İzin Talebi", "HR-LEAVE-REQ", deptHr.Id,
             "Yıllık izin, mazeret izni, ücretsiz izin talepleri",
             slaHr.Id, defaultQueueId: qHr.Id);
 
-        var catRecruit = RequestCategory.Create("İşe Alım Talebi", "HR-RECRUIT-REQ", reqDeptHr.Id,
+        var catRecruit = RequestCategory.Create("İşe Alım Talebi", "HR-RECRUIT-REQ", deptHr.Id,
             "Yeni pozisyon açma, işe alım süreci başlatma",
             slaHr.Id, defaultQueueId: qHr.Id);
 
-        var catPayment = RequestCategory.Create("Ödeme / Fatura Talebi", "FIN-PAYMENT-REQ", reqDeptFin.Id,
+        var catPayment = RequestCategory.Create("Ödeme / Fatura Talebi", "FIN-PAYMENT-REQ", deptFin.Id,
             "Tedarikçi ödemesi, fatura onayı, masraf talepleri",
             slaStandard.Id, defaultQueueId: qFin.Id);
 
-        var catAccess = RequestCategory.Create("Erişim / Yetki Talebi", "ACCESS-REQ", reqDeptIt.Id,
+        var catAccess = RequestCategory.Create("Erişim / Yetki Talebi", "ACCESS-REQ", deptIt.Id,
             "Sistem erişimi, rol değişikliği, yetki talebi",
             slaPremium.Id, defaultQueueId: qAppSupport.Id);
 
-        var catHardware = RequestCategory.Create("Donanım Talebi", "HARDWARE-REQ", reqDeptIt.Id,
+        var catHardware = RequestCategory.Create("Donanım Talebi", "HARDWARE-REQ", deptIt.Id,
             "Bilgisayar, monitör, yazıcı ve diğer donanım talepleri",
             slaStandard.Id, defaultQueueId: qGeneral.Id);
 
@@ -240,7 +249,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         await reqDb.SaveChangesAsync(ct);
         logger.LogInformation("[SEED] 10 request categories created (with SLA + DefaultQueue links).");
 
-        // ─── 2g. Demo Ticket'lar ──────────────────────────────
+        // ─── 3f. Demo Ticket'lar ──────────────────────────────
         if (users.Count < 2)
         {
             logger.LogWarning("[SEED] Not enough users for demo tickets — skipping.");
@@ -249,10 +258,9 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
 
         var demoTickets = new List<Ticket>();
 
-        // Ticket 1: Çözülmüş — VPN Sorunu (CategoryDefault routing)
         var t1 = Ticket.Create("REQ-0001", "VPN bağlantısı kurulamıyor",
-            catSysNet.Id, reqDeptIt.Id, users[0].Id,
-            "Uzaktan çalışma sırasında VPN bağlantısı 'Authentication failed' hatası veriyor. İşletim sistemi: Windows 11.",
+            catSysNet.Id, deptIt.Id, users[0].Id,
+            "Uzaktan çalışma sırasında VPN bağlantısı 'Authentication failed' hatası veriyor.",
             TicketPriority.High, TicketChannel.Portal,
             serviceQueueId: qSysNet.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t1.Assign(users[1].Id);
@@ -261,10 +269,9 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t1.ChangeStatus(TicketStatus.Resolved, users[1].Id, "VPN profili yeniden oluşturuldu, sorun giderildi.");
         demoTickets.Add(t1);
 
-        // Ticket 2: Açık — Uygulama Hatası (CategoryDefault routing)
         var t2 = Ticket.Create("REQ-0002", "ERP raporları yüklenmiyor",
-            catAppSupport.Id, reqDeptIt.Id, users[2].Id,
-            "Finans modülündeki aylık rapor sayfası 'timeout' hatası veriyor. Saat 09:00-10:00 arası yoğunlukta oluşuyor.",
+            catAppSupport.Id, deptIt.Id, users[2].Id,
+            "Finans modülündeki aylık rapor sayfası 'timeout' hatası veriyor.",
             TicketPriority.Critical, TicketChannel.Email,
             serviceQueueId: qAppSupport.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t2.Assign(users[0].Id);
@@ -273,29 +280,26 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t2.ChangeStatus(TicketStatus.InProgress, users[0].Id, "Veritabanı sorgu optimizasyonu yapılıyor.");
         demoTickets.Add(t2);
 
-        // Ticket 3: Yeni — Özellik talebi (CategoryDefault routing)
         var t3 = Ticket.Create("REQ-0003", "Dashboard'a gerçek zamanlı grafik eklenmesi",
-            catFeature.Id, reqDeptIt.Id, users[3].Id,
-            "Yönetim dashboard'unda satış verilerinin gerçek zamanlı olarak güncellenen grafiklerde gösterilmesi isteniyor.",
+            catFeature.Id, deptIt.Id, users[3].Id,
+            "Yönetim dashboard'unda satış verilerinin gerçek zamanlı gösterilmesi isteniyor.",
             TicketPriority.Low, TicketChannel.Portal,
             serviceQueueId: qFeature.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t3.SetSlaDeadlines(DateTime.UtcNow.AddHours(8), DateTime.UtcNow.AddDays(2));
         demoTickets.Add(t3);
 
-        // Ticket 4: Bilgi bekleniyor — Rapor (CategoryDefault routing)
         var t4 = Ticket.Create("REQ-0004", "Müşteri bazlı satış analiz raporu",
-            catReport.Id, reqDeptIt.Id, users[3].Id,
-            "Son 6 aylık müşteri bazlı satış dağılımı, ürün kategorilerine göre kırılımlı rapor isteniyor.",
+            catReport.Id, deptIt.Id, users[3].Id,
+            "Son 6 aylık müşteri bazlı satış dağılımı raporu isteniyor.",
             TicketPriority.Medium, TicketChannel.Internal,
             serviceQueueId: qReport.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t4.Assign(users[2].Id);
         t4.RecordFirstResponse();
-        t4.ChangeStatus(TicketStatus.WaitingForInfo, users[2].Id, "Hangi müşteri segmentleri dahil edilecek? CRM'deki segment tanımlarını belirtir misiniz?");
+        t4.ChangeStatus(TicketStatus.WaitingForInfo, users[2].Id, "Hangi müşteri segmentleri dahil edilecek?");
         demoTickets.Add(t4);
 
-        // Ticket 5: İzin talebi — İK (CategoryDefault routing)
         var t5 = Ticket.Create("REQ-0005", "Yıllık izin talebi — 14-18 Nisan",
-            catLeave.Id, reqDeptHr.Id, users[0].Id,
+            catLeave.Id, deptHr.Id, users[0].Id,
             "14-18 Nisan tarihleri arasında 5 günlük yıllık izin talep ediyorum.",
             TicketPriority.Low, TicketChannel.Portal,
             serviceQueueId: qHr.Id, routingSource: TicketRoutingSource.CategoryDefault);
@@ -308,18 +312,16 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         }
         demoTickets.Add(t5);
 
-        // Ticket 6: Ödeme talebi — Finans (CategoryDefault routing)
         var t6 = Ticket.Create("REQ-0006", "Tedarikçi fatura ödemesi — ABC Ltd.",
-            catPayment.Id, reqDeptFin.Id, users[4].Id,
-            "ABC Ltd. Şti. tarafından kesilen 15.000 TL tutarındaki fatura için ödeme talebi. Fatura no: ABC-2026-0142.",
+            catPayment.Id, deptFin.Id, users[4].Id,
+            "ABC Ltd. fatura ödemesi: 15.000 TL. Fatura no: ABC-2026-0142.",
             TicketPriority.Medium, TicketChannel.Portal,
             serviceQueueId: qFin.Id, routingSource: TicketRoutingSource.CategoryDefault);
         demoTickets.Add(t6);
 
-        // Ticket 7: Erişim talebi — Premium SLA (CategoryDefault routing)
         var t7 = Ticket.Create("REQ-0007", "Üretim veritabanına salt okunur erişim",
-            catAccess.Id, reqDeptIt.Id, users[2].Id,
-            "İK raporları için üretim veritabanına salt okunur erişim gerekiyor. Kapsam: hr schema.",
+            catAccess.Id, deptIt.Id, users[2].Id,
+            "İK raporları için üretim veritabanına salt okunur erişim gerekiyor.",
             TicketPriority.High, TicketChannel.Portal,
             serviceQueueId: qAppSupport.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t7.Assign(users[0].Id);
@@ -327,18 +329,16 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t7.ChangeStatus(TicketStatus.InProgress, users[0].Id, "DBA onayı bekleniyor.");
         demoTickets.Add(t7);
 
-        // Ticket 8: Donanım talebi — DepartmentDefault routing (queue: general)
         var t8 = Ticket.Create("REQ-0008", "Yeni monitör talebi — 27\" 4K",
-            catHardware.Id, reqDeptIt.Id, users[1].Id,
-            "Mevcut 22\" monitör yerine 27\" 4K monitör talep ediyorum. Geliştirme çalışmaları için gerekli.",
+            catHardware.Id, deptIt.Id, users[1].Id,
+            "27\" 4K monitör talep ediyorum.",
             TicketPriority.Low, TicketChannel.Portal,
             serviceQueueId: qGeneral.Id, routingSource: TicketRoutingSource.CategoryDefault);
         demoTickets.Add(t8);
 
-        // Ticket 9: Manuel route edilmiş — dispatcher tarafından
         var t9 = Ticket.Create("REQ-0009", "E-posta sunucusu performans sorunu",
-            catSysNet.Id, reqDeptIt.Id, users[3].Id,
-            "Exchange sunucusu yavaş yanıt veriyor, e-posta gönderimi 30+ saniye sürüyor.",
+            catSysNet.Id, deptIt.Id, users[3].Id,
+            "Exchange sunucusu yavaş yanıt veriyor.",
             TicketPriority.Urgent, TicketChannel.Phone,
             serviceQueueId: qSysNet.Id, routingSource: TicketRoutingSource.Manual);
         t9.Assign(users[0].Id);
@@ -347,12 +347,10 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t9.ChangeStatus(TicketStatus.Escalated, users[0].Id, "Microsoft desteğine eskalasyon yapıldı.");
         demoTickets.Add(t9);
 
-        // Ticket 10: Unrouted — queue bağlantısı olmayan senaryo
         var t10 = Ticket.Create("REQ-0010", "Ofis klima bakım talebi",
-            catSysNet.Id, reqDeptOps.Id, users[4].Id,
+            catSysNet.Id, deptOps.Id, users[4].Id,
             "3. kat toplantı odasının kliması çalışmıyor, bakım gerekiyor.",
             TicketPriority.Low, TicketChannel.Chat);
-        // Bilinçli olarak queue atanmadı — Unrouted durumda
         demoTickets.Add(t10);
 
         reqDb.Tickets.AddRange(demoTickets);

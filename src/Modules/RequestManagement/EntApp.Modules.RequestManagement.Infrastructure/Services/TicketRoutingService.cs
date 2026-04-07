@@ -1,6 +1,7 @@
 using EntApp.Modules.RequestManagement.Domain.Entities;
 using EntApp.Modules.RequestManagement.Domain.Enums;
 using EntApp.Modules.RequestManagement.Domain.Ids;
+using EntApp.Shared.Kernel.Domain.Entities;
 
 namespace EntApp.Modules.RequestManagement.Infrastructure.Services;
 
@@ -32,7 +33,7 @@ public static class TicketRoutingService
 
         // 3. Departman'ın default queue'su varsa → DepartmentDefault
         if (department?.DefaultQueueId.HasValue == true)
-            return (department.DefaultQueueId, TicketRoutingSource.DepartmentDefault);
+            return (new ServiceQueueId(department.DefaultQueueId.Value), TicketRoutingSource.DepartmentDefault);
 
         // 4. Hiçbiri eşleşmedi → Unrouted
         return (null, TicketRoutingSource.Unrouted);

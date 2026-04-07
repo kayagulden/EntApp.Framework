@@ -1,6 +1,9 @@
 using EntApp.Modules.IAM.Application.Commands;
 using EntApp.Modules.IAM.Domain.Entities;
 using EntApp.Modules.IAM.Infrastructure.Persistence;
+using EntApp.Shared.Infrastructure.Persistence;
+using EntApp.Shared.Kernel.Domain.Entities;
+using EntApp.Shared.Kernel.Domain.Ids;
 using EntApp.Shared.Kernel.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -159,27 +162,28 @@ public sealed class CreateRoleHandler : IRequestHandler<CreateRoleCommand, Resul
 // ─── CreateOrganization ─────────────────────────────────────
 public sealed class CreateOrganizationHandler : IRequestHandler<CreateOrganizationCommand, Result<Guid>>
 {
-    private readonly IamDbContext _db;
+    private readonly OrganizationDbContext _orgDb;
 
-    public CreateOrganizationHandler(IamDbContext db) => _db = db;
+    public CreateOrganizationHandler(OrganizationDbContext orgDb) => _orgDb = orgDb;
 
     public async Task<Result<Guid>> Handle(CreateOrganizationCommand request, CancellationToken cancellationToken)
     {
-        if (await _db.Organizations.AnyAsync(o => o.Code == request.Code.ToUpperInvariant(), cancellationToken))
+        if (await _orgDb.Organizations.AnyAsync(o => o.Code == request.Code.ToUpperInvariant(), cancellationToken))
         {
             return Result<Guid>.Failure(Error.Conflict("Org.CodeExists", "Bu organizasyon kodu zaten kullanımda."));
         }
 
         if (request.ParentId.HasValue &&
-            !await _db.Organizations.AnyAsync(o => o.Id == request.ParentId.Value, cancellationToken))
+            !await _orgDb.Organizations.AnyAsync(o => o.Id == new OrganizationId(request.ParentId.Value), cancellationToken))
         {
             return Result<Guid>.Failure(Error.NotFound("Org.ParentNotFound", "Üst organizasyon bulunamadı."));
         }
 
-        var org = Organization.Create(request.Name, request.Code, request.ParentId);
-        _db.Organizations.Add(org);
-        await _db.SaveChangesAsync(cancellationToken);
+        var parentId = request.ParentId.HasValue ? new OrganizationId(request.ParentId.Value) : (OrganizationId?)null;
+        var org = Organization.Create(request.Name, request.Code, parentId);
+        _orgDb.Organizations.Add(org);
+        await _orgDb.SaveChangesAsync(cancellationToken);
 
-        return Result<Guid>.Success(org.Id);
+        return Result<Guid>.Success(org.Id.Value);
     }
 }
