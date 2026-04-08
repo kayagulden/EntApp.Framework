@@ -35,12 +35,10 @@ public static class KeycloakAuthenticationExtensions
 
         var keycloakSection = configuration.GetSection("Keycloak");
 
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
+        // NOT: Scheme adı "KeycloakJwt" — Elsa'nın kendi "Bearer" şeması ile çakışmayı önlemek için.
+        // Elsa UseDefaultAuthentication, "Jwt-or-ApiKey" policy scheme ile Bearer ve ApiKey şemalarını yönetir.
+        services.AddAuthentication()
+        .AddJwtBearer("KeycloakJwt", options =>
         {
             options.Authority = keycloakSection["Authority"];
             options.Audience = keycloakSection["Audience"];

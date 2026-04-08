@@ -10,8 +10,12 @@ using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Contracts.Messaging;
 using EntApp.Shared.Kernel.Domain.Entities;
 using EntApp.Shared.Kernel.Domain.Ids;
+using Elsa.Common.Models;
+using Elsa.Workflows.Models;
+using Elsa.Workflows.Runtime;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EntApp.Modules.RequestManagement.Infrastructure.Handlers;
 
@@ -91,34 +95,26 @@ public sealed class UpdateSlaHandler(RequestManagementDbContext db)
 // ═══════════════════════════════════════════════════════════════
 
 public sealed class CreateTicketHandler(
-    RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus)
+    RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus,
+    IWorkflowStarter workflowStarter, ILogger<CreateTicketHandler> logger)
     : IRequestHandler<CreateTicketCommand, Guid>
 {
     public async Task<Guid> Handle(CreateTicketCommand request, CancellationToken ct)
     {
         var number = await TicketNumberGenerator.NextAsync(db, ct);
 
-        // Kategori ve departmanı yükle (SLA + routing için)
+        // Kategori ve departmanı yükle (SLA için)
         var category = await db.Categories
             .Include(c => c.SlaDefinitionEntity)
             .FirstOrDefaultAsync(c => c.Id == new RequestCategoryId(request.CategoryId), ct);
 
         var deptId = new DepartmentId(request.DepartmentId);
-        var department = await db.Set<Department>()
-            .FirstOrDefaultAsync(d => d.Id == deptId, ct);
 
-        // Queue routing — waterfall: Explicit → Category → Department → Unrouted
-        var explicitQueueId = request.ServiceQueueId.HasValue
-            ? new ServiceQueueId(request.ServiceQueueId.Value)
-            : (ServiceQueueId?)null;
-
-        var (resolvedQueueId, routingSource) = TicketRoutingService.ResolveQueue(
-            explicitQueueId, category, department);
-
+        // Ticket Unrouted olarak oluştur — routing workflow tarafından yapılacak
         var ticket = Ticket.Create(number, request.Title,
             new RequestCategoryId(request.CategoryId), deptId,
             currentUser.UserId, request.Description, request.Priority, request.Channel,
-            request.FormDataJson, resolvedQueueId, routingSource);
+            request.FormDataJson);
 
         // SLA hesapla
         if (category?.SlaDefinitionEntity is not null)
@@ -132,13 +128,70 @@ public sealed class CreateTicketHandler(
         db.Tickets.Add(ticket);
         await db.SaveChangesAsync(ct);
 
+        // ── Workflow başlat ──────────────────────────────────
+        if (category?.WorkflowDefinitionId is not null)
+        {
+            try
+            {
+                var response = await workflowStarter.StartWorkflowAsync(new StartWorkflowRequest
+                {
+                    WorkflowDefinitionHandle = WorkflowDefinitionHandle.ByDefinitionId(
+                        category.WorkflowDefinitionId.Value.ToString(),
+                        VersionOptions.Published),
+                    Input = new Dictionary<string, object>
+                    {
+                        ["TicketId"] = ticket.Id.Value,
+                        ["CategoryId"] = request.CategoryId,
+                        ["DepartmentId"] = request.DepartmentId,
+                        ["Priority"] = request.Priority.ToString(),
+                        ["Channel"] = request.Channel.ToString()
+                    },
+                    CorrelationId = ticket.Id.Value.ToString()
+                }, ct);
+
+                if (response.WorkflowInstanceId is not null)
+                {
+                    ticket.LinkWorkflow(Guid.Parse(response.WorkflowInstanceId));
+                    await db.SaveChangesAsync(ct);
+                    logger.LogInformation(
+                        "Workflow started for ticket {TicketNumber} (instance: {WorkflowInstanceId})",
+                        number, response.WorkflowInstanceId);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Workflow could not be started for ticket {TicketNumber} (DefinitionId: {DefId})",
+                        number, category.WorkflowDefinitionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Workflow başlatma hatası ticket oluşturmayı engellememeli
+                logger.LogError(ex, "Failed to start workflow for ticket {TicketNumber}", number);
+            }
+        }
+        else
+        {
+            // Migrasyon dönemi fallback — workflow'suz kategori için DefaultQueueId kullan
+            if (category?.DefaultQueueId is not null)
+            {
+                ticket.RouteToQueue(category.DefaultQueueId.Value, TicketRoutingSource.CategoryDefault);
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Ticket {TicketNumber} has no workflow and no default queue — remains Unrouted.", number);
+            }
+        }
+
         // Integration event
         await eventBus.PublishAsync(new TicketCreatedEvent(
             ticket.Id.Value, ticket.Number, ticket.Title,
             request.CategoryId, request.DepartmentId,
-            resolvedQueueId?.Value,
+            ticket.ServiceQueueId?.Value,
             currentUser.UserId, request.Priority.ToString(), request.Channel.ToString(),
-            routingSource.ToString()), ct);
+            ticket.RoutingSource.ToString()), ct);
 
         return ticket.Id.Value;
     }

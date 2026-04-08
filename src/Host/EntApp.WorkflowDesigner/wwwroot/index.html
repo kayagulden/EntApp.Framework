@@ -23,7 +23,16 @@
         <a href="" class="reload" style="color: #991b1b; text-decoration: underline;">Reload</a>
     </div>
 
-    <script src="_framework/blazor.webassembly.js"></script>
+    <!-- BlazorMonaco — Monaco Editor for Elsa expressions -->
+    <script>window.require = { paths: { vs: '_content/BlazorMonaco/lib/monaco-editor/min/vs' } };</script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
+    <script src="_content/BlazorMonaco/jsInterop.js"></script>
+
+    <!-- MudBlazor UI components -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+    <!-- Blazor WASM runtime (must be last) -->
+    <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

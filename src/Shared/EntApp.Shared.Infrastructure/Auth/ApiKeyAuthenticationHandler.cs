@@ -93,7 +93,8 @@ public sealed class ApiKeyConfig
 /// <summary>API Key authentication DI extensions.</summary>
 public static class ApiKeyAuthenticationExtensions
 {
-    public const string SchemeName = "ApiKey";
+    // NOT: "EntAppApiKey" — Elsa'nın kendi "ApiKey" şeması ile çakışmayı önlemek için.
+    public const string SchemeName = "EntAppApiKey";
 
     /// <summary>API Key authentication scheme'ini ekler (Bearer ile birlikte çalışır).</summary>
     public static IServiceCollection AddApiKeyAuthentication(this IServiceCollection services)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ── Types ────────────────────────────────────────────────────
 interface WorkflowDefinition {
@@ -24,7 +25,7 @@ async function fetchWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   try {
     const res = await fetch(`${ELSA_API_BASE}/workflow-definitions`, {
       headers: {
-        Authorization: "ApiKey AJE1MTM0",
+        Authorization: "ApiKey 00000000-0000-0000-0000-000000000000",
         "Content-Type": "application/json",
       },
     });
@@ -40,10 +41,40 @@ async function fetchWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   }
 }
 
+async function createNewWorkflowDefinition(): Promise<string | null> {
+  try {
+    const res = await fetch(`${ELSA_API_BASE}/workflow-definitions`, {
+      method: "POST",
+      headers: {
+        Authorization: "ApiKey 00000000-0000-0000-0000-000000000000",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: {
+          name: `Yeni Workflow ${new Date().toLocaleString("tr-TR")}`,
+          description: "",
+        },
+        publish: false,
+      }),
+    });
+    if (!res.ok) {
+      console.error("Failed to create workflow:", res.status);
+      return null;
+    }
+    const data = await res.json();
+    return data.workflowDefinition?.definitionId ?? data.definitionId ?? null;
+  } catch (err) {
+    console.error("Failed to create workflow:", err);
+    return null;
+  }
+}
+
 // ── Component ────────────────────────────────────────────────
 export default function WorkflowsPage() {
+  const router = useRouter();
   const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,6 +90,20 @@ export default function WorkflowsPage() {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreateNew() {
+    setCreating(true);
+    try {
+      const defId = await createNewWorkflowDefinition();
+      if (defId) {
+        router.push(`/manage/workflows/${defId}`);
+      } else {
+        setError("Workflow oluşturulamadı. Backend çalışıyor mu?");
+      }
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -95,27 +140,30 @@ export default function WorkflowsPage() {
             </svg>
             Yenile
           </button>
-          <a
-            href="http://localhost:5280"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:brightness-110 transition-all duration-200"
+          <button
+            onClick={handleCreateNew}
+            disabled={creating}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:brightness-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Yeni Workflow
-          </a>
+            {creating ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            )}
+            {creating ? "Oluşturuluyor..." : "Yeni Workflow"}
+          </button>
         </div>
       </div>
 
@@ -160,27 +208,30 @@ export default function WorkflowsPage() {
               tasarlayın. Custom activity&apos;ler (Ticket Management)
               designer&apos;da hazır olarak mevcut.
             </p>
-            <a
-              href="http://localhost:5280"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all"
+            <button
+              onClick={handleCreateNew}
+              disabled={creating}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                />
-              </svg>
-              Elsa Designer Aç
-            </a>
+              {creating ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              )}
+              {creating ? "Oluşturuluyor..." : "Yeni Workflow Oluştur"}
+            </button>
           </div>
         ) : (
           <table className="w-full">

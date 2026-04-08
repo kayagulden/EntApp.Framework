@@ -842,7 +842,7 @@ export default function TicketsPage() {
               <div className="flex items-start gap-2 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10">
                 <Building2 className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-[var(--color-text-muted)]">
-                  Talep, seçilen kategorinin varsayılan kuyruğuna otomatik yönlendirilecektir.
+                Talep, kategoriye bağlı iş akışı ile otomatik olarak doğru kuyruğa yönlendirilecektir.
                 </p>
               </div>
 

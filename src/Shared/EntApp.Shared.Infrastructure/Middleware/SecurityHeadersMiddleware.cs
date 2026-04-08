@@ -31,7 +31,7 @@ public sealed class SecurityHeadersMiddleware
         headers["X-Content-Type-Options"] = "nosniff";
 
         // Clickjacking koruması — sayfanın iframe içinde yüklenmesini engeller
-        headers["X-Frame-Options"] = "DENY";
+        headers["X-Frame-Options"] = "SAMEORIGIN";
 
         // Referrer bilgisi kısıtlama
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
@@ -47,8 +47,8 @@ public sealed class SecurityHeadersMiddleware
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: blob:; " +
             "font-src 'self' data:; " +
-            "connect-src 'self' ws: wss:; " +
-            "frame-ancestors 'none';";
+            "connect-src 'self' ws: wss: http://localhost:3000 http://localhost:5280; " +
+            "frame-ancestors 'self' http://localhost:3000 http://localhost:5280;";
 
         // HSTS — production'da HTTPS zorlaması
         if (_enableHsts)

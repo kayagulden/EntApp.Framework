@@ -30,8 +30,7 @@ public sealed record UpdateSlaCommand(
 public sealed record CreateTicketCommand(
     string Title, Guid CategoryId, Guid DepartmentId,
     string? Description, TicketPriority Priority,
-    TicketChannel Channel, string? FormDataJson = null,
-    Guid? ServiceQueueId = null) : IRequest<Guid>;
+    TicketChannel Channel, string? FormDataJson = null) : IRequest<Guid>;
 
 public sealed record UpdateTicketCommand(
     Guid Id, string Title, string? Description,

@@ -16,7 +16,7 @@ public static class CorsConfiguration
     public static IServiceCollection AddEntAppCors(this IServiceCollection services, IConfiguration configuration)
     {
         var allowedOrigins = configuration.GetSection("Security:AllowedOrigins")
-            .Get<string[]>() ?? ["http://localhost:3000"];
+            .Get<string[]>() ?? ["http://localhost:3000", "http://localhost:5280"];
 
         services.AddCors(options =>
         {

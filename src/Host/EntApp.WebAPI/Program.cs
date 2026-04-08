@@ -208,7 +208,7 @@ try
             identity.UseAdminUserProvider();
         });
 
-        // ASP.NET auth for Elsa API endpoints
+        // ASP.NET auth for Elsa API endpoints (Bearer + ApiKey multi-scheme)
         elsa.UseDefaultAuthentication(auth => auth.UseAdminApiKey());
 
         // Expose Elsa REST API endpoints
@@ -223,6 +223,10 @@ try
         // Auto-discover custom activities from Workflow module
         elsa.AddActivitiesFrom<EntApp.Modules.Workflow.Infrastructure.WorkflowModuleInstaller>();
     });
+
+    // ── Elsa Workflow Validators ──────────────────────────────
+    // Publish-time graph validasyonu — RouteToQueue'nun blocking activity'den önce gelmesini zorunlu kılar
+    builder.Services.AddNotificationHandler<EntApp.Modules.Workflow.Infrastructure.Validators.WorkflowRouteValidator>();
 
     // ── Organization DbContext (Shared — org schema) ────────
     builder.Services.AddDbContext<EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext>(options =>
@@ -363,6 +367,44 @@ try
         await EnsureModuleTables<EntApp.Modules.FileManagement.Infrastructure.Persistence.FileDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext>(sp);
 
+        // Elsa Workflows — eksik kolonları ekle (versiyon güncellemesi sonrası)
+        try
+        {
+            var connStr = builder.Configuration.GetConnectionString("DefaultConnection")!;
+            using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+
+            // Elsa tablolarında eksik olabilecek kolonları ekle (idempotent)
+            var alterStatements = new[]
+            {
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""OriginalSource"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Options"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Variables"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Inputs"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Outputs"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Outcomes"" text",
+                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""CustomProperties"" text",
+            };
+
+            foreach (var sql in alterStatements)
+            {
+                try
+                {
+                    using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch (Npgsql.PostgresException ex) when (ex.SqlState is "42P01" or "42701")
+                {
+                    // Tablo yok veya kolon zaten var — atla
+                }
+            }
+            Log.Information("[DB] Elsa schema patches applied.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[DB] Elsa schema patches — partial or skipped.");
+        }
+
         Log.Information("[DB] All module schemas ensured.");
     }
 
@@ -414,6 +456,8 @@ try
     app.UseAuthorization();
 
     // ── Elsa Workflows ───────────────────────────────────────
+    // Elsa API endpointlerini anonim erişime aç (Keycloak Bearer ile çakışmayı önlemek için)
+    // Production'da bu endpointler gateway veya admin-role ile korunmalıdır.
     app.UseWorkflowsApi();  // Elsa REST API endpoints
     app.UseWorkflows();     // HTTP endpoint activity middleware
 

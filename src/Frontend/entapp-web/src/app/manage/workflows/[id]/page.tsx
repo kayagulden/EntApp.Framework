@@ -25,7 +25,7 @@ export default function WorkflowDesignerPage() {
     // Workflow definition bilgisini al
     fetch(`/elsa/api/workflow-definitions/${definitionId}`, {
       headers: {
-        Authorization: "ApiKey AJE1MTM0",
+        Authorization: "ApiKey 00000000-0000-0000-0000-000000000000",
       },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -92,7 +92,7 @@ export default function WorkflowDesignerPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={`${ELSA_STUDIO_URL}/workflow-definitions/${definitionId}/edit`}
+            href={`${ELSA_STUDIO_URL}/workflows/definitions/${definitionId}/edit`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 hover:brightness-110 transition-all duration-200"
@@ -133,7 +133,7 @@ export default function WorkflowDesignerPage() {
           </div>
         )}
         <iframe
-          src={`${ELSA_STUDIO_URL}/workflow-definitions/${definitionId}/edit`}
+          src={`${ELSA_STUDIO_URL}/workflows/definitions/${definitionId}/edit`}
           className="w-full border-0"
           style={{ height: "calc(100vh - 200px)", minHeight: "600px" }}
           onLoad={() => setStudioReady(true)}
