@@ -6,8 +6,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Elsa" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\EntApp.Modules.Workflow.Application\EntApp.Modules.Workflow.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\RequestManagement\EntApp.Modules.RequestManagement.Application\EntApp.Modules.RequestManagement.Application.csproj" />
   </ItemGroup>
 
 </Project>

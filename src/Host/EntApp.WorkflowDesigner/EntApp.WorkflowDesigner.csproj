@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <RootNamespace>EntApp.WorkflowDesigner</RootNamespace>
+    <TargetFramework>net9.0</TargetFramework>
+    <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.*" />
+    <!-- Elsa Studio (NuGet packages) -->
+    <PackageReference Include="Elsa.Studio" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Core.BlazorWasm" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Shell" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Login.BlazorWasm" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Login" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Dashboard" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Workflows" Version="3.*" />
+    <PackageReference Include="Elsa.Studio.Workflows.Designer" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

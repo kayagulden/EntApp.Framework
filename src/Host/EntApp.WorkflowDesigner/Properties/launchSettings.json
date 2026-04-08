@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "EntApp.WorkflowDesigner": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "",
+      "applicationUrl": "http://localhost:5280",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

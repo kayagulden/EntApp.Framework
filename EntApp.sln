@@ -173,6 +173,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.Modules.RequestManag
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.Modules.RequestManagement.Infrastructure", "src\Modules\RequestManagement\EntApp.Modules.RequestManagement.Infrastructure\EntApp.Modules.RequestManagement.Infrastructure.csproj", "{81F02DEE-1B4B-4989-B580-92A5D33E24D9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Host", "Host", "{7226ABEA-787E-1D09-10EA-A2ECF996D6A6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntApp.WorkflowDesigner", "src\Host\EntApp.WorkflowDesigner\EntApp.WorkflowDesigner.csproj", "{3EB00A16-93E2-4364-8B26-0925D01D225A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -939,6 +943,18 @@ Global
 		{81F02DEE-1B4B-4989-B580-92A5D33E24D9}.Release|x64.Build.0 = Release|Any CPU
 		{81F02DEE-1B4B-4989-B580-92A5D33E24D9}.Release|x86.ActiveCfg = Release|Any CPU
 		{81F02DEE-1B4B-4989-B580-92A5D33E24D9}.Release|x86.Build.0 = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|x64.Build.0 = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Debug|x86.Build.0 = Debug|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|x64.ActiveCfg = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|x64.Build.0 = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|x86.ActiveCfg = Release|Any CPU
+		{3EB00A16-93E2-4364-8B26-0925D01D225A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1027,5 +1043,6 @@ Global
 		{E9EBAA1C-82AC-4A5D-ADDC-F56CE183524C} = {617A1A37-EB64-AD34-7D9A-E79214765A80}
 		{700D86D4-BC83-4599-810F-C672C2D0FC78} = {617A1A37-EB64-AD34-7D9A-E79214765A80}
 		{81F02DEE-1B4B-4989-B580-92A5D33E24D9} = {617A1A37-EB64-AD34-7D9A-E79214765A80}
+		{3EB00A16-93E2-4364-8B26-0925D01D225A} = {7226ABEA-787E-1D09-10EA-A2ECF996D6A6}
 	EndGlobalSection
 EndGlobal

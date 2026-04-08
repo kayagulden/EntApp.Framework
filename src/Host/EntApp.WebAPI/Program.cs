@@ -30,6 +30,10 @@ using Serilog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
+using Elsa.EntityFrameworkCore.Extensions;
+using Elsa.EntityFrameworkCore.Modules.Management;
+using Elsa.EntityFrameworkCore.Modules.Runtime;
+using Elsa.Extensions;
 
 // ═══════════════════════════════════════════════════════════════
 //  EntApp.Framework — Composition Root
@@ -180,6 +184,45 @@ try
 
     // ── Event Bus ────────────────────────────────────────────
     builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
+
+    // ── Elsa Workflows v3 ────────────────────────────────────
+    var elsaSigningKey = builder.Configuration["Elsa:SigningKey"]
+        ?? "entapp-elsa-workflow-engine-jwt-signing-key-change-in-production-minimum-256-bits";
+
+    builder.Services.AddElsa(elsa =>
+    {
+        // Management layer — workflow definitions, EF Core + PostgreSQL
+        elsa.UseWorkflowManagement(management =>
+            management.UseEntityFrameworkCore(ef =>
+                ef.UsePostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")!)));
+
+        // Runtime layer — workflow instances, bookmarks, EF Core + PostgreSQL
+        elsa.UseWorkflowRuntime(runtime =>
+            runtime.UseEntityFrameworkCore(ef =>
+                ef.UsePostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")!)));
+
+        // Identity — API key auth for Elsa Studio connection
+        elsa.UseIdentity(identity =>
+        {
+            identity.TokenOptions = options => options.SigningKey = elsaSigningKey;
+            identity.UseAdminUserProvider();
+        });
+
+        // ASP.NET auth for Elsa API endpoints
+        elsa.UseDefaultAuthentication(auth => auth.UseAdminApiKey());
+
+        // Expose Elsa REST API endpoints
+        elsa.UseWorkflowsApi();
+
+        // HTTP activities (webhook triggers, HTTP endpoints)
+        elsa.UseHttp();
+
+        // Timer / scheduling activities
+        elsa.UseScheduling();
+
+        // Auto-discover custom activities from Workflow module
+        elsa.AddActivitiesFrom<EntApp.Modules.Workflow.Infrastructure.WorkflowModuleInstaller>();
+    });
 
     // ── Organization DbContext (Shared — org schema) ────────
     builder.Services.AddDbContext<EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext>(options =>
@@ -369,6 +412,10 @@ try
     // ── Auth ─────────────────────────────────────────────────
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // ── Elsa Workflows ───────────────────────────────────────
+    app.UseWorkflowsApi();  // Elsa REST API endpoints
+    app.UseWorkflows();     // HTTP endpoint activity middleware
 
     // ── SignalR Hub ──────────────────────────────────────────
     app.MapHub<EntAppHub>("/hubs/entapp");

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EntApp — Workflow Designer</title>
+    <base href="/" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+</head>
+<body>
+    <div id="app">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Inter', sans-serif; color: #64748b;">
+            <div style="text-align: center;">
+                <div style="width: 48px; height: 48px; border: 3px solid #e2e8f0; border-top-color: #0d9488; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+                <p>Workflow Designer yükleniyor...</p>
+            </div>
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    </div>
+
+    <div id="blazor-error-ui" style="display: none; background: #fee2e2; color: #991b1b; padding: 16px; position: fixed; bottom: 0; width: 100%; text-align: center; z-index: 1000;">
+        An unhandled error has occurred.
+        <a href="" class="reload" style="color: #991b1b; text-decoration: underline;">Reload</a>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+</body>
+</html>

@@ -10,6 +10,9 @@ namespace EntApp.Modules.Workflow.Infrastructure;
 
 /// <summary>
 /// Workflow modülü DI installer — ModuleRegistration tarafından otomatik keşfedilir.
+/// NOT: Homegrown engine + Elsa v3 paralel çalışır.
+/// Elsa kaydı Program.cs'de yapılır (AddElsa). Bu installer sadece homegrown servisleri kaydeder.
+/// Custom activities bu assembly'de tanımlıdır ve AddActivitiesFrom ile otomatik keşfedilir.
 /// </summary>
 public sealed class WorkflowModuleInstaller : IModuleInstaller
 {
