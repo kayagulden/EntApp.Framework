@@ -53,6 +53,11 @@ async function createNewWorkflowDefinition(): Promise<string | null> {
         model: {
           name: `Yeni Workflow ${new Date().toLocaleString("tr-TR")}`,
           description: "",
+          root: {
+            type: "Elsa.Flowchart",
+            activities: [],
+            connections: [],
+          },
         },
         publish: false,
       }),
