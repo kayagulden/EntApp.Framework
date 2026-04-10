@@ -97,3 +97,6 @@ seq-data/
 coverage/
 *.coverage
 *.coveragexml
+
+# Dev secrets
+appsettings.Development.json
