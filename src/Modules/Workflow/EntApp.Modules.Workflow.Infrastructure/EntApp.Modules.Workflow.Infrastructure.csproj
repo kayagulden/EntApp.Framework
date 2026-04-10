@@ -14,6 +14,7 @@
     <ProjectReference Include="..\EntApp.Modules.Workflow.Application\EntApp.Modules.Workflow.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
     <ProjectReference Include="..\..\RequestManagement\EntApp.Modules.RequestManagement.Application\EntApp.Modules.RequestManagement.Application.csproj" />
+    <ProjectReference Include="..\..\AI\EntApp.Modules.AI.Application\EntApp.Modules.AI.Application.csproj" />
   </ItemGroup>
 
 </Project>

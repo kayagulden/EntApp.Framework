@@ -39,5 +39,17 @@ public sealed class WorkflowModuleInstaller : IModuleInstaller
 
         // ── Services ─────────────────────────────────────────
         services.AddScoped<IWorkflowEngine, WorkflowEngine>();
+
+        // ── AI Workflow Service ──────────────────────────────
+        services.AddScoped<IWorkflowAiService, WorkflowAiService>();
+
+        // Named HttpClient for Elsa API calls (from WorkflowAiService)
+        services.AddHttpClient("ElsaApi", client =>
+        {
+            client.BaseAddress = new Uri("http://localhost:5212/elsa/api/");
+            client.DefaultRequestHeaders.Add("Authorization",
+                "ApiKey 00000000-0000-0000-0000-000000000000");
+        });
     }
 }
+

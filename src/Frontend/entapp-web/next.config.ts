@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:5212/api/admin/:path*",
       },
       {
+        // AI workflow routes handled by API route handlers (longer timeout)
+        source: "/api/workflows/ai/:path*",
+        destination: "/api/workflows/ai/:path*",
+      },
+      {
         source: "/api/workflows/:path*",
         destination: "http://localhost:5212/api/workflows/:path*",
       },

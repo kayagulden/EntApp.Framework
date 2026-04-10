@@ -355,6 +355,7 @@ try
 
         await EnsureModuleTables<EntApp.Modules.MultiTenancy.Infrastructure.Persistence.TenantDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Audit.Infrastructure.Persistence.AuditDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.AI.Infrastructure.Persistence.AiDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Workflow.Infrastructure.Persistence.WorkflowDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.CRM.Infrastructure.Persistence.CrmDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.HR.Infrastructure.Persistence.HrDbContext>(sp);
@@ -489,6 +490,7 @@ try
     app.MapPromptEndpoints();
     app.MapUsageEndpoints();
     app.MapWorkflowEndpoints();
+    app.MapGenerateWorkflowEndpoints();
     app.MapCrmEndpoints();
     app.MapHrEndpoints();
     app.MapFinanceEndpoints();
