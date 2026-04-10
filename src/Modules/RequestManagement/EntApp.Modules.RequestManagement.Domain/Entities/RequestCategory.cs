@@ -22,8 +22,8 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
     public DepartmentId DepartmentId { get; private set; }
     public SlaDefinitionId? SlaDefinitionId { get; private set; }
 
-    /// <summary>Workflow definition ID (nullable) — kategori için otomatik başlatılan workflow.</summary>
-    public Guid? WorkflowDefinitionId { get; private set; }
+    /// <summary>Workflow definition ID (nullable) — kategori için otomatik başlatılan workflow. Elsa 3 hex string.</summary>
+    public string? WorkflowDefinitionId { get; private set; }
 
     /// <summary>Dinamik form şeması (JSON). Talep oluşturma formunda render edilir.</summary>
     public string? FormSchemaJson { get; private set; }
@@ -49,7 +49,7 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
 
     public static RequestCategory Create(string name, string code, DepartmentId departmentId,
         string? description = null, SlaDefinitionId? slaDefinitionId = null,
-        Guid? workflowDefinitionId = null, string? formSchemaJson = null,
+        string? workflowDefinitionId = null, string? formSchemaJson = null,
         int? autoProjectThreshold = null, ServiceQueueId? defaultQueueId = null)
     {
         return new RequestCategory
@@ -69,7 +69,7 @@ public sealed class RequestCategory : AuditableEntity<RequestCategoryId>, ITenan
 
     public void Update(string name, string code, DepartmentId departmentId,
         string? description, SlaDefinitionId? slaDefinitionId,
-        Guid? workflowDefinitionId, string? formSchemaJson, int? autoProjectThreshold,
+        string? workflowDefinitionId, string? formSchemaJson, int? autoProjectThreshold,
         ServiceQueueId? defaultQueueId = null)
     {
         Name = name;

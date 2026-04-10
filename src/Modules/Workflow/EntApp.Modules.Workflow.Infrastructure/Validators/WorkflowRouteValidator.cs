@@ -45,7 +45,7 @@ public sealed class WorkflowRouteValidator
         CollectActivities(root, allActivities);
 
         var hasRouteToQueue = allActivities.Any(a =>
-            a.Type.Equals(RouteToQueueType, StringComparison.OrdinalIgnoreCase));
+            a.Type.Contains(RouteToQueueType, StringComparison.OrdinalIgnoreCase));
 
         if (!hasRouteToQueue)
         {
@@ -66,7 +66,7 @@ public sealed class WorkflowRouteValidator
             var firstBlockingIndex = allActivities.FindIndex(a =>
                 BlockingActivityTypes.Contains(a.Type));
             var firstRouteIndex = allActivities.FindIndex(a =>
-                a.Type.Equals(RouteToQueueType, StringComparison.OrdinalIgnoreCase));
+                a.Type.Contains(RouteToQueueType, StringComparison.OrdinalIgnoreCase));
 
             if (firstBlockingIndex >= 0 && firstRouteIndex >= 0 && firstBlockingIndex < firstRouteIndex)
             {

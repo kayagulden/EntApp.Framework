@@ -16,6 +16,7 @@ using Elsa.Workflows.Runtime;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace EntApp.Modules.RequestManagement.Infrastructure.Handlers;
 
@@ -111,9 +112,10 @@ public sealed class CreateTicketHandler(
         var deptId = new DepartmentId(request.DepartmentId);
 
         // Ticket Unrouted olarak oluştur — routing workflow tarafından yapılacak
+        var reporterUserId = request.ReporterUserId ?? currentUser.UserId;
         var ticket = Ticket.Create(number, request.Title,
             new RequestCategoryId(request.CategoryId), deptId,
-            currentUser.UserId, request.Description, request.Priority, request.Channel,
+            reporterUserId, request.Description, request.Priority, request.Channel,
             request.FormDataJson);
 
         // SLA hesapla
@@ -136,7 +138,7 @@ public sealed class CreateTicketHandler(
                 var response = await workflowStarter.StartWorkflowAsync(new StartWorkflowRequest
                 {
                     WorkflowDefinitionHandle = WorkflowDefinitionHandle.ByDefinitionId(
-                        category.WorkflowDefinitionId.Value.ToString(),
+                        category.WorkflowDefinitionId,
                         VersionOptions.Published),
                     Input = new Dictionary<string, object>
                     {
@@ -364,7 +366,31 @@ public sealed class ListTicketsHandler(RequestManagementDbContext db)
             var queueGuids = request.QueueIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => new ServiceQueueId(Guid.Parse(s.Trim())))
                 .ToList();
-            query = query.Where(t => t.ServiceQueueId.HasValue && queueGuids.Contains(t.ServiceQueueId.Value));
+
+            // Tek queue varsa basit eşitlik kullan (EF Core sorunu yok)
+            if (queueGuids.Count == 1)
+            {
+                var singleQueue = queueGuids[0];
+                query = query.Where(t => t.ServiceQueueId == singleQueue);
+            }
+            else
+            {
+                // Birden fazla queue: OR ifadeleri oluştur
+                var parameter = Expression.Parameter(typeof(Ticket), "t");
+                var sqProp = Expression.Property(parameter, nameof(Ticket.ServiceQueueId));
+                Expression? combined = null;
+                foreach (var qid in queueGuids)
+                {
+                    var constVal = Expression.Constant((ServiceQueueId?)qid, typeof(ServiceQueueId?));
+                    var eq = Expression.Equal(sqProp, constVal);
+                    combined = combined is null ? eq : Expression.OrElse(combined, eq);
+                }
+                if (combined is not null)
+                {
+                    var lambda = Expression.Lambda<Func<Ticket, bool>>(combined, parameter);
+                    query = query.Where(lambda);
+                }
+            }
         }
 
         // Sadece atanmamış ticket'lar

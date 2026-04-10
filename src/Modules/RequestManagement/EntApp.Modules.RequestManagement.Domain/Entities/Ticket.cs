@@ -76,7 +76,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
             ReporterUserId = reporterUserId,
             FormDataJson = formDataJson,
             ServiceQueueId = serviceQueueId,
-            RoutingSource = routingSource
+            RoutingSource = routingSource,
+            CreatedAt = DateTime.UtcNow
         };
     }
 

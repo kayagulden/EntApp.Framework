@@ -79,6 +79,7 @@ public sealed class RequestManagementDbContext : BaseDbContext
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Description).HasMaxLength(500);
             e.Property(x => x.FormSchemaJson).HasColumnType("jsonb");
+            e.Property(x => x.WorkflowDefinitionId).HasMaxLength(100); // Elsa 3 hex string, not GUID
             e.Property(x => x.RowVersion).IsRowVersion();
             e.HasQueryFilter(x => !x.IsDeleted);
 

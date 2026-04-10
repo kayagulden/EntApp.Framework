@@ -339,7 +339,7 @@ export default function WorkflowsPage() {
       )}
 
       {/* ── Table ───────────────────────────── */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden shadow-xl shadow-black/10">
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden shadow-xl shadow-black/10 overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
@@ -418,10 +418,10 @@ export default function WorkflowsPage() {
             </div>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="border-b border-[var(--color-border)]">
-                <th className="w-12 px-4 py-4">
+                <th className="w-10 px-3 py-3">
                   <input
                     type="checkbox"
                     checked={selectedIds.size === definitions.length && definitions.length > 0}
@@ -429,19 +429,19 @@ export default function WorkflowsPage() {
                     className="w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface-elevated)] accent-violet-500 cursor-pointer"
                   />
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                   Workflow Adı
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider hidden lg:table-cell">
                   Açıklama
                 </th>
-                <th className="text-center px-6 py-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                  Versiyon
+                <th className="text-center px-3 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Ver.
                 </th>
-                <th className="text-center px-6 py-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th className="text-center px-3 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                   Durum
                 </th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                   Aksiyonlar
                 </th>
               </tr>
@@ -452,7 +452,7 @@ export default function WorkflowsPage() {
                   key={def.definitionId}
                   className={`hover:bg-[var(--color-surface-elevated)] transition-colors ${selectedIds.has(def.definitionId) ? 'bg-violet-500/5' : ''} ${deleting === def.definitionId ? 'opacity-50' : ''}`}
                 >
-                  <td className="w-12 px-4 py-4">
+                  <td className="w-10 px-3 py-3">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(def.definitionId)}
@@ -460,7 +460,7 @@ export default function WorkflowsPage() {
                       className="w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface-elevated)] accent-violet-500 cursor-pointer"
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
                         <svg
@@ -482,15 +482,15 @@ export default function WorkflowsPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-[var(--color-text-muted)] max-w-xs truncate">
+                  <td className="px-4 py-3 text-sm text-[var(--color-text-muted)] max-w-[200px] truncate hidden lg:table-cell">
                     {def.description || "—"}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-3 py-3 text-center">
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--color-surface-elevated)] text-xs font-semibold text-[var(--color-text-muted)]">
                       v{def.version}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-3 py-3 text-center">
                     {def.isPublished ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -503,7 +503,7 @@ export default function WorkflowsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       {/* AI ile Tarif Et */}
                       <button

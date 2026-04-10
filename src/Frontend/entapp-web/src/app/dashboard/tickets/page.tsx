@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuthStore } from "@/stores";
 import { useRouter } from "next/navigation";
 import {
   Ticket,
@@ -22,7 +23,6 @@ import {
   ClipboardList,
   UserCheck,
   Hand,
-  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -77,12 +77,6 @@ interface MyQueueData {
   role: string;
   ticketCount: number;
   unassignedCount: number;
-}
-
-interface IamUser {
-  id: string;
-  userName: string;
-  fullName: string;
 }
 
 type TabKey = "my-requests" | "my-assignments" | "queue-pool";
@@ -166,9 +160,9 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  // ── Mock user ──
-  const [users, setUsers] = useState<IamUser[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
+  // ── Global auth user ──
+  const authUser = useAuthStore((s) => s.user);
+  const currentUserId = authUser?.id ?? "";
   const [myQueues, setMyQueues] = useState<MyQueueData[]>([]);
   const [selectedQueueFilter, setSelectedQueueFilter] = useState<string>("all");
 
@@ -193,20 +187,11 @@ export default function TicketsPage() {
   // ── Claiming state ──
   const [claimingId, setClaimingId] = useState<string | null>(null);
 
-  // ── Dev-mode hardcoded users (from seed data) ──
+  // Reset page when auth user changes
   useEffect(() => {
-    const seedUsers: IamUser[] = [
-      { id: "868b6d11-0110-4182-9cc3-9a155f140fe4", userName: "ahmet.yilmaz", fullName: "Ahmet Yılmaz" },
-      { id: "b7dd400d-9aa8-4cc3-b973-a362e34ff39b", userName: "elif.demir", fullName: "Elif Demir" },
-      { id: "dfbd1ff2-8ba9-424d-8e3b-00e5e35d8edc", userName: "mehmet.kaya", fullName: "Mehmet Kaya" },
-      { id: "84188840-d0dc-4080-845a-c0f25192ce22", userName: "ayse.celik", fullName: "Ayşe Çelik" },
-      { id: "96a07d00-94c7-4f08-bc30-80b32fbbb139", userName: "can.ozturk", fullName: "Can Öztürk" },
-    ];
-    setUsers(seedUsers);
-    if (!currentUserId) {
-      setCurrentUserId(seedUsers[0].id);
-    }
-  }, []);
+    setPage(1);
+    setSelectedQueueFilter("all");
+  }, [currentUserId]);
 
   // ── Fetch my queues ──
   useEffect(() => {
@@ -312,8 +297,9 @@ export default function TicketsPage() {
           categoryId: formCategoryId,
           departmentId: formDepartmentId,
           description: formDescription.trim() || null,
-          priority: formPriority,
-          channel: formChannel,
+          priority: ({ Low: 0, Medium: 1, High: 2, Critical: 3, Urgent: 4 } as Record<string, number>)[formPriority] ?? 1,
+          channel: ({ Portal: 0, Email: 1, Phone: 2, Chat: 3, Internal: 4 } as Record<string, number>)[formChannel] ?? 0,
+          reporterUserId: currentUserId,
         }),
       });
       if (res.ok) {
@@ -392,7 +378,7 @@ export default function TicketsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Dev-mode user selector + Header */}
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div>
@@ -402,38 +388,17 @@ export default function TicketsPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Dev-mode user picker */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <User className="w-3.5 h-3.5 text-amber-400" />
-            <select
-              value={currentUserId}
-              onChange={(e) => {
-                setCurrentUserId(e.target.value);
-                setPage(1);
-              }}
-              className="text-xs bg-transparent border-none text-amber-300 focus:outline-none cursor-pointer"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName} ({u.userName})
-                </option>
-              ))}
-            </select>
-            <span className="text-[10px] text-amber-500/60 font-mono">DEV</span>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium",
-              "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800",
-              "shadow-lg shadow-indigo-500/20 transition-all duration-200"
-            )}
-          >
-            <Plus className="w-4 h-4" />
-            Yeni Talep
-          </button>
-        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium",
+            "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800",
+            "shadow-lg shadow-indigo-500/20 transition-all duration-200"
+          )}
+        >
+          <Plus className="w-4 h-4" />
+          Yeni Talep
+        </button>
       </div>
 
       {/* Tabs */}
