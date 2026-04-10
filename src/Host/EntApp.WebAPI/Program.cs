@@ -129,6 +129,10 @@ try
             Description = "EntApp Modular Monolith Framework API"
         });
 
+        // Elsa endpoint'leri aynı isimde (Request) sınıflar kullandığı için
+        // tam nitelikli tip adı kullanarak çakışmayı önle
+        options.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
+
         // JWT Auth in Swagger
         options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
         {

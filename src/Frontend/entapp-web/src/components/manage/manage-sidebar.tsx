@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const manageMenuItems = [
@@ -133,9 +132,13 @@ const manageMenuItems = [
   },
 ];
 
-export function ManageSidebar() {
+interface ManageSidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function ManageSidebar({ collapsed, onToggle }: ManageSidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside
@@ -158,7 +161,7 @@ export function ManageSidebar() {
           </div>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={onToggle}
           className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

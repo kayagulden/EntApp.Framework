@@ -11,10 +11,10 @@ import type { NextRequest } from "next/server";
  */
 export function proxy(req: NextRequest) {
   const isLoginPage = req.nextUrl.pathname === "/login";
-  const isApiRoute = req.nextUrl.pathname.startsWith("/api");
+  const isApiRoute = req.nextUrl.pathname.startsWith("/api") || req.nextUrl.pathname.startsWith("/elsa");
   const isStaticAsset = req.nextUrl.pathname.startsWith("/_next");
 
-  // API ve static asset'leri atla
+  // API, Elsa ve static asset'leri atla
   if (isApiRoute || isStaticAsset) return NextResponse.next();
 
   // Dev mode — cookie ile basit auth kontrolü

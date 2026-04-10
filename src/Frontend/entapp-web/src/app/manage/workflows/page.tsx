@@ -26,7 +26,6 @@ async function fetchWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
     const res = await fetch(`${ELSA_API_BASE}/workflow-definitions`, {
       headers: {
         Authorization: "ApiKey 00000000-0000-0000-0000-000000000000",
-        "Content-Type": "application/json",
       },
     });
     if (!res.ok) {
