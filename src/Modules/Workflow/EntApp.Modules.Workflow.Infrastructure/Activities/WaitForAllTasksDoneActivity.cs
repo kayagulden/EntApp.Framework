@@ -2,6 +2,8 @@ using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
+using EntApp.Modules.TaskManagement.Application.Queries;
+using MediatR;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Activities;
 
@@ -10,6 +12,11 @@ namespace EntApp.Modules.Workflow.Infrastructure.Activities;
 /// AllSourceTasksCompletedEvent tetiklendiğinde WorkflowTaskCompletionHandler
 /// bu aktivitenin bookmark'ını resume eder.
 /// Elsa Designer'da "Ticket Management" kategorisinde görünür.
+///
+/// Edge cases:
+/// - Hiç görev yoksa → "NoTasks" outcome ile hemen tamamlar (beklemez)
+/// - Tüm görevler zaten tamamlanmışsa → "AllDone" outcome ile hemen tamamlar
+/// - Bekleyen görevler varsa → bookmark oluşturur ve duraklar
 /// </summary>
 [Activity("EntApp", "Ticket Management",
     "Pauses the workflow until all tasks linked to the ticket are completed (Done or Cancelled).",
@@ -25,20 +32,43 @@ public sealed class WaitForAllTasksDoneActivity : Activity
     [Output(Description = "Number of completed tasks when all tasks are done.")]
     public Output<int> CompletedTaskCount { get; set; } = default!;
 
-    protected override ValueTask ExecuteAsync(ActivityExecutionContext context)
+    private static readonly HashSet<string> DoneStatuses = ["Done", "Cancelled"];
+
+    protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
         var ticketId = context.Get(TicketId);
 
-        // Bookmark oluştur — workflow burada duraklar
+        // Mevcut görev durumunu kontrol et
+        var mediator = context.GetRequiredService<ISender>();
+        var tasks = await mediator.Send(
+            new ListTasksBySourceQuery("RequestManagement", "Ticket", ticketId));
+
+        if (tasks.Count == 0)
+        {
+            // Hiç görev yoksa beklemeye gerek yok
+            context.Set(CompletedTaskCount, 0);
+            await context.CompleteActivityWithOutcomesAsync("NoTasks");
+            return;
+        }
+
+        var allDone = tasks.All(t => DoneStatuses.Contains(t.Status));
+        if (allDone)
+        {
+            // Tüm görevler zaten tamamlanmış
+            context.Set(CompletedTaskCount, tasks.Count);
+            await context.CompleteActivityWithOutcomesAsync("AllDone");
+            return;
+        }
+
+        // Bekleyen görevler var — bookmark oluştur, workflow duraklar
         // WorkflowTaskCompletionHandler bu bookmark'ı resume edecek
         var payload = new AllTasksDoneBookmarkPayload(ticketId);
         context.CreateBookmark(payload, OnResumed, includeActivityInstanceId: true);
-        return ValueTask.CompletedTask;
     }
 
     private async ValueTask OnResumed(ActivityExecutionContext context)
     {
-        // Bookmark resume edildiğinde çalışır
+        // Bookmark resume edildiğinde çalışır (tüm görevler tamamlandığında)
         var input = context.WorkflowInput;
 
         var completedCount = input.TryGetValue("CompletedTaskCount", out var c)
