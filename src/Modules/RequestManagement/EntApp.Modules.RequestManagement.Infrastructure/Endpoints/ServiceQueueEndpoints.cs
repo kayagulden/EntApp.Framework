@@ -42,6 +42,10 @@ public static class ServiceQueueEndpoints
         }).WithName("UpdateServiceQueue");
 
         // ═══════════ Queue Members ═══════════
+        queues.MapGet("/{queueId:guid}/members", async (Guid queueId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListQueueMembersQuery(queueId))))
+            .WithName("ListQueueMembers").WithSummary("Kuyruk üyelerini listeler (görev atama için)");
+
         queues.MapPost("/{queueId:guid}/members", async (Guid queueId, AddMemberRequest req, ISender mediator) =>
         {
             var id = await mediator.Send(new AddQueueMemberCommand(queueId, req.UserId, req.Role));

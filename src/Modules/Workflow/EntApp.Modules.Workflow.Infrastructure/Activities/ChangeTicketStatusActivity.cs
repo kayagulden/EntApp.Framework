@@ -21,7 +21,7 @@ public sealed class ChangeTicketStatusActivity : CodeActivity
 
     [Input(Description = "The new status to set.",
         UIHint = "dropdown",
-        Options = new[] { "New", "Open", "InProgress", "WaitingForInfo", "Escalated", "Resolved", "Closed", "Cancelled", "Reopened" })]
+        Options = new[] { "New", "Open", "InProgress", "WaitingForInfo", "Escalated", "AllTasksDone", "Resolved", "Closed", "Cancelled", "Reopened" })]
     public Input<string> NewStatus { get; set; } = default!;
 
     [Input(Description = "Optional reason for the status change.")]

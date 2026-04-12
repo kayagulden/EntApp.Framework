@@ -21,6 +21,11 @@ import {
   Calendar,
   Hand,
   UserCheck,
+  ListTodo,
+  CircleDot,
+  CircleCheck,
+  Circle,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,9 +47,11 @@ interface TicketDetail {
   slaRespondedAt?: string;
   assigneeUserId?: string;
   reporterUserId: string;
+  linkedTaskCount?: number;
+  completedTaskCount?: number;
   category?: { name: string };
   department?: { name: string };
-  serviceQueue?: { name: string; code: string };
+  serviceQueue?: { name: string; code: string; id?: { value: string } | string };
   comments?: CommentData[];
   statusHistory?: StatusHistoryData[];
   createdAt: string;
@@ -68,6 +75,25 @@ interface StatusHistoryData {
   changedAt: string;
 }
 
+interface TaskItem {
+  id: string;
+  taskNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  type: string;
+  assigneeUserId?: string;
+  dueDate?: string;
+  estimatedHours: number;
+  createdAt: string;
+}
+
+interface QueueMember {
+  userId: string;
+  role: string;
+  displayName?: string;
+}
+
 // ── Config ──────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
@@ -76,6 +102,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.Com
   InProgress: { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", icon: Clock, label: "İşlemde" },
   WaitingForInfo: { color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20", icon: MessageSquare, label: "Bilgi Bekleniyor" },
   Escalated: { color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", icon: AlertTriangle, label: "Eskalasyon" },
+  AllTasksDone: { color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20", icon: ListTodo, label: "Görevler Tamamlandı" },
   Resolved: { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle2, label: "Çözüldü" },
   Closed: { color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/20", icon: XCircle, label: "Kapalı" },
   Cancelled: { color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/20", icon: XCircle, label: "İptal" },
@@ -90,6 +117,15 @@ const PRIORITY_CONFIG: Record<string, { color: string; dot: string; label: strin
   Urgent: { color: "text-rose-500", dot: "bg-rose-500", label: "Acil" },
 };
 
+const TASK_STATUS_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; label: string }> = {
+  Backlog: { icon: Circle, color: "text-slate-400", label: "Beklemede" },
+  Todo: { icon: CircleDot, color: "text-blue-400", label: "Yapılacak" },
+  InProgress: { icon: Clock, color: "text-amber-400", label: "İşlemde" },
+  InReview: { icon: ArrowUpRight, color: "text-purple-400", label: "İnceleme" },
+  Done: { icon: CircleCheck, color: "text-emerald-400", label: "Tamamlandı" },
+  Cancelled: { icon: XCircle, color: "text-gray-400", label: "İptal" },
+};
+
 const CHANNEL_LABELS: Record<string, string> = {
   Portal: "Portal", Email: "E-posta", Phone: "Telefon",
   Chat: "Canlı Destek", Internal: "İç Talep",
@@ -100,7 +136,9 @@ const ROUTING_LABELS: Record<string, string> = {
   WorkflowRule: "İş Akışı", Unrouted: "Atanmamış",
 };
 
-const STATUS_OPTIONS = ["New", "Open", "InProgress", "WaitingForInfo", "Escalated", "Resolved", "Closed"];
+const STATUS_OPTIONS = ["New", "Open", "InProgress", "WaitingForInfo", "Escalated", "AllTasksDone", "Resolved", "Closed"];
+const TASK_STATUS_OPTIONS = ["Backlog", "Todo", "InProgress", "InReview", "Done", "Cancelled"];
+const TASK_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
 
 function extractId(id: { value: string } | string | undefined): string {
   if (!id) return "";
@@ -139,6 +177,15 @@ export default function TicketDetailPage() {
   const [statusChanging, setStatusChanging] = useState(false);
   const [newStatus, setNewStatus] = useState("");
 
+  // Task state
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskFormData, setTaskFormData] = useState({ title: "", priority: "Medium", assigneeUserId: "" });
+  const [taskCreating, setTaskCreating] = useState(false);
+  const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
+
+  // Fetch ticket
   useEffect(() => {
     if (!ticketId) return;
     setLoading(true);
@@ -149,6 +196,37 @@ export default function TicketDetailPage() {
       .finally(() => setLoading(false));
   }, [ticketId]);
 
+  // Fetch tasks linked to this ticket
+  useEffect(() => {
+    if (!ticketId) return;
+    setTasksLoading(true);
+    fetch(`/api/pm/tasks/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTasks(Array.isArray(data) ? data : []))
+      .catch(() => setTasks([]))
+      .finally(() => setTasksLoading(false));
+  }, [ticketId]);
+
+  // Fetch queue members for task assignment
+  useEffect(() => {
+    if (!ticket?.serviceQueue) return;
+    const queueId = extractId(ticket.serviceQueue.id);
+    if (!queueId) return;
+    fetch(`/api/req/queues/${queueId}/members`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setQueueMembers(Array.isArray(data) ? data : []))
+      .catch(() => setQueueMembers([]));
+  }, [ticket?.serviceQueue]);
+
+  const refreshAll = async () => {
+    const [ticketRes, tasksRes] = await Promise.all([
+      fetch(`/api/req/tickets/${ticketId}`),
+      fetch(`/api/pm/tasks/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`),
+    ]);
+    if (ticketRes.ok) { const d = await ticketRes.json(); setTicket(d); setNewStatus(d.status); }
+    if (tasksRes.ok) { setTasks(await tasksRes.json()); }
+  };
+
   const handleComment = async () => {
     if (!commentText.trim()) return;
     setCommentSending(true);
@@ -158,12 +236,7 @@ export default function TicketDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: commentText.trim(), isInternal: false }),
       });
-      if (res.ok) {
-        setCommentText("");
-        // Refresh
-        const r = await fetch(`/api/req/tickets/${ticketId}`);
-        if (r.ok) setTicket(await r.json());
-      }
+      if (res.ok) { setCommentText(""); await refreshAll(); }
     } catch {
     } finally {
       setCommentSending(false);
@@ -179,12 +252,49 @@ export default function TicketDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newStatus, reason: null }),
       });
-      const r = await fetch(`/api/req/tickets/${ticketId}`);
-      if (r.ok) { const d = await r.json(); setTicket(d); setNewStatus(d.status); }
+      await refreshAll();
     } catch {
     } finally {
       setStatusChanging(false);
     }
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskFormData.title.trim()) return;
+    setTaskCreating(true);
+    try {
+      const res = await fetch("/api/pm/tasks/from-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceModule: "RequestManagement",
+          sourceType: "Ticket",
+          sourceId: ticketId,
+          title: taskFormData.title.trim(),
+          priority: taskFormData.priority,
+          assigneeUserId: taskFormData.assigneeUserId || null,
+        }),
+      });
+      if (res.ok) {
+        setTaskFormData({ title: "", priority: "Medium", assigneeUserId: "" });
+        setShowTaskForm(false);
+        await refreshAll();
+      }
+    } catch {
+    } finally {
+      setTaskCreating(false);
+    }
+  };
+
+  const handleTaskStatusChange = async (taskId: string, newTaskStatus: string) => {
+    try {
+      await fetch(`/api/pm/tasks/${taskId}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newTaskStatus }),
+      });
+      await refreshAll();
+    } catch { /* silently fail */ }
   };
 
   if (loading) {
@@ -210,6 +320,9 @@ export default function TicketDetailPage() {
   const statusCfg = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.New;
   const priorityCfg = PRIORITY_CONFIG[ticket.priority] || PRIORITY_CONFIG.Medium;
   const StatusIcon = statusCfg.icon;
+
+  const completedTaskCount = tasks.filter((t) => t.status === "Done" || t.status === "Cancelled").length;
+  const taskProgress = tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0;
 
   // Merge comments and status history into activity feed
   const activities: { type: "comment" | "status"; time: string; data: any }[] = [
@@ -259,6 +372,153 @@ export default function TicketDetailPage() {
               </p>
             </div>
           )}
+
+          {/* ══════════ GÖREVLER BÖLÜMÜ ══════════ */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)]">
+            <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ListTodo className="w-4 h-4 text-teal-400" />
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                  Görevler {tasks.length > 0 && <span className="text-[var(--color-text-muted)] font-normal">({completedTaskCount}/{tasks.length})</span>}
+                </h3>
+                {tasks.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 h-1.5 bg-[var(--color-border)] rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          taskProgress === 100 ? "bg-emerald-500" : "bg-teal-500"
+                        )}
+                        style={{ width: `${taskProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-[var(--color-text-muted)]">{taskProgress}%</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowTaskForm(!showTaskForm)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-all"
+              >
+                <Plus className="w-3 h-3" />
+                Görev Ekle
+              </button>
+            </div>
+
+            {/* Task creation form */}
+            {showTaskForm && (
+              <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-input-bg)]/30">
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={taskFormData.title}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
+                    placeholder="Görev başlığı..."
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={taskFormData.priority}
+                      onChange={(e) => setTaskFormData({ ...taskFormData, priority: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      {TASK_PRIORITY_OPTIONS.map((p) => (
+                        <option key={p} value={p}>{PRIORITY_CONFIG[p]?.label ?? p}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={taskFormData.assigneeUserId}
+                      onChange={(e) => setTaskFormData({ ...taskFormData, assigneeUserId: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      <option value="">Atama yapılmadı</option>
+                      {queueMembers.map((m) => (
+                        <option key={m.userId} value={m.userId}>
+                          {m.displayName || m.userId.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleCreateTask}
+                      disabled={taskCreating || !taskFormData.title.trim()}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium",
+                        "bg-teal-600 text-white hover:bg-teal-700",
+                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      )}
+                    >
+                      {taskCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Oluştur"}
+                    </button>
+                    <button
+                      onClick={() => setShowTaskForm(false)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-border)] transition-all"
+                    >
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Task list */}
+            <div className="divide-y divide-[var(--color-border)]">
+              {tasksLoading ? (
+                <div className="px-5 py-8 text-center">
+                  <Loader2 className="w-5 h-5 text-teal-400 animate-spin mx-auto" />
+                </div>
+              ) : tasks.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">
+                  <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  Bu talebe henüz görev eklenmedi
+                </div>
+              ) : (
+                tasks.map((task) => {
+                  const tsCfg = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.Backlog;
+                  const tpCfg = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+                  const TsIcon = tsCfg.icon;
+                  return (
+                    <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-[var(--color-input-bg)]/30 transition-colors group">
+                      <TsIcon className={cn("w-4 h-4 shrink-0", tsCfg.color)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-[var(--color-text-muted)]">{task.taskNumber}</span>
+                          <span className="text-sm text-[var(--color-text)] truncate">{task.title}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className={cn("text-[10px] font-medium", tpCfg.color)}>
+                            <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-1", tpCfg.dot)} />
+                            {tpCfg.label}
+                          </span>
+                          {task.assigneeUserId && (
+                            <span className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-0.5">
+                              <User className="w-2.5 h-2.5" />
+                              {task.assigneeUserId.slice(0, 8)}
+                            </span>
+                          )}
+                          {task.dueDate && (
+                            <span className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-0.5">
+                              <Calendar className="w-2.5 h-2.5" />
+                              {new Date(task.dueDate).toLocaleDateString("tr-TR")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Quick status change dropdown */}
+                      <select
+                        value={task.status}
+                        onChange={(e) => handleTaskStatusChange(task.id, e.target.value)}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 px-2 py-1 rounded text-[10px] bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] transition-opacity cursor-pointer"
+                      >
+                        {TASK_STATUS_OPTIONS.map((s) => (
+                          <option key={s} value={s}>{TASK_STATUS_CONFIG[s]?.label ?? s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
           {/* Activity Feed */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)]">
@@ -390,6 +650,31 @@ export default function TicketDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Task Progress Card */}
+          {tasks.length > 0 && (
+            <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-5">
+              <h3 className="text-xs font-semibold text-teal-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <ListTodo className="w-3.5 h-3.5" />
+                Görev İlerlemesi
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[var(--color-text-muted)]">{completedTaskCount} / {tasks.length} tamamlandı</span>
+                  <span className={cn("font-medium", taskProgress === 100 ? "text-emerald-400" : "text-teal-400")}>{taskProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-700 ease-out",
+                      taskProgress === 100 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : "bg-gradient-to-r from-teal-600 to-teal-400"
+                    )}
+                    style={{ width: `${taskProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Details Card */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">

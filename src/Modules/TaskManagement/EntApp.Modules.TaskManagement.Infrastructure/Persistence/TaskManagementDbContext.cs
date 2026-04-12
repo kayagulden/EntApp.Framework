@@ -41,7 +41,9 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.ToTable("tasks");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
-            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.ProjectId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new ProjectId(v.Value) : null).IsRequired(false);
             e.Property(x => x.ParentTaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
             e.HasIndex(x => x.TaskNumber).IsUnique();
             e.HasIndex(x => x.ProjectId);
@@ -55,7 +57,15 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.EstimatedHours).HasPrecision(8, 2);
-            e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId);
+
+            // Source referansı (cross-module)
+            e.Property(x => x.SourceModule).HasMaxLength(50);
+            e.Property(x => x.SourceType).HasMaxLength(50);
+            e.HasIndex(x => new { x.SourceModule, x.SourceType, x.SourceId })
+                .HasFilter("source_id IS NOT NULL")
+                .HasDatabaseName("ix_tasks_source");
+
+            e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId).IsRequired(false);
             e.HasOne(x => x.ParentTask).WithMany(t => t.SubTasks).HasForeignKey(x => x.ParentTaskId);
             e.Ignore(x => x.TotalLoggedHours);
         });

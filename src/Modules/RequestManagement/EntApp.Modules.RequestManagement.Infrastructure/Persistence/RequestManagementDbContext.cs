@@ -128,6 +128,10 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 v => v.HasValue ? new ServiceQueueId(v.Value) : null);
             e.Property(x => x.RoutingSource).HasConversion<string>().HasMaxLength(30);
 
+            // Görev entegrasyonu sayaçları
+            e.Property(x => x.LinkedTaskCount).HasDefaultValue(0);
+            e.Property(x => x.CompletedTaskCount).HasDefaultValue(0);
+
             e.HasIndex(x => x.ServiceQueueId);
 
             e.HasOne(x => x.Category).WithMany(c => c.Tickets).HasForeignKey(x => x.CategoryId);

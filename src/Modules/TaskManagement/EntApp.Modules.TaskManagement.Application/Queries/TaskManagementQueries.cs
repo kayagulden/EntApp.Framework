@@ -11,3 +11,13 @@ public sealed record GetTaskQuery(Guid Id) : IRequest<object?>;
 public sealed record GetKanbanBoardQuery(Guid ProjectId) : IRequest<object>;
 public sealed record ListCommentsQuery(Guid TaskId) : IRequest<List<object>>;
 public sealed record ListTimeEntriesQuery(Guid? TaskId, Guid? UserId, int Page = 1, int PageSize = 20) : IRequest<PagedResult<object>>;
+
+/// <summary>Belirli bir kaynağa (Ticket vb.) bağlı görevleri listeler.</summary>
+public sealed record ListTasksBySourceQuery(
+    string SourceModule, string SourceType, Guid SourceId
+) : IRequest<List<TaskBySourceDto>>;
+
+public sealed record TaskBySourceDto(
+    Guid Id, string TaskNumber, string Title, string Status,
+    string Priority, string Type, Guid? AssigneeUserId,
+    DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt);

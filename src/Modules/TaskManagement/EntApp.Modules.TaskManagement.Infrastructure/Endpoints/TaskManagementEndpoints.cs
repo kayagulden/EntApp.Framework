@@ -43,6 +43,20 @@ public static class TaskManagementEndpoints
         tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, ISender mediator)
             => Results.Ok(await mediator.Send(new GetKanbanBoardQuery(projectId)))).WithName("KanbanBoard").WithSummary("Kanban board — duruma göre gruplu");
 
+        // ── Cross-Module Source Endpoints ────────────────────────
+        tasks.MapGet("/by-source", async (ISender mediator, string module, string type, Guid sourceId)
+            => Results.Ok(await mediator.Send(new ListTasksBySourceQuery(module, type, sourceId))))
+            .WithName("ListTasksBySource").WithSummary("Kaynağa bağlı görevleri listeler (Ticket vb.)");
+
+        tasks.MapPost("/from-source", async (CreateTaskFromSourceRequest req, ISender mediator) =>
+        {
+            var result = await mediator.Send(new CreateTaskFromSourceCommand(
+                req.SourceModule, req.SourceType, req.SourceId,
+                req.Title, req.Description, req.AssigneeUserId, req.ReporterUserId,
+                req.Priority, req.DueDate, req.ProjectId));
+            return Results.Created($"/api/pm/tasks/{result.Id}", result);
+        }).WithName("CreateTaskFromSource").WithSummary("Dış kaynaktan görev oluşturur (Ticket → Task)");
+
         var comments = app.MapGroup("/api/pm/comments").WithTags("PM - Comments");
         comments.MapGet("/{taskId:guid}", async (Guid taskId, ISender mediator)
             => Results.Ok(await mediator.Send(new ListCommentsQuery(taskId)))).WithName("ListComments");
@@ -68,10 +82,15 @@ public static class TaskManagementEndpoints
 // ── Request DTO'lar ─────────────────────────────────────────
 public sealed record CreateProjectRequest(string Key, string Name, string? Description = null,
     DateTime? StartDate = null, DateTime? EndDate = null, Guid? ManagerUserId = null);
-public sealed record CreateTaskRequest(Guid ProjectId, string Title, string Type = "Task",
+public sealed record CreateTaskRequest(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,
     decimal EstimatedHours = 0, string? Tags = null);
+public sealed record CreateTaskFromSourceRequest(
+    string SourceModule, string SourceType, Guid SourceId,
+    string Title, string? Description = null, Guid? AssigneeUserId = null,
+    Guid? ReporterUserId = null, string Priority = "Medium",
+    DateTime? DueDate = null, Guid? ProjectId = null);
 public sealed record MoveTaskRequest(string Status, int? SortOrder = null);
 public sealed record AssignTaskRequest(Guid UserId);
 public sealed record CreateCommentRequest(Guid TaskId, Guid AuthorUserId, string Content);

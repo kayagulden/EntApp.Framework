@@ -526,3 +526,40 @@ public sealed class GetMyQueuesHandler(RequestManagementDbContext db)
         }).OrderBy(q => q.Name).ToList();
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  ListQueueMembers Handler — görev atama için kuyruk üyelerini listeler
+// ═══════════════════════════════════════════════════════════════
+
+public sealed class ListQueueMembersHandler(RequestManagementDbContext db)
+    : IRequestHandler<ListQueueMembersQuery, IReadOnlyList<TaskAssigneeDto>>
+{
+    public async Task<IReadOnlyList<TaskAssigneeDto>> Handle(ListQueueMembersQuery request, CancellationToken ct)
+    {
+        // Cross-schema join: req.queue_memberships ↔ iam.users
+        var sql = """
+            SELECT qm."UserId", qm."Role",
+                   COALESCE(u."FirstName" || ' ' || u."LastName", u."UserName") AS "DisplayName"
+            FROM req.queue_memberships qm
+            LEFT JOIN iam.users u ON u."Id" = qm."UserId"
+            WHERE qm."QueueId" = {0} AND qm."IsActive" = true AND qm."IsDeleted" = false
+            ORDER BY qm."Role"
+            """;
+
+        var results = await db.Database
+            .SqlQueryRaw<TaskAssigneeRaw>(sql, request.QueueId)
+            .ToListAsync(ct);
+
+        return results
+            .Select(r => new TaskAssigneeDto(r.UserId, r.Role, r.DisplayName))
+            .ToList();
+    }
+}
+
+/// <summary>Raw SQL sonuç tipi.</summary>
+internal sealed class TaskAssigneeRaw
+{
+    public Guid UserId { get; set; }
+    public string Role { get; set; } = "";
+    public string? DisplayName { get; set; }
+}

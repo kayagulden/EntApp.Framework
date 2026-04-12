@@ -5,11 +5,19 @@ namespace EntApp.Modules.TaskManagement.Application.Commands;
 public sealed record CreateProjectCommand(string Key, string Name, string? Description = null,
     DateTime? StartDate = null, DateTime? EndDate = null, Guid? ManagerUserId = null) : IRequest<Guid>;
 
-public sealed record CreateTaskCommand(Guid ProjectId, string Title, string Type = "Task",
+public sealed record CreateTaskCommand(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,
     decimal EstimatedHours = 0, string? Tags = null) : IRequest<CreateTaskResult>;
 public sealed record CreateTaskResult(Guid Id, string TaskNumber);
+
+/// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur.</summary>
+public sealed record CreateTaskFromSourceCommand(
+    string SourceModule, string SourceType, Guid SourceId,
+    string Title, string? Description = null,
+    Guid? AssigneeUserId = null, Guid? ReporterUserId = null,
+    string Priority = "Medium", DateTime? DueDate = null,
+    Guid? ProjectId = null) : IRequest<CreateTaskResult>;
 
 public sealed record MoveTaskCommand(Guid TaskId, string Status, int? SortOrder = null) : IRequest<MoveTaskResult>;
 public sealed record MoveTaskResult(Guid Id, string Status, int SortOrder);

@@ -29,9 +29,14 @@ public sealed record GetMyTicketsQuery(Guid ReporterUserId, int Page = 1, int Pa
 /// <summary>Belirtilen kullanıcının üyesi olduğu kuyrukları döndürür (rolle birlikte).</summary>
 public sealed record GetMyQueuesQuery(Guid UserId) : IRequest<IReadOnlyList<MyQueueDto>>;
 
+/// <summary>Belirtilen kuyruğun üyelerini döndürür (görev atama için).</summary>
+public sealed record ListQueueMembersQuery(Guid QueueId) : IRequest<IReadOnlyList<TaskAssigneeDto>>;
+
 // ── Result Types ─────────────────────────────────────────────
 public sealed record TicketListResult(IReadOnlyList<Ticket> Items, int TotalCount);
 
 public sealed record MyQueueDto(
     Guid QueueId, string Name, string Code, string? Description,
     string? DepartmentName, string Role, int TicketCount, int UnassignedCount);
+
+public sealed record TaskAssigneeDto(Guid UserId, string Role, string? DisplayName);

@@ -10,5 +10,6 @@
     <ProjectReference Include="..\..\IAM\EntApp.Modules.IAM.Infrastructure\EntApp.Modules.IAM.Infrastructure.csproj" />
     <ProjectReference Include="..\EntApp.Modules.RequestManagement.Application\EntApp.Modules.RequestManagement.Application.csproj" />
     <ProjectReference Include="..\..\..\Shared\EntApp.Shared.Infrastructure\EntApp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\TaskManagement\EntApp.Modules.TaskManagement.Application\EntApp.Modules.TaskManagement.Application.csproj" />
   </ItemGroup>
 </Project>

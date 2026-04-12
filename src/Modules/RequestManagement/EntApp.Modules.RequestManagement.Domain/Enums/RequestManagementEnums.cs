@@ -10,7 +10,9 @@ public enum TicketStatus
     Resolved = 5,
     Closed = 6,
     Cancelled = 7,
-    Reopened = 8
+    Reopened = 8,
+    /// <summary>Tüm bağlı görevler tamamlandı, son onay bekleniyor.</summary>
+    AllTasksDone = 9
 }
 
 public enum TicketPriority

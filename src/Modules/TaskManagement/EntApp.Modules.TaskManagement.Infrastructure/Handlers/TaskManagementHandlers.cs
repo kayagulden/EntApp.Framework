@@ -1,10 +1,13 @@
 using EntApp.Modules.TaskManagement.Application.Commands;
+using EntApp.Modules.TaskManagement.Application.IntegrationEvents;
 using EntApp.Modules.TaskManagement.Application.Queries;
 using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Modules.TaskManagement.Infrastructure.Persistence;
+using EntApp.Modules.TaskManagement.Infrastructure.Services;
 using EntApp.Shared.Contracts.Common;
+using EntApp.Shared.Contracts.Messaging;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
@@ -37,7 +40,7 @@ public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequest
     public async Task<PagedResult<object>> Handle(ListTasksQuery request, CancellationToken ct)
     {
         var query = db.Tasks.Include(t => t.Project).AsQueryable();
-        if (request.ProjectId.HasValue) query = query.Where(t => t.ProjectId.Value == request.ProjectId.Value);
+        if (request.ProjectId.HasValue) query = query.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId.Value);
         if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<TaskStatusEnum>(request.Status, out var s))
             query = query.Where(t => t.Status == s);
         if (!string.IsNullOrEmpty(request.Priority) && Enum.TryParse<TaskPriority>(request.Priority, out var p))
@@ -48,9 +51,10 @@ public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequest
         var total = await query.CountAsync(ct);
         var items = await query.OrderBy(t => t.SortOrder).ThenByDescending(t => t.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize).Take(request.PageSize)
-            .Select(t => (object)new { t.Id, t.TaskNumber, t.Title, ProjectKey = t.Project.Key,
+            .Select(t => (object)new { t.Id, t.TaskNumber, t.Title, ProjectKey = t.Project != null ? t.Project.Key : null,
                 Status = t.Status.ToString(), Priority = t.Priority.ToString(),
-                Type = t.Type.ToString(), t.AssigneeUserId, t.DueDate, t.EstimatedHours, t.SortOrder, t.ParentTaskId })
+                Type = t.Type.ToString(), t.AssigneeUserId, t.DueDate, t.EstimatedHours, t.SortOrder, t.ParentTaskId,
+                t.SourceModule, t.SourceType, t.SourceId })
             .ToListAsync(ct);
         return new PagedResult<object> { Items = items, TotalCount = total, PageNumber = request.Page, PageSize = request.PageSize };
     }
@@ -67,7 +71,7 @@ public sealed class GetKanbanBoardQueryHandler(TaskManagementDbContext db) : IRe
 {
     public async Task<object> Handle(GetKanbanBoardQuery request, CancellationToken ct)
     {
-        var tasks = await db.Tasks.Where(t => t.ProjectId.Value == request.ProjectId)
+        var tasks = await db.Tasks.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId)
             .OrderBy(t => t.SortOrder)
             .Select(t => new { t.Id, t.TaskNumber, t.Title, Status = t.Status.ToString(),
                 Priority = t.Priority.ToString(), Type = t.Type.ToString(),
@@ -102,6 +106,25 @@ public sealed class ListTimeEntriesQueryHandler(TaskManagementDbContext db) : IR
     }
 }
 
+/// <summary>Kaynağa bağlı görevleri listeler (Ticket detay sayfası için).</summary>
+public sealed class ListTasksBySourceQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListTasksBySourceQuery, List<TaskBySourceDto>>
+{
+    public async Task<List<TaskBySourceDto>> Handle(ListTasksBySourceQuery request, CancellationToken ct)
+    {
+        return await db.Tasks
+            .Where(t => t.SourceModule == request.SourceModule
+                && t.SourceType == request.SourceType
+                && t.SourceId == request.SourceId)
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.CreatedAt)
+            .Select(t => new TaskBySourceDto(
+                t.Id.Value, t.TaskNumber, t.Title, t.Status.ToString(),
+                t.Priority.ToString(), t.Type.ToString(), t.AssigneeUserId,
+                t.DueDate, t.EstimatedHours, t.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
 // ── Commands ────────────────────────────────────────────────
 public sealed class CreateProjectCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateProjectCommand, Guid>
 {
@@ -120,33 +143,119 @@ public sealed class CreateTaskCommandHandler(TaskManagementDbContext db) : IRequ
 {
     public async Task<CreateTaskResult> Handle(CreateTaskCommand request, CancellationToken ct)
     {
-        var project = await db.Projects.FindAsync([request.ProjectId], ct)
-            ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
         Enum.TryParse<TaskType>(request.Type, out var type);
         Enum.TryParse<TaskPriority>(request.Priority, out var priority);
-        var taskNumber = project.NextTaskNumber();
-        var task = TaskItemBase.Create(project.Id, taskNumber, request.Title, type, priority,
-            request.Description, request.AssigneeUserId, request.ReporterUserId,
-            request.ParentTaskId.HasValue ? new TaskItemId(request.ParentTaskId.Value) : null,
-            request.DueDate, request.EstimatedHours, request.Tags);
+
+        TaskItemBase task;
+        if (request.ProjectId.HasValue)
+        {
+            var project = await db.Projects.FindAsync([new ProjectId(request.ProjectId.Value)], ct)
+                ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
+            var taskNumber = project.NextTaskNumber();
+            task = TaskItemBase.Create(project.Id, taskNumber, request.Title, type, priority,
+                request.Description, request.AssigneeUserId, request.ReporterUserId,
+                request.ParentTaskId.HasValue ? new TaskItemId(request.ParentTaskId.Value) : null,
+                request.DueDate, request.EstimatedHours, request.Tags);
+        }
+        else
+        {
+            // Projesiz görev
+            var taskNumber = await TaskNumberGenerator.NextAsync(db, ct);
+            task = TaskItemBase.CreateStandalone(taskNumber, request.Title, type, priority,
+                request.Description, request.AssigneeUserId, request.ReporterUserId,
+                request.DueDate, request.EstimatedHours, request.Tags);
+        }
+
         db.Tasks.Add(task);
         await db.SaveChangesAsync(ct);
         return new CreateTaskResult(task.Id.Value, task.TaskNumber);
     }
 }
 
-public sealed class MoveTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<MoveTaskCommand, MoveTaskResult>
+/// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur ve integration event publish eder.</summary>
+public sealed class CreateTaskFromSourceCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
+    : IRequestHandler<CreateTaskFromSourceCommand, CreateTaskResult>
+{
+    public async Task<CreateTaskResult> Handle(CreateTaskFromSourceCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<TaskPriority>(request.Priority, out var priority);
+        var taskNumber = await TaskNumberGenerator.NextAsync(db, ct);
+
+        var task = TaskItemBase.CreateFromSource(
+            request.SourceModule, request.SourceType, request.SourceId,
+            taskNumber, request.Title,
+            priority: priority,
+            description: request.Description,
+            assigneeUserId: request.AssigneeUserId,
+            reporterUserId: request.ReporterUserId,
+            dueDate: request.DueDate,
+            projectId: request.ProjectId.HasValue ? new ProjectId(request.ProjectId.Value) : null);
+
+        db.Tasks.Add(task);
+        await db.SaveChangesAsync(ct);
+
+        // Integration event — RequestManagement bu event'i dinleyerek LinkedTaskCount'u artıracak
+        await eventBus.PublishAsync(new TaskCreatedForSourceEvent(
+            task.Id.Value, task.TaskNumber,
+            request.SourceModule, request.SourceType, request.SourceId,
+            request.AssigneeUserId), ct);
+
+        return new CreateTaskResult(task.Id.Value, task.TaskNumber);
+    }
+}
+
+public sealed class MoveTaskCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
+    : IRequestHandler<MoveTaskCommand, MoveTaskResult>
 {
     public async Task<MoveTaskResult> Handle(MoveTaskCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([request.TaskId], ct)
+        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
         if (!Enum.TryParse<TaskStatusEnum>(request.Status, out var status))
             throw new ArgumentException($"Invalid status: {request.Status}");
+
+        var oldStatus = task.Status;
         task.MoveTo(status);
         if (request.SortOrder.HasValue) task.SetSortOrder(request.SortOrder.Value);
         await db.SaveChangesAsync(ct);
+
+        // Integration event — durum değişikliği
+        if (task.HasSource)
+        {
+            await eventBus.PublishAsync(new TaskStatusChangedEvent(
+                task.Id.Value, task.TaskNumber,
+                oldStatus.ToString(), status.ToString(),
+                task.SourceModule, task.SourceType, task.SourceId), ct);
+
+            // Görev Done veya Cancelled'a geçtiyse — aynı kaynağa bağlı tüm görevleri kontrol et
+            if (status is TaskStatusEnum.Done or TaskStatusEnum.Cancelled)
+            {
+                await CheckAllSourceTasksCompleted(task, ct);
+            }
+        }
+
         return new MoveTaskResult(task.Id.Value, task.Status.ToString(), task.SortOrder);
+    }
+
+    private async Task CheckAllSourceTasksCompleted(TaskItemBase completedTask, CancellationToken ct)
+    {
+        if (completedTask.SourceModule is null || completedTask.SourceType is null || !completedTask.SourceId.HasValue)
+            return;
+
+        var sourceTasks = await db.Tasks
+            .Where(t => t.SourceModule == completedTask.SourceModule
+                && t.SourceType == completedTask.SourceType
+                && t.SourceId == completedTask.SourceId)
+            .Select(t => t.Status)
+            .ToListAsync(ct);
+
+        var allDone = sourceTasks.All(s => s is TaskStatusEnum.Done or TaskStatusEnum.Cancelled);
+        if (allDone && sourceTasks.Count > 0)
+        {
+            await eventBus.PublishAsync(new AllSourceTasksCompletedEvent(
+                completedTask.SourceModule, completedTask.SourceType, completedTask.SourceId.Value,
+                sourceTasks.Count), ct);
+        }
     }
 }
 
@@ -154,7 +263,7 @@ public sealed class AssignTaskCommandHandler(TaskManagementDbContext db) : IRequ
 {
     public async Task<Guid> Handle(AssignTaskCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([request.TaskId], ct)
+        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
         task.AssignTo(request.UserId);
         await db.SaveChangesAsync(ct);

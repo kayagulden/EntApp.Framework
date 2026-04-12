@@ -10,7 +10,8 @@ namespace EntApp.Modules.TaskManagement.Domain.Entities;
 [DynamicEntity("TaskItem", MenuGroup = "Proje Yönetimi")]
 public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
 {
-    public ProjectId ProjectId { get; private set; }
+    /// <summary>Opsiyonel proje bağlantısı. null ise proje dışı görev (talep görevi, bağımsız görev).</summary>
+    public ProjectId? ProjectId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 20, Searchable = true)]
     public string TaskNumber { get; private set; } = string.Empty;
@@ -46,10 +47,20 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     [DynamicField(FieldType = FieldType.String, MaxLength = 500)]
     public string? Tags { get; private set; }
 
+    // ── Cross-Module Kaynak Referansı ────────────────────────
+    /// <summary>Görevi tetikleyen kaynak modül. null ise bağımsız görev. Örn: "RequestManagement"</summary>
+    public string? SourceModule { get; private set; }
+
+    /// <summary>Kaynak entity tipi. Örn: "Ticket"</summary>
+    public string? SourceType { get; private set; }
+
+    /// <summary>Kaynak entity ID. Örn: Ticket.Id</summary>
+    public Guid? SourceId { get; private set; }
+
     public Guid TenantId { get; set; }
 
     // Navigation
-    public ProjectBase Project { get; private set; } = null!;
+    public ProjectBase? Project { get; private set; }
     public TaskItemBase? ParentTask { get; private set; }
     public ICollection<TaskItemBase> SubTasks { get; private set; } = [];
     public ICollection<CommentBase> Comments { get; private set; } = [];
@@ -57,6 +68,7 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
 
     private TaskItemBase() { }
 
+    /// <summary>Proje kapsamında görev oluşturur.</summary>
     public static TaskItemBase Create(ProjectId projectId, string taskNumber, string title,
         TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
@@ -73,9 +85,65 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
         };
     }
 
+    /// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur. Proje opsiyonel.</summary>
+    public static TaskItemBase CreateFromSource(
+        string sourceModule, string sourceType, Guid sourceId,
+        string taskNumber, string title,
+        TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
+        string? description = null, Guid? assigneeUserId = null,
+        Guid? reporterUserId = null, DateTime? dueDate = null,
+        decimal estimatedHours = 0, ProjectId? projectId = null)
+    {
+        return new TaskItemBase
+        {
+            Id = EntityId.New<TaskItemId>(),
+            ProjectId = projectId,
+            TaskNumber = taskNumber,
+            Title = title,
+            Type = type,
+            Priority = priority,
+            Description = description,
+            AssigneeUserId = assigneeUserId,
+            ReporterUserId = reporterUserId,
+            DueDate = dueDate,
+            EstimatedHours = estimatedHours,
+            SourceModule = sourceModule,
+            SourceType = sourceType,
+            SourceId = sourceId
+        };
+    }
+
+    /// <summary>Bağımsız (projesiz, kaynaksız) görev oluşturur.</summary>
+    public static TaskItemBase CreateStandalone(
+        string taskNumber, string title,
+        TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
+        string? description = null, Guid? assigneeUserId = null,
+        Guid? reporterUserId = null, DateTime? dueDate = null,
+        decimal estimatedHours = 0, string? tags = null)
+    {
+        return new TaskItemBase
+        {
+            Id = EntityId.New<TaskItemId>(),
+            TaskNumber = taskNumber,
+            Title = title,
+            Type = type,
+            Priority = priority,
+            Description = description,
+            AssigneeUserId = assigneeUserId,
+            ReporterUserId = reporterUserId,
+            DueDate = dueDate,
+            EstimatedHours = estimatedHours,
+            Tags = tags
+        };
+    }
+
     public void MoveTo(TaskStatusEnum status) => Status = status;
     public void AssignTo(Guid userId) => AssigneeUserId = userId;
+    public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;
+
+    /// <summary>Görevin bir kaynağa bağlı olup olmadığını kontrol eder.</summary>
+    public bool HasSource => SourceId.HasValue;
 
     /// <summary>Harcanan toplam süre</summary>
     public decimal TotalLoggedHours => TimeEntries.Sum(t => t.Hours);
