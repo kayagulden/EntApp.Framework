@@ -26,3 +26,7 @@ public sealed record AssignTaskCommand(Guid TaskId, Guid UserId) : IRequest<Guid
 public sealed record CreateCommentCommand(Guid TaskId, Guid AuthorUserId, string Content) : IRequest<Guid>;
 public sealed record CreateTimeEntryCommand(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null) : IRequest<Guid>;
+
+public sealed record UpdateTaskCommand(Guid TaskId, string? Title = null, string? Description = null,
+    string? Priority = null, string? Type = null, DateTime? DueDate = null,
+    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null) : IRequest<Guid>;

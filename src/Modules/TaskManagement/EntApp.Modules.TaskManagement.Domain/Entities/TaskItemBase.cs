@@ -142,6 +142,20 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;
 
+    /// <summary>Görev bilgilerini günceller.</summary>
+    public void Update(string? title = null, string? description = null,
+        TaskPriority? priority = null, TaskType? type = null,
+        DateTime? dueDate = null, decimal? estimatedHours = null, string? tags = null)
+    {
+        if (title is not null) Title = title;
+        if (description is not null) Description = description;
+        if (priority.HasValue) Priority = priority.Value;
+        if (type.HasValue) Type = type.Value;
+        if (dueDate.HasValue) DueDate = dueDate.Value;
+        if (estimatedHours.HasValue) EstimatedHours = estimatedHours.Value;
+        if (tags is not null) Tags = tags;
+    }
+
     /// <summary>Görevin bir kaynağa bağlı olup olmadığını kontrol eder.</summary>
     public bool HasSource => SourceId.HasValue;
 

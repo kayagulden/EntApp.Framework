@@ -45,26 +45,69 @@ public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequest
             query = query.Where(t => t.Status == s);
         if (!string.IsNullOrEmpty(request.Priority) && Enum.TryParse<TaskPriority>(request.Priority, out var p))
             query = query.Where(t => t.Priority == p);
+        if (!string.IsNullOrEmpty(request.Type) && Enum.TryParse<TaskType>(request.Type, out var tp))
+            query = query.Where(t => t.Type == tp);
         if (Guid.TryParse(request.Assignee, out var uid))
             query = query.Where(t => t.AssigneeUserId == uid);
+        if (request.ReporterUserId.HasValue)
+            query = query.Where(t => t.ReporterUserId == request.ReporterUserId.Value);
+
+        // Çoklu assignee filtresi (virgülle ayrılmış Guid listesi)
+        if (!string.IsNullOrEmpty(request.AssigneeUserIds))
+        {
+            var assigneeIds = request.AssigneeUserIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => Guid.TryParse(x.Trim(), out var g) ? g : (Guid?)null)
+                .Where(g => g.HasValue).Select(g => g!.Value).ToList();
+            if (assigneeIds.Count > 0)
+                query = query.Where(t => t.AssigneeUserId.HasValue && assigneeIds.Contains(t.AssigneeUserId.Value));
+        }
+
+        // Kaynak filtresi: "independent" (bağımsız), "ticket" (talep), "project" (proje)
+        if (!string.IsNullOrEmpty(request.SourceFilter))
+        {
+            query = request.SourceFilter.ToLower() switch
+            {
+                "independent" => query.Where(t => t.SourceId == null && !t.ProjectId.HasValue),
+                "ticket" => query.Where(t => t.SourceModule == "RequestManagement"),
+                "project" => query.Where(t => t.ProjectId.HasValue),
+                _ => query
+            };
+        }
 
         var total = await query.CountAsync(ct);
         var items = await query.OrderBy(t => t.SortOrder).ThenByDescending(t => t.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize).Take(request.PageSize)
             .Select(t => (object)new { t.Id, t.TaskNumber, t.Title, ProjectKey = t.Project != null ? t.Project.Key : null,
                 Status = t.Status.ToString(), Priority = t.Priority.ToString(),
-                Type = t.Type.ToString(), t.AssigneeUserId, t.DueDate, t.EstimatedHours, t.SortOrder, t.ParentTaskId,
-                t.SourceModule, t.SourceType, t.SourceId })
+                Type = t.Type.ToString(), t.AssigneeUserId, t.ReporterUserId, t.DueDate, t.EstimatedHours, t.SortOrder, t.ParentTaskId,
+                t.SourceModule, t.SourceType, t.SourceId, t.CreatedAt })
             .ToListAsync(ct);
         return new PagedResult<object> { Items = items, TotalCount = total, PageNumber = request.Page, PageSize = request.PageSize };
     }
 }
 
-public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetTaskQuery, object?>
+public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetTaskQuery, TaskDetailDto?>
 {
-    public async Task<object?> Handle(GetTaskQuery request, CancellationToken ct)
-        => await db.Tasks.Include(x => x.SubTasks).Include(x => x.Comments)
+    public async Task<TaskDetailDto?> Handle(GetTaskQuery request, CancellationToken ct)
+    {
+        var t = await db.Tasks.Include(x => x.SubTasks).Include(x => x.Project)
             .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
+        if (t is null) return null;
+        return new TaskDetailDto(
+            t.Id.Value, t.TaskNumber, t.Title, t.Description,
+            t.Status.ToString(), t.Priority.ToString(), t.Type.ToString(),
+            t.AssigneeUserId, t.ReporterUserId,
+            t.ParentTaskId.HasValue ? t.ParentTaskId.Value.Value : null,
+            t.DueDate, t.EstimatedHours, t.SortOrder, t.Tags,
+            t.SourceModule, t.SourceType, t.SourceId,
+            t.ProjectId.HasValue ? t.ProjectId.Value.Value : null,
+            t.Project?.Key, t.Project?.Name,
+            t.CreatedAt, t.UpdatedAt,
+            t.SubTasks.Select(st => new TaskBySourceDto(
+                st.Id.Value, st.TaskNumber, st.Title, st.Status.ToString(),
+                st.Priority.ToString(), st.Type.ToString(), st.AssigneeUserId,
+                st.DueDate, st.EstimatedHours, st.CreatedAt)).ToList());
+    }
 }
 
 public sealed class GetKanbanBoardQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetKanbanBoardQuery, object>
@@ -291,5 +334,32 @@ public sealed class CreateTimeEntryCommandHandler(TaskManagementDbContext db) : 
         db.TimeEntries.Add(entry);
         await db.SaveChangesAsync(ct);
         return entry.Id.Value;
+    }
+}
+
+public sealed class UpdateTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateTaskCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateTaskCommand request, CancellationToken ct)
+    {
+        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+            ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
+
+        Enum.TryParse<TaskPriority>(request.Priority, out var priority);
+        Enum.TryParse<TaskType>(request.Type, out var type);
+
+        task.Update(
+            title: request.Title,
+            description: request.Description,
+            priority: request.Priority is not null ? priority : null,
+            type: request.Type is not null ? type : null,
+            dueDate: request.DueDate,
+            estimatedHours: request.EstimatedHours,
+            tags: request.Tags);
+
+        if (request.AssigneeUserId.HasValue)
+            task.AssignTo(request.AssigneeUserId.Value);
+
+        await db.SaveChangesAsync(ct);
+        return task.Id.Value;
     }
 }

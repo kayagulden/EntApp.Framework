@@ -23,8 +23,11 @@ public static class TaskManagementEndpoints
         }).WithName("CreateProject");
 
         var tasks = app.MapGroup("/api/pm/tasks").WithTags("PM - Tasks");
-        tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority, int page = 1, int pageSize = 20)
-            => Results.Ok(await mediator.Send(new ListTasksQuery(projectId, status, assignee, priority, page, pageSize)))).WithName("ListTasks");
+        tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
+            int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
+            string? type = null, string? sourceFilter = null)
+            => Results.Ok(await mediator.Send(new ListTasksQuery(projectId, status, assignee, priority, page, pageSize,
+                reporterUserId, assigneeUserIds, type, sourceFilter)))).WithName("ListTasks");
         tasks.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         { var r = await mediator.Send(new GetTaskQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetTask");
         tasks.MapPost("/", async (CreateTaskRequest req, ISender mediator) =>
@@ -40,6 +43,12 @@ public static class TaskManagementEndpoints
             var userId = await mediator.Send(new AssignTaskCommand(id, req.UserId));
             return Results.Ok(new { id, assigneeUserId = userId });
         }).WithName("AssignTask");
+        tasks.MapPut("/{id:guid}", async (Guid id, UpdateTaskRequest req, ISender mediator) =>
+        {
+            var taskId = await mediator.Send(new UpdateTaskCommand(id, req.Title, req.Description,
+                req.Priority, req.Type, req.DueDate, req.EstimatedHours, req.Tags, req.AssigneeUserId));
+            return Results.Ok(new { id = taskId });
+        }).WithName("UpdateTask").WithSummary("Görev bilgilerini günceller");
         tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, ISender mediator)
             => Results.Ok(await mediator.Send(new GetKanbanBoardQuery(projectId)))).WithName("KanbanBoard").WithSummary("Kanban board — duruma göre gruplu");
 
@@ -96,3 +105,6 @@ public sealed record AssignTaskRequest(Guid UserId);
 public sealed record CreateCommentRequest(Guid TaskId, Guid AuthorUserId, string Content);
 public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null);
+public sealed record UpdateTaskRequest(string? Title = null, string? Description = null,
+    string? Priority = null, string? Type = null, DateTime? DueDate = null,
+    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null);

@@ -15,6 +15,7 @@ import {
   User,
   ClipboardCheck,
   TicketIcon,
+  ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
@@ -155,6 +156,24 @@ export function Sidebar() {
                 <TicketIcon className="w-4 h-4 shrink-0" />
                 {!sidebarCollapsed && (
                   <span className="animate-fade-in">Talepler</span>
+                )}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/dashboard/tasks"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+                  "transition-all duration-200",
+                  pathname === "/dashboard/tasks" || pathname?.startsWith("/dashboard/tasks/")
+                    ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-teal-500/20"
+                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+                )}
+                title={sidebarCollapsed ? "Görevlerim" : undefined}
+              >
+                <ListTodo className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && (
+                  <span className="animate-fade-in">Görevlerim</span>
                 )}
               </Link>
             </li>
