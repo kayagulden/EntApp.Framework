@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -7,6 +8,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Layers,
   Database,
   Loader2,
@@ -21,10 +23,160 @@ import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
 import { useDynamicMenu } from "@/lib/hooks/use-dynamic-meta";
 
+// ── Section types ─────────────────────────────────
+type SectionKey = string; // dynamic group names + static keys
+
+interface SidebarLink {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  matchPrefix?: boolean; // true → startsWith match
+}
+
+interface SidebarSection {
+  key: SectionKey;
+  label: string;
+  links: SidebarLink[];
+}
+
+// ── Static sections ───────────────────────────────
+const STATIC_SECTIONS: SidebarSection[] = [
+  {
+    key: "request-mgmt",
+    label: "Talep Yönetimi",
+    links: [
+      { href: "/dashboard/tickets", label: "Talepler", icon: TicketIcon, matchPrefix: true },
+      { href: "/dashboard/tasks", label: "Görevler", icon: ListTodo, matchPrefix: true },
+    ],
+  },
+  {
+    key: "personal",
+    label: "Kişisel",
+    links: [
+      { href: "/dashboard/approvals", label: "Bekleyen Onaylar", icon: ClipboardCheck },
+      { href: "/dashboard/profile", label: "Profilim", icon: User },
+    ],
+  },
+];
+
+// ── Helper: find which section owns current path ──
+function findActiveSection(pathname: string, sections: SidebarSection[]): SectionKey | null {
+  for (const section of sections) {
+    for (const link of section.links) {
+      if (link.matchPrefix ? pathname.startsWith(link.href) : pathname === link.href) {
+        return section.key;
+      }
+    }
+  }
+  return null;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleCollapse } = useUiStore();
   const { data: dynamicMenu, isLoading: menuLoading } = useDynamicMenu();
+
+  // Build dynamic sections from API
+  const dynamicSections: SidebarSection[] = (dynamicMenu ?? []).map((group) => ({
+    key: `dyn-${group.name}`,
+    label: group.name,
+    links: group.items.map((item) => ({
+      href: `/dashboard/dynamic/${item.entity}`,
+      label: item.title,
+      icon: Database,
+    })),
+  }));
+
+  const allSections = [...dynamicSections, ...STATIC_SECTIONS];
+
+  // Accordion state — only one section open at a time
+  const [openSection, setOpenSection] = useState<SectionKey | null>(null);
+
+  // Auto-open the section that contains the active route
+  const autoSection = findActiveSection(pathname, allSections);
+  useEffect(() => {
+    if (autoSection) setOpenSection(autoSection);
+  }, [autoSection]);
+
+  const toggleSection = useCallback((key: SectionKey) => {
+    setOpenSection((prev) => (prev === key ? null : key));
+  }, []);
+
+  const isLinkActive = (link: SidebarLink) =>
+    link.matchPrefix ? pathname.startsWith(link.href) : pathname === link.href;
+
+  // ── Render a collapsible section ────────────────
+  const renderSection = (section: SidebarSection) => {
+    const isOpen = openSection === section.key;
+    const hasActiveChild = section.links.some(isLinkActive);
+
+    return (
+      <div key={section.key} className="mb-1">
+        {/* Section header / toggle */}
+        {!sidebarCollapsed ? (
+          <button
+            onClick={() => toggleSection(section.key)}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider",
+              "transition-all duration-200 group",
+              hasActiveChild
+                ? "text-slate-300"
+                : "text-slate-500 hover:text-slate-300"
+            )}
+          >
+            <span>{section.label}</span>
+            <ChevronDown
+              className={cn(
+                "w-3.5 h-3.5 transition-transform duration-200",
+                isOpen ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          </button>
+        ) : (
+          <div className="h-px mx-3 my-2 bg-white/10" />
+        )}
+
+        {/* Section items — animated collapse */}
+        <div
+          className={cn(
+            "overflow-hidden transition-all duration-200 ease-in-out",
+            sidebarCollapsed
+              ? "max-h-[500px] opacity-100" // always visible when collapsed
+              : isOpen
+                ? "max-h-[500px] opacity-100"
+                : "max-h-0 opacity-0"
+          )}
+        >
+          <ul className="space-y-0.5 mt-0.5">
+            {section.links.map((link) => {
+              const Icon = link.icon;
+              const active = isLinkActive(link);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+                      "transition-all duration-200",
+                      active
+                        ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-indigo-500/20"
+                        : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+                    )}
+                    title={sidebarCollapsed ? link.label : undefined}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {!sidebarCollapsed && (
+                      <span className="animate-fade-in truncate">{link.label}</span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -50,8 +202,8 @@ export function Sidebar() {
 
       {/* ── Navigation ────────────────────────────── */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        {/* Ana Sayfa */}
-        <ul className="space-y-1">
+        {/* Ana Sayfa — always visible, no section */}
+        <ul className="space-y-1 mb-3">
           <li>
             <Link
               href="/dashboard"
@@ -72,164 +224,15 @@ export function Sidebar() {
           </li>
         </ul>
 
-        {/* Dynamic Menu (meta/menu API) */}
-        {dynamicMenu && dynamicMenu.length > 0 && (
-          <div className="mt-4">
-            {dynamicMenu.map((group) => (
-              <div key={group.name} className="mb-3">
-                {!sidebarCollapsed && (
-                  <p className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-                    {group.name}
-                  </p>
-                )}
-                {sidebarCollapsed && (
-                  <div className="h-px mx-3 my-2 bg-white/10" />
-                )}
-                <ul className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const href = `/dashboard/dynamic/${item.entity}`;
-                    const isActive = pathname === href;
-
-                    return (
-                      <li key={item.entity}>
-                        <Link
-                          href={href}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
-                            "transition-all duration-200",
-                            isActive
-                              ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-indigo-500/20"
-                              : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                          )}
-                          title={sidebarCollapsed ? item.title : undefined}
-                        >
-                          <Database className="w-4 h-4 shrink-0" />
-                          {!sidebarCollapsed && (
-                            <span className="animate-fade-in truncate">
-                              {item.title}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Menu Loading */}
         {menuLoading && (
-          <div className="mt-6 flex justify-center">
+          <div className="flex justify-center py-3">
             <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
           </div>
         )}
 
-        {/* ── Talep Yönetimi ──────────────────────── */}
-        <div className="mt-4">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2 px-3 mb-2">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
-                Talep Yönetimi
-              </span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-          )}
-          {sidebarCollapsed && (
-            <div className="h-px mx-3 my-2 bg-white/10" />
-          )}
-          <ul className="space-y-0.5">
-            <li>
-              <Link
-                href="/dashboard/tickets"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
-                  "transition-all duration-200",
-                  pathname === "/dashboard/tickets"
-                    ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-indigo-500/20"
-                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                )}
-                title={sidebarCollapsed ? "Talepler" : undefined}
-              >
-                <TicketIcon className="w-4 h-4 shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="animate-fade-in">Talepler</span>
-                )}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/dashboard/tasks"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
-                  "transition-all duration-200",
-                  pathname === "/dashboard/tasks" || pathname?.startsWith("/dashboard/tasks/")
-                    ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-teal-500/20"
-                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                )}
-                title={sidebarCollapsed ? "Görevler" : undefined}
-              >
-                <ListTodo className="w-4 h-4 shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="animate-fade-in">Görevler</span>
-                )}
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* ── Kişisel ────────────────────────────── */}
-        <div className="mt-4">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2 px-3 mb-2">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
-                Kişisel
-              </span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-          )}
-          <ul className="space-y-0.5">
-            <li>
-              <Link
-                href="/dashboard/approvals"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
-                  "transition-all duration-200",
-                  pathname === "/dashboard/approvals"
-                    ? "bg-[var(--color-sidebar-active)] text-white"
-                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                )}
-                title={sidebarCollapsed ? "Bekleyen Onaylar" : undefined}
-              >
-                <ClipboardCheck className="w-4 h-4 shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="animate-fade-in">Bekleyen Onaylar</span>
-                )}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/dashboard/profile"
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
-                  "transition-all duration-200",
-                  pathname === "/dashboard/profile"
-                    ? "bg-[var(--color-sidebar-active)] text-white"
-                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-                )}
-                title={sidebarCollapsed ? "Profilim" : undefined}
-              >
-                <User className="w-4 h-4 shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="animate-fade-in">Profilim</span>
-                )}
-              </Link>
-            </li>
-          </ul>
-        </div>
+        {/* All accordion sections */}
+        {allSections.map(renderSection)}
       </nav>
 
       {/* ── Footer: Admin & Manage Links ──────────── */}
@@ -274,3 +277,4 @@ export function Sidebar() {
     </aside>
   );
 }
+
