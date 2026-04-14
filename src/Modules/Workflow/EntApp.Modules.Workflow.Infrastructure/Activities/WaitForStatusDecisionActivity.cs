@@ -33,8 +33,7 @@ public sealed class WaitForStatusDecisionActivity : Activity
 
     [Input(Description = "Kullanıcıya sunulacak status seçenekleri (virgülle ayrılmış). " +
                           "Örnek: Resolved, Cancelled, Escalated. " +
-                          "Geçerli değerler: New, Open, InProgress, WaitingForInfo, Escalated, Resolved, Closed, Cancelled, Reopened",
-           UIHint = "multi-line")]
+                          "Geçerli değerler: New, Open, InProgress, WaitingForInfo, Escalated, Resolved, Closed, Cancelled, Reopened")]
     public Input<string> AllowedStatuses { get; set; } = default!;
 
     [Input(Description = "Optional: specific user ID who should decide. If empty, any queue member can decide.")]
@@ -62,6 +61,9 @@ public sealed class WaitForStatusDecisionActivity : Activity
         if (statuses.Length == 0)
             statuses = ["Resolved", "Cancelled"];
 
+        // TicketId'yi activity property'si olarak sakla — resume'da tekrar okunabilir
+        context.SetProperty("ResolvedTicketId", ticketId.ToString());
+
         // Bookmark oluştur — workflow burada duraklar
         var payload = new StatusDecisionBookmarkPayload(ticketId, label, statuses, deciderUserId);
         context.CreateBookmark(payload, OnResumed, includeActivityInstanceId: true);
@@ -84,8 +86,28 @@ public sealed class WaitForStatusDecisionActivity : Activity
             selectedStatusStr = "Resolved";
         }
 
-        // TicketId'yi tekrar çöz
-        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
+        // 1. Activity property'den oku (ExecuteAsync'te sakladık)
+        var ticketId = Guid.Empty;
+        var storedId = context.GetProperty<string>("ResolvedTicketId");
+        if (!string.IsNullOrEmpty(storedId) && Guid.TryParse(storedId, out var parsed))
+        {
+            ticketId = parsed;
+        }
+        
+        // 2. Fallback: ResolveTicketId (workflow input'undan)
+        if (ticketId == Guid.Empty)
+        {
+            ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
+        }
+
+        if (ticketId == Guid.Empty)
+        {
+            // TicketId hiçbir yoldan bulunamadı — status değiştirmeden devam et
+            context.Set(SelectedStatus, selectedStatusStr);
+            context.Set(Comment, comment);
+            await context.CompleteActivityAsync();
+            return;
+        }
 
         // Status'ü otomatik değiştir
         var mediator = context.GetRequiredService<ISender>();

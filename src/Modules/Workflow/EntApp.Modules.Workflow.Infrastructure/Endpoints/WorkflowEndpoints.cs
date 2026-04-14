@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EntApp.Modules.Workflow.Application.Commands;
 using EntApp.Modules.Workflow.Application.Interfaces;
 using EntApp.Modules.Workflow.Application.Queries;
@@ -130,13 +131,16 @@ public static class WorkflowEndpoints
         }).WithName("GetWorkflowActions").WithSummary("Workflow instance'ındaki aktif aksiyonları (bookmark) listele");
 
         actions.MapPost("/{instanceId}/actions/{bookmarkId}", async (
-            string instanceId, string bookmarkId, ResumeActionRequest? req, IWorkflowActionsService svc) =>
+            string instanceId, string bookmarkId, JsonElement body, IWorkflowActionsService svc) =>
         {
             try
             {
                 var input = new Dictionary<string, object>();
-                if (!string.IsNullOrEmpty(req?.Decision)) input["Decision"] = req.Decision;
-                if (!string.IsNullOrEmpty(req?.Comment)) input["Comment"] = req.Comment;
+                
+                if (body.TryGetProperty("decision", out var d) && d.ValueKind == JsonValueKind.String)
+                    input["Decision"] = d.GetString()!;
+                if (body.TryGetProperty("comment", out var c) && c.ValueKind == JsonValueKind.String)
+                    input["Comment"] = c.GetString()!;
 
                 await svc.ResumeActionAsync(instanceId, bookmarkId, input);
                 return Results.NoContent();

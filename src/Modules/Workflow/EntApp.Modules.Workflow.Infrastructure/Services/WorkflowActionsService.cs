@@ -2,7 +2,7 @@ using System.Text.Json;
 using Elsa.Workflows.Runtime;
 using Elsa.Workflows.Runtime.Entities;
 using Elsa.Workflows.Runtime.Filters;
-using Elsa.Workflows.Runtime.Stimuli;
+using Elsa.Workflows.Runtime.Requests;
 using EntApp.Modules.Workflow.Application.Interfaces;
 using EntApp.Modules.Workflow.Infrastructure.Activities;
 using Microsoft.Extensions.Logging;
@@ -16,13 +16,14 @@ namespace EntApp.Modules.Workflow.Infrastructure.Services;
 /// </summary>
 public sealed class WorkflowActionsService(
     IBookmarkStore bookmarkStore,
-    IStimulusSender stimulusSender,
+    IWorkflowDispatcher workflowDispatcher,
     ILogger<WorkflowActionsService> logger) : IWorkflowActionsService
 {
     /// <summary>Fallback outcome listesi — payload'da PossibleOutcomes bulunamazsa.</summary>
     private static readonly Dictionary<string, string[]> FallbackOutcomes = new()
     {
         ["WaitForApprovalActivity"] = ["Approved", "Rejected"],
+        ["EntApp.WaitForApprovalActivity"] = ["Approved", "Rejected"],
         ["WaitForStatusDecisionActivity"] = ["Resolved", "Cancelled"],
     };
 
@@ -41,9 +42,7 @@ public sealed class WorkflowActionsService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
-                "Elsa bookmark store sorgulaması başarısız oldu (WorkflowInstance: {InstanceId})",
-                workflowInstanceId);
+            logger.LogWarning(ex, "Bookmark store sorgulanırken hata oluştu (InstanceId: {InstanceId})", workflowInstanceId);
             return [];
         }
 
@@ -73,44 +72,23 @@ public sealed class WorkflowActionsService(
         string workflowInstanceId, string bookmarkId,
         Dictionary<string, object>? input = null, CancellationToken ct = default)
     {
-        // Bookmark'ı bul
-        var filter = new BookmarkFilter
+        logger.LogInformation(
+            "Bookmark resume ediliyor (InstanceId: {InstanceId}, BookmarkId: {BookmarkId})",
+            workflowInstanceId, bookmarkId);
+
+        // Elsa v3 IWorkflowDispatcher — asenkron, queue-based resume
+        // DispatchWorkflowInstanceRequest + DispatchWorkflowOptions overload (3 param)
+        // kullanılmalı — 2 param kullanıldığında DefinitionRequest overload'una gider!
+        var request = new DispatchWorkflowInstanceRequest(workflowInstanceId)
         {
-            WorkflowInstanceId = workflowInstanceId,
-            BookmarkId = bookmarkId
+            BookmarkId = bookmarkId,
+            Input = input ?? new Dictionary<string, object>()
         };
 
-        var bookmark = (await bookmarkStore.FindManyAsync(filter, ct)).FirstOrDefault();
-        if (bookmark is null)
-        {
-            logger.LogWarning(
-                "Bookmark bulunamadı (InstanceId: {InstanceId}, BookmarkId: {BookmarkId})",
-                workflowInstanceId, bookmarkId);
-            throw new KeyNotFoundException($"Bookmark '{bookmarkId}' bulunamadı.");
-        }
-
-        // Stimulus metadata ile resume et
-        var metadata = new StimulusMetadata
-        {
-            Input = input ?? new Dictionary<string, object>(),
-            BookmarkId = bookmarkId
-        };
-
-        var activityType = bookmark.Name ?? "Unknown";
+        await workflowDispatcher.DispatchAsync(request, null, ct);
 
         logger.LogInformation(
-            "Bookmark resume ediliyor (InstanceId: {InstanceId}, BookmarkId: {BookmarkId}, ActivityType: {ActivityType})",
-            workflowInstanceId, bookmarkId, activityType);
-
-        // Payload'ı doğrudan Elsa'nın internal tipinden alalım
-        await stimulusSender.SendAsync(
-            activityType,
-            bookmark.Payload!,
-            metadata,
-            ct);
-
-        logger.LogInformation(
-            "Bookmark resume başarılı (InstanceId: {InstanceId}, BookmarkId: {BookmarkId})",
+            "Bookmark resume dispatch tamamlandı (InstanceId: {InstanceId}, BookmarkId: {BookmarkId})",
             workflowInstanceId, bookmarkId);
     }
 
