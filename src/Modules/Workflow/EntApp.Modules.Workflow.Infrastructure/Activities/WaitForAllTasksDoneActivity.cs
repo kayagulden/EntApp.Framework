@@ -1,4 +1,4 @@
-using Elsa.Extensions;
+﻿using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
@@ -36,7 +36,7 @@ public sealed class WaitForAllTasksDoneActivity : Activity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
 
         // Mevcut görev durumunu kontrol et
         var mediator = context.GetRequiredService<ISender>();

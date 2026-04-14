@@ -1,4 +1,4 @@
-using Elsa.Extensions;
+﻿using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
@@ -42,7 +42,7 @@ public sealed class GetTicketDetailsActivity : CodeActivity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
 
         var mediator = context.GetRequiredService<ISender>();
         var ticket = await mediator.Send(new GetTicketQuery(ticketId));

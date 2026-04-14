@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:5212/api/pm/:path*",
       },
       {
+        source: "/api/wf/:path*",
+        destination: "http://localhost:5212/api/wf/:path*",
+      },
+      {
         source: "/api/v:version/:path*",
         destination: "http://localhost:5212/api/v:version/:path*",
       },

@@ -29,7 +29,7 @@ public sealed class ChangeTicketStatusActivity : CodeActivity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
         var newStatusStr = context.Get(NewStatus) ?? "New";
         var reason = context.Get(Reason);
 

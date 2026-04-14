@@ -1,4 +1,4 @@
-using Elsa.Extensions;
+﻿using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
@@ -29,7 +29,7 @@ public sealed class SendNotificationActivity : CodeActivity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
         var recipientUserId = context.Get(RecipientUserId);
         var template = context.Get(Template);
 

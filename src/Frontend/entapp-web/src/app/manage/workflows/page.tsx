@@ -92,6 +92,25 @@ async function deleteWorkflowDefinition(definitionId: string): Promise<boolean> 
   }
 }
 
+/// Tek bir versiyonu siler (tüm versiyonları değil)
+async function deleteWorkflowVersion(definitionId: string, version: number): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${ELSA_API_BASE}/workflow-definitions/${definitionId}/version/${version}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: "ApiKey 00000000-0000-0000-0000-000000000000",
+        },
+      }
+    );
+    return res.ok || res.status === 204;
+  } catch (err) {
+    console.error("Failed to delete workflow version:", err);
+    return false;
+  }
+}
+
 async function bulkDeleteWorkflowDefinitions(
   definitionIds: string[]
 ): Promise<boolean> {
@@ -180,20 +199,22 @@ export default function WorkflowsPage() {
   }
 
   async function handleDelete(def: WorkflowDefinition) {
-    setDeleting(def.definitionId);
+    setDeleting(def.id);
     setConfirmDelete(null);
-    const success = await deleteWorkflowDefinition(def.definitionId);
+    // Tek versiyonu sil (tüm versiyonları değil)
+    const success = await deleteWorkflowVersion(def.definitionId, def.version);
     if (success) {
+      // Sadece bu spesifik versiyonu listeden kaldır (unique id bazlı)
       setDefinitions((prev) =>
-        prev.filter((d) => d.definitionId !== def.definitionId)
+        prev.filter((d) => d.id !== def.id)
       );
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(def.definitionId);
+        next.delete(def.id);
         return next;
       });
     } else {
-      setError("Workflow silinemedi.");
+      setError("Workflow versiyonu silinemedi.");
     }
     setDeleting(null);
   }

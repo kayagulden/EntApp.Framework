@@ -33,7 +33,7 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public DepartmentId DepartmentId { get; private set; }
     public ServiceQueueId? ServiceQueueId { get; private set; }
     public TicketRoutingSource RoutingSource { get; private set; } = TicketRoutingSource.Unrouted;
-    public Guid? WorkflowInstanceId { get; private set; }
+    public string? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
     // Görev entegrasyonu (denormalized — event-driven güncellenir)
@@ -121,7 +121,7 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public void BreachSlaResponse() => SlaResponseBreached = true;
     public void BreachSlaResolution() => SlaResolutionBreached = true;
 
-    public void LinkWorkflow(Guid workflowInstanceId) => WorkflowInstanceId = workflowInstanceId;
+    public void LinkWorkflow(string workflowInstanceId) => WorkflowInstanceId = workflowInstanceId;
     public void LinkProject(Guid projectId) => ProjectId = projectId;
 
     /// <summary>Ticket'ı belirtilen queue'ya yönlendirir.</summary>

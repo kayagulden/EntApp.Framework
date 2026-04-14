@@ -42,6 +42,7 @@ public sealed class WorkflowModuleInstaller : IModuleInstaller
 
         // ── AI Workflow Service ──────────────────────────────
         services.AddScoped<IWorkflowAiService, WorkflowAiService>();
+        services.AddScoped<IWorkflowActionsService, WorkflowActionsService>();
 
         // Named HttpClient for Elsa API calls (from WorkflowAiService)
         services.AddHttpClient("ElsaApi", client =>

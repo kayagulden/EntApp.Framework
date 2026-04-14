@@ -26,6 +26,9 @@ import {
   CircleCheck,
   Circle,
   ChevronDown,
+  Zap,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +52,7 @@ interface TicketDetail {
   reporterUserId: string;
   linkedTaskCount?: number;
   completedTaskCount?: number;
+  workflowInstanceId?: string;
   category?: { name: string };
   department?: { name: string };
   serviceQueue?: { name: string; code: string; id?: { value: string } | string };
@@ -86,6 +90,13 @@ interface TaskItem {
   dueDate?: string;
   estimatedHours: number;
   createdAt: string;
+}
+
+interface WorkflowAction {
+  bookmarkId: string;
+  activityType: string;
+  label: string;
+  outcomes: string[];
 }
 
 interface QueueMember {
@@ -192,6 +203,13 @@ export default function TicketDetailPage() {
   const [statusChanging, setStatusChanging] = useState(false);
   const [newStatus, setNewStatus] = useState("");
 
+  // Workflow actions state
+  const [workflowActions, setWorkflowActions] = useState<WorkflowAction[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [actionExecuting, setActionExecuting] = useState<string | null>(null);
+  const [actionComment, setActionComment] = useState("");
+  const [selectedOutcome, setSelectedOutcome] = useState("");
+
   // Task state
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -233,13 +251,34 @@ export default function TicketDetailPage() {
       .catch(() => setQueueMembers([]));
   }, [ticket?.serviceQueue]);
 
+  // Fetch workflow actions when ticket has a workflow
+  useEffect(() => {
+    if (!ticket?.workflowInstanceId) { setWorkflowActions([]); return; }
+    setActionsLoading(true);
+    fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setWorkflowActions(Array.isArray(data) ? data : []))
+      .catch(() => setWorkflowActions([]))
+      .finally(() => setActionsLoading(false));
+  }, [ticket?.workflowInstanceId]);
+
   const refreshAll = async () => {
     const [ticketRes, tasksRes] = await Promise.all([
       fetch(`/api/req/tickets/${ticketId}`),
       fetch(`/api/pm/tasks/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`),
     ]);
-    if (ticketRes.ok) { const d = await ticketRes.json(); setTicket(d); setNewStatus(d.status); }
+    let ticketData = null;
+    if (ticketRes.ok) { ticketData = await ticketRes.json(); setTicket(ticketData); setNewStatus(ticketData.status); }
     if (tasksRes.ok) { setTasks(await tasksRes.json()); }
+    // Refresh workflow actions
+    if (ticketData?.workflowInstanceId) {
+      try {
+        const actRes = await fetch(`/api/wf/instance/${ticketData.workflowInstanceId}/actions`);
+        if (actRes.ok) setWorkflowActions(await actRes.json());
+      } catch { /* silently fail */ }
+    } else {
+      setWorkflowActions([]);
+    }
   };
 
   const handleComment = async () => {
@@ -271,6 +310,23 @@ export default function TicketDetailPage() {
     } catch {
     } finally {
       setStatusChanging(false);
+    }
+  };
+
+  const handleWorkflowAction = async (bookmarkId: string, decision: string) => {
+    if (!ticket?.workflowInstanceId) return;
+    setActionExecuting(bookmarkId + decision);
+    try {
+      await fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions/${bookmarkId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, comment: actionComment.trim() || null }),
+      });
+      setActionComment("");
+      await refreshAll();
+    } catch {
+    } finally {
+      setActionExecuting(null);
     }
   };
 
@@ -734,36 +790,154 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          {/* Actions Card */}
+          {/* Actions Card — Workflow-driven or static fallback */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-            <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Aksiyonlar</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Durum Değiştir</label>
-                <div className="flex gap-2">
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleStatusChange}
-                    disabled={statusChanging || newStatus === ticket.status}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium",
-                      "bg-indigo-600 text-white hover:bg-indigo-700",
-                      "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    )}
-                  >
-                    {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
-                  </button>
+            <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5" />
+              Aksiyonlar
+            </h3>
+
+            {ticket.workflowInstanceId ? (
+              /* ── Workflow-driven dynamic actions ── */
+              <div className="space-y-3">
+                {actionsLoading ? (
+                  <div className="flex items-center gap-2 py-3">
+                    <Loader2 className="w-4 h-4 text-teal-400 animate-spin" />
+                    <span className="text-xs text-[var(--color-text-muted)]">Aksiyonlar yükleniyor...</span>
+                  </div>
+                ) : workflowActions.length > 0 ? (
+                  workflowActions.map((action) => (
+                    <div key={action.bookmarkId} className="space-y-2">
+                      {/* Action label */}
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-3.5 h-3.5 text-violet-400" />
+                        <span className="text-xs font-semibold text-[var(--color-text)]">
+                          {action.label}
+                        </span>
+                      </div>
+
+                      {/* Inline comment textarea */}
+                      <textarea
+                        value={actionComment}
+                        onChange={(e) => setActionComment(e.target.value)}
+                        placeholder="Yorum (opsiyonel)..."
+                        rows={2}
+                        className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                      />
+
+                      {/* Status label mapping */}
+                      {(() => {
+                        const statusLabels: Record<string, string> = {
+                          approved: "Onayla", rejected: "Reddet",
+                          resolved: "Çözüldü", cancelled: "İptal",
+                          escalated: "Eskale Et", closed: "Kapat",
+                          reopened: "Yeniden Aç", inprogress: "İşleme Al",
+                          waitingforinfo: "Bilgi İste", open: "Aç",
+                        };
+                        const getLabel = (o: string) => statusLabels[o.toLowerCase()] || o;
+                        const currentOutcome = selectedOutcome || action.outcomes[0] || "";
+                        const executing = actionExecuting !== null;
+
+                        return (
+                          <div className="flex gap-2">
+                            <select
+                              value={currentOutcome}
+                              onChange={(e) => setSelectedOutcome(e.target.value)}
+                              disabled={executing}
+                              className="flex-1 px-2.5 py-2 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-40"
+                            >
+                              {action.outcomes.map((o) => (
+                                <option key={o} value={o}>{getLabel(o)}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleWorkflowAction(action.bookmarkId, currentOutcome)}
+                              disabled={executing}
+                              className="px-4 py-2 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            >
+                              {executing ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              )}
+                              Uygula
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ))
+                ) : (
+                  /* No active bookmarks — workflow is running but no user action needed */
+                  <div className="py-3 text-center">
+                    <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-violet-500/10 flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-violet-400" />
+                    </div>
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      Workflow çalışıyor — şu an aksiyonunuz beklenmiyor
+                    </p>
+                  </div>
+                )}
+
+                {/* Manual override — collapsible */}
+                <details className="mt-2">
+                  <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition-colors">
+                    Manuel durum değiştir
+                  </summary>
+                  <div className="mt-2 flex gap-2">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleStatusChange}
+                      disabled={statusChanging || newStatus === ticket.status}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium",
+                        "bg-indigo-600 text-white hover:bg-indigo-700",
+                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      )}
+                    >
+                      {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
+                    </button>
+                  </div>
+                </details>
+              </div>
+            ) : (
+              /* ── Static fallback — no workflow ── */
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Durum Değiştir</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleStatusChange}
+                      disabled={statusChanging || newStatus === ticket.status}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium",
+                        "bg-indigo-600 text-white hover:bg-indigo-700",
+                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      )}
+                    >
+                      {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

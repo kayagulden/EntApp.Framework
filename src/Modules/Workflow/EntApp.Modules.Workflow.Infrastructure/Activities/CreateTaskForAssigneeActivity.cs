@@ -1,4 +1,4 @@
-using Elsa.Extensions;
+﻿using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
@@ -51,7 +51,7 @@ public sealed class CreateTaskForAssigneeActivity : CodeActivity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
         var title = context.Get(TaskTitle);
         var assignee = context.Get(AssigneeUserId);
         var priority = context.Get(Priority) ?? "Medium";

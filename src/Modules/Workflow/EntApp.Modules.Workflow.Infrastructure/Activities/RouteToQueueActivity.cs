@@ -27,7 +27,7 @@ public sealed class RouteToQueueActivity : CodeActivity
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
-        var ticketId = context.Get(TicketId);
+        var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
         var queueId = context.Get(QueueId);
 
         var mediator = context.GetRequiredService<ISender>();

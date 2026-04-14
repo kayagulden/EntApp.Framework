@@ -1,4 +1,5 @@
 using EntApp.Modules.Workflow.Application.Commands;
+using EntApp.Modules.Workflow.Application.Interfaces;
 using EntApp.Modules.Workflow.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -116,6 +117,33 @@ public static class WorkflowEndpoints
             return Results.Ok(result);
         }).WithName("GetPendingSteps").WithSummary("Kullanıcının onay bekleyen adımlarını listele");
 
+        // ═══════════════════════════════════════════════════
+        // Instance Actions (bookmark-driven dynamic actions)
+        // Genel amaçlı — Ticket, SalesOrder vb. her entity kullanabilir
+        // ═══════════════════════════════════════════════════
+        var actions = app.MapGroup("/api/wf/instance").WithTags("Workflow Actions");
+
+        actions.MapGet("/{instanceId}/actions", async (string instanceId, IWorkflowActionsService svc) =>
+        {
+            var result = await svc.GetAvailableActionsAsync(instanceId);
+            return Results.Ok(result);
+        }).WithName("GetWorkflowActions").WithSummary("Workflow instance'ındaki aktif aksiyonları (bookmark) listele");
+
+        actions.MapPost("/{instanceId}/actions/{bookmarkId}", async (
+            string instanceId, string bookmarkId, ResumeActionRequest? req, IWorkflowActionsService svc) =>
+        {
+            try
+            {
+                var input = new Dictionary<string, object>();
+                if (!string.IsNullOrEmpty(req?.Decision)) input["Decision"] = req.Decision;
+                if (!string.IsNullOrEmpty(req?.Comment)) input["Comment"] = req.Comment;
+
+                await svc.ResumeActionAsync(instanceId, bookmarkId, input);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
+        }).WithName("ResumeWorkflowAction").WithSummary("Workflow bookmark'ını resume et (aksiyon çalıştır)");
+
         return app;
     }
 }
@@ -133,3 +161,5 @@ public sealed record StartWorkflowRequest(Guid DefinitionId,
 public sealed record ApprovalActionRequest(Guid StepId, Guid UserId, string? Comment = null);
 
 public sealed record EscalateRequest(Guid StepId, Guid EscalateToUserId, string? Comment = null);
+
+public sealed record ResumeActionRequest(string? Decision = null, string? Comment = null);

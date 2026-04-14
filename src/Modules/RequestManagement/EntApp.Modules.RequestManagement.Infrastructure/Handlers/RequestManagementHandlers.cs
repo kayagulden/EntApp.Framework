@@ -153,7 +153,7 @@ public sealed class CreateTicketHandler(
 
                 if (response.WorkflowInstanceId is not null)
                 {
-                    ticket.LinkWorkflow(Guid.Parse(response.WorkflowInstanceId));
+                    ticket.LinkWorkflow(response.WorkflowInstanceId);
                     await db.SaveChangesAsync(ct);
                     logger.LogInformation(
                         "Workflow started for ticket {TicketNumber} (instance: {WorkflowInstanceId})",
