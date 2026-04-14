@@ -302,15 +302,18 @@ public sealed class MoveTaskCommandHandler(TaskManagementDbContext db, IEventBus
     }
 }
 
-public sealed class AssignTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<AssignTaskCommand, Guid>
+public sealed class AssignTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<AssignTaskCommand, Guid?>
 {
-    public async Task<Guid> Handle(AssignTaskCommand request, CancellationToken ct)
+    public async Task<Guid?> Handle(AssignTaskCommand request, CancellationToken ct)
     {
         var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
-        task.AssignTo(request.UserId);
+        if (request.UserId.HasValue)
+            task.AssignTo(request.UserId.Value);
+        else
+            task.Unassign();
         await db.SaveChangesAsync(ct);
-        return task.AssigneeUserId ?? Guid.Empty;
+        return task.AssigneeUserId;
     }
 }
 

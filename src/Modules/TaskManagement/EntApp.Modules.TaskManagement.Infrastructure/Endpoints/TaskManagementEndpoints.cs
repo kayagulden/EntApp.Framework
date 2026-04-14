@@ -101,7 +101,7 @@ public sealed record CreateTaskFromSourceRequest(
     Guid? ReporterUserId = null, string Priority = "Medium",
     DateTime? DueDate = null, Guid? ProjectId = null);
 public sealed record MoveTaskRequest(string Status, int? SortOrder = null);
-public sealed record AssignTaskRequest(Guid UserId);
+public sealed record AssignTaskRequest(Guid? UserId);
 public sealed record CreateCommentRequest(Guid TaskId, Guid AuthorUserId, string Content);
 public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null);

@@ -94,6 +94,21 @@ interface QueueMember {
   displayName?: string;
 }
 
+// ── DEV_USERS (kullanıcı isim çözümleme) ────────────────────
+const DEV_USERS = [
+  { id: "868b6d11-0110-4182-9cc3-9a155f140fe4", fullName: "Ahmet Yılmaz" },
+  { id: "b7dd400d-9aa8-4cc3-b973-a362e34ff39b", fullName: "Elif Demir" },
+  { id: "dfbd1ff2-8ba9-424d-8e3b-00e5e35d8edc", fullName: "Mehmet Kaya" },
+  { id: "84188840-d0dc-4080-845a-c0f25192ce22", fullName: "Ayşe Çelik" },
+  { id: "96a07d00-94c7-4f08-bc30-80b32fbbb139", fullName: "Can Öztürk" },
+];
+
+function getUserName(userId?: string): string {
+  if (!userId) return "Atanmamış";
+  const found = DEV_USERS.find((u) => u.id === userId);
+  return found ? found.fullName : userId.slice(0, 8);
+}
+
 // ── Config ──────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
@@ -297,6 +312,17 @@ export default function TicketDetailPage() {
     } catch { /* silently fail */ }
   };
 
+  const handleTaskAssign = async (taskId: string, userId: string) => {
+    try {
+      await fetch(`/api/pm/tasks/${taskId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userId || null }),
+      });
+      await refreshAll();
+    } catch { /* silently fail */ }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -489,12 +515,6 @@ export default function TicketDetailPage() {
                             <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-1", tpCfg.dot)} />
                             {tpCfg.label}
                           </span>
-                          {task.assigneeUserId && (
-                            <span className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-0.5">
-                              <User className="w-2.5 h-2.5" />
-                              {task.assigneeUserId.slice(0, 8)}
-                            </span>
-                          )}
                           {task.dueDate && (
                             <span className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-0.5">
                               <Calendar className="w-2.5 h-2.5" />
@@ -503,6 +523,23 @@ export default function TicketDetailPage() {
                           )}
                         </div>
                       </div>
+                      {/* Assignee dropdown */}
+                      <select
+                        value={task.assigneeUserId ?? ""}
+                        onChange={(e) => { e.stopPropagation(); handleTaskAssign(task.id, e.target.value); }}
+                        className={cn(
+                          "px-2 py-1 rounded text-[10px] border transition-colors cursor-pointer min-w-[110px]",
+                          "bg-[var(--color-input-bg)] border-[var(--color-border)] text-[var(--color-text)]",
+                          !task.assigneeUserId && "border-amber-500/40 text-amber-400"
+                        )}
+                      >
+                        <option value="">Atanmamış</option>
+                        {(queueMembers.length > 0 ? queueMembers : DEV_USERS.map(u => ({ userId: u.id, displayName: u.fullName }))).map((m) => (
+                          <option key={m.userId} value={m.userId}>
+                            {("displayName" in m && m.displayName) || getUserName(m.userId)}
+                          </option>
+                        ))}
+                      </select>
                       {/* Quick status change dropdown */}
                       <select
                         value={task.status}

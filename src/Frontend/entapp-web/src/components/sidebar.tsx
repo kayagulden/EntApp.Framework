@@ -169,11 +169,11 @@ export function Sidebar() {
                     ? "bg-[var(--color-sidebar-active)] text-white shadow-md shadow-teal-500/20"
                     : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-white"
                 )}
-                title={sidebarCollapsed ? "Görevlerim" : undefined}
+                title={sidebarCollapsed ? "Görevler" : undefined}
               >
                 <ListTodo className="w-4 h-4 shrink-0" />
                 {!sidebarCollapsed && (
-                  <span className="animate-fade-in">Görevlerim</span>
+                  <span className="animate-fade-in">Görevler</span>
                 )}
               </Link>
             </li>

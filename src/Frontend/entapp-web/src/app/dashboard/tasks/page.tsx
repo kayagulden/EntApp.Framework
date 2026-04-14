@@ -149,7 +149,7 @@ const SOURCE_FILTER_OPTIONS = [
 const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "my-tasks", label: "Üzerimdeki", icon: UserCheck },
   { key: "my-created", label: "Oluşturduklarım", icon: ListTodo },
-  { key: "queue-tasks", label: "Kuyruk Görevleri", icon: Inbox },
+  { key: "queue-tasks", label: "Diğer Görevler", icon: Inbox },
 ];
 
 const DEV_USERS = [
@@ -429,7 +429,7 @@ export default function TasksPage() {
             <ListTodo className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-text)]">Görevlerim</h1>
+            <h1 className="text-2xl font-bold text-[var(--color-text)]">Görevler</h1>
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
               {totalCount} görev
             </p>
@@ -562,7 +562,7 @@ export default function TasksPage() {
             <p className="text-sm">
               {activeTab === "my-tasks" && "Üzerinize atanmış görev yok"}
               {activeTab === "my-created" && "Henüz görev oluşturmadınız"}
-              {activeTab === "queue-tasks" && "Kuyruk görevleri bulunamadı"}
+              {activeTab === "queue-tasks" && "Diğer görevler bulunamadı"}
             </p>
             <button
               onClick={() => setShowCreate(true)}

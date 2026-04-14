@@ -22,7 +22,7 @@ public sealed record CreateTaskFromSourceCommand(
 public sealed record MoveTaskCommand(Guid TaskId, string Status, int? SortOrder = null) : IRequest<MoveTaskResult>;
 public sealed record MoveTaskResult(Guid Id, string Status, int SortOrder);
 
-public sealed record AssignTaskCommand(Guid TaskId, Guid UserId) : IRequest<Guid>;
+public sealed record AssignTaskCommand(Guid TaskId, Guid? UserId) : IRequest<Guid?>;
 public sealed record CreateCommentCommand(Guid TaskId, Guid AuthorUserId, string Content) : IRequest<Guid>;
 public sealed record CreateTimeEntryCommand(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null) : IRequest<Guid>;
