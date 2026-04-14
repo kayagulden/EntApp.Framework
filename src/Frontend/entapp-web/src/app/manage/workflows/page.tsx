@@ -449,7 +449,7 @@ export default function WorkflowsPage() {
             <tbody className="divide-y divide-[var(--color-border)]">
               {definitions.map((def) => (
                 <tr
-                  key={def.definitionId}
+                  key={def.id}
                   className={`hover:bg-[var(--color-surface-elevated)] transition-colors ${selectedIds.has(def.definitionId) ? 'bg-violet-500/5' : ''} ${deleting === def.definitionId ? 'opacity-50' : ''}`}
                 >
                   <td className="w-10 px-3 py-3">
