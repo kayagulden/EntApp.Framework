@@ -25,6 +25,8 @@ public sealed class WorkflowActionsService(
         ["WaitForApprovalActivity"] = ["Approved", "Rejected"],
         ["EntApp.WaitForApprovalActivity"] = ["Approved", "Rejected"],
         ["WaitForStatusDecisionActivity"] = ["Resolved", "Cancelled"],
+        ["WaitForAssignmentActivity"] = ["ClaimSelf"],
+        ["EntApp.WaitForAssignmentActivity"] = ["ClaimSelf"],
     };
 
     public async Task<List<WorkflowActionDto>> GetAvailableActionsAsync(
@@ -53,12 +55,14 @@ public sealed class WorkflowActionsService(
             var activityType = bookmark.Name ?? "Unknown";
             var label = ExtractLabel(bookmark);
             var outcomes = ExtractOutcomes(bookmark, activityType);
+            var ticketId = ExtractTicketId(bookmark);
 
             actions.Add(new WorkflowActionDto(
                 BookmarkId: bookmark.Id,
                 ActivityType: activityType,
                 Label: label,
-                Outcomes: outcomes));
+                Outcomes: outcomes,
+                TicketId: ticketId));
         }
 
         logger.LogDebug(
@@ -107,6 +111,8 @@ public sealed class WorkflowActionsService(
                     return sdp.AllowedStatuses;
                 case ApprovalBookmarkPayload abp when abp.PossibleOutcomes.Length > 0:
                     return abp.PossibleOutcomes;
+                case AssignmentBookmarkPayload:
+                    return ["ClaimSelf"];
 
                 // JsonElement — DB'den raw okuma
                 case JsonElement { ValueKind: JsonValueKind.Object } payload:
@@ -138,6 +144,8 @@ public sealed class WorkflowActionsService(
                     return sdp.Label;
                 case ApprovalBookmarkPayload abp:
                     return abp.ApprovalLabel;
+                case AssignmentBookmarkPayload:
+                    return "Atama Bekleniyor";
 
                 case JsonElement { ValueKind: JsonValueKind.Object } payload:
                     if (payload.TryGetProperty("label", out var l1))
@@ -157,6 +165,7 @@ public sealed class WorkflowActionsService(
             "EntApp.WaitForStatusDecisionActivity" => "Durum Kararı Bekleniyor",
             "EntApp.WaitForApprovalActivity" => "Onay Bekleniyor",
             "WaitForAllTasksDoneActivity" => "Görevler Bekleniyor",
+            "WaitForAssignmentActivity" or "EntApp.WaitForAssignmentActivity" => "Atama Bekleniyor",
             _ => "Aksiyon Bekleniyor"
         };
     }
@@ -172,5 +181,34 @@ public sealed class WorkflowActionsService(
             .Select(e => e.GetString()!)
             .ToArray();
         return result.Length > 0;
+    }
+
+    /// <summary>Bookmark payload'ından TicketId çıkarır (varsa).</summary>
+    private static Guid? ExtractTicketId(StoredBookmark bookmark)
+    {
+        try
+        {
+            switch (bookmark.Payload)
+            {
+                case AssignmentBookmarkPayload abp:
+                    return abp.TicketId;
+                case StatusDecisionBookmarkPayload sdp:
+                    return sdp.TicketId;
+                case AllTasksDoneBookmarkPayload atdp:
+                    return atdp.TicketId;
+
+                case JsonElement { ValueKind: JsonValueKind.Object } payload:
+                    if (payload.TryGetProperty("ticketId", out var tid) &&
+                        tid.TryGetGuid(out var parsed))
+                        return parsed;
+                    break;
+            }
+        }
+        catch
+        {
+            // Payload parse edilemezse null dön
+        }
+
+        return null;
     }
 }

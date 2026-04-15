@@ -22,4 +22,6 @@ public sealed record WorkflowActionDto(
     /// <summary>Kullanıcıya gösterilecek başlık (ör: "Bütçe Onayı").</summary>
     string Label,
     /// <summary>Olası çıktılar — her biri bir buton olur (ör: ["Approved", "Rejected"]).</summary>
-    string[] Outcomes);
+    string[] Outcomes,
+    /// <summary>İlişkili ticket ID (ör: WaitForAssignment için). Null ise genel aksiyon.</summary>
+    Guid? TicketId = null);

@@ -131,7 +131,9 @@ public static class WorkflowEndpoints
         }).WithName("GetWorkflowActions").WithSummary("Workflow instance'ındaki aktif aksiyonları (bookmark) listele");
 
         actions.MapPost("/{instanceId}/actions/{bookmarkId}", async (
-            string instanceId, string bookmarkId, JsonElement body, IWorkflowActionsService svc) =>
+            string instanceId, string bookmarkId, JsonElement body,
+            IWorkflowActionsService svc, ISender mediator,
+            EntApp.Shared.Contracts.Identity.ICurrentUser currentUser) =>
         {
             try
             {
@@ -141,11 +143,48 @@ public static class WorkflowEndpoints
                     input["Decision"] = d.GetString()!;
                 if (body.TryGetProperty("comment", out var c) && c.ValueKind == JsonValueKind.String)
                     input["Comment"] = c.GetString()!;
+                if (body.TryGetProperty("assigneeUserId", out var a) && a.ValueKind == JsonValueKind.String)
+                    input["AssigneeUserId"] = a.GetString()!;
+                if (body.TryGetProperty("assigneeUserName", out var n) && n.ValueKind == JsonValueKind.String)
+                    input["AssigneeUserName"] = n.GetString()!;
+
+                // ── ClaimSelf: "Üzerime Al" ──────────────────────────
+                // WaitForAssignment activity'si için özel akış:
+                // Doğrudan bookmark resume etmek yerine ClaimTicketCommand çalıştır.
+                // TicketAssignedEvent → WorkflowAssignmentHandler → bookmark otomatik resume olur.
+                var decision = input.TryGetValue("Decision", out var dv) ? dv.ToString() : null;
+                if (decision == "ClaimSelf")
+                {
+                    // TicketId body'den gelir
+                    Guid ticketId = Guid.Empty;
+                    if (body.TryGetProperty("ticketId", out var tid) && tid.ValueKind == JsonValueKind.String)
+                        Guid.TryParse(tid.GetString(), out ticketId);
+
+                    if (ticketId == Guid.Empty)
+                        return Results.BadRequest(new { error = "ClaimSelf requires a ticketId in the request body." });
+
+                    // ClaimerUserId: ICurrentUser (production) veya body'den (dev fallback)
+                    var claimerUserId = currentUser.UserId;
+                    if (claimerUserId == Guid.Empty &&
+                        body.TryGetProperty("claimerUserId", out var clm) && clm.ValueKind == JsonValueKind.String)
+                    {
+                        Guid.TryParse(clm.GetString(), out claimerUserId);
+                    }
+
+                    if (claimerUserId == Guid.Empty)
+                        return Results.BadRequest(new { error = "ClaimSelf requires a valid user. Either authenticate or provide claimerUserId." });
+
+                    await mediator.Send(new EntApp.Modules.RequestManagement.Application.Commands.ClaimTicketCommand(
+                        ticketId, claimerUserId));
+
+                    return Results.NoContent();
+                }
 
                 await svc.ResumeActionAsync(instanceId, bookmarkId, input);
                 return Results.NoContent();
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return Results.BadRequest(new { error = ex.Message }); }
         }).WithName("ResumeWorkflowAction").WithSummary("Workflow bookmark'ını resume et (aksiyon çalıştır)");
 
         return app;

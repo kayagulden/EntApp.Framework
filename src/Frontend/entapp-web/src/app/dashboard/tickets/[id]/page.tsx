@@ -97,6 +97,7 @@ interface WorkflowAction {
   activityType: string;
   label: string;
   outcomes: string[];
+  ticketId?: string;
 }
 
 interface QueueMember {
@@ -323,6 +324,34 @@ export default function TicketDetailPage() {
         body: JSON.stringify({ decision, comment: actionComment.trim() || null }),
       });
       setActionComment("");
+      await refreshAll();
+    } catch {
+    } finally {
+      setActionExecuting(null);
+    }
+  };
+
+  const handleClaimSelf = async (action: WorkflowAction) => {
+    if (!ticket?.workflowInstanceId) return;
+    setActionExecuting(action.bookmarkId + "ClaimSelf");
+    try {
+      // DEV: Keycloak yokken ilk kullanıcıyı (Ahmet Yılmaz) "mevcut kullanıcı" olarak kullan.
+      // Production'da backend ICurrentUser üzerinden JWT'den alacak.
+      const devClaimerId = DEV_USERS[0].id;
+
+      const res = await fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions/${action.bookmarkId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: "ClaimSelf",
+          ticketId: action.ticketId || ticketId,
+          claimerUserId: devClaimerId,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("ClaimSelf failed:", err);
+      }
       await refreshAll();
     } catch {
     } finally {
@@ -806,7 +835,43 @@ export default function TicketDetailPage() {
                     <span className="text-xs text-[var(--color-text-muted)]">Aksiyonlar yükleniyor...</span>
                   </div>
                 ) : workflowActions.length > 0 ? (
-                  workflowActions.map((action) => (
+                  workflowActions.map((action) => {
+                    // ── WaitForAssignment: "Üzerime Al" butonu ──
+                    const isAssignment = action.activityType === "WaitForAssignmentActivity" ||
+                      action.activityType === "EntApp.WaitForAssignmentActivity" ||
+                      action.outcomes.includes("ClaimSelf");
+
+                    if (isAssignment) {
+                      const executing = actionExecuting !== null;
+                      return (
+                        <div key={action.bookmarkId} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Hand className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="text-xs font-semibold text-[var(--color-text)]">
+                              {action.label}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[var(--color-text-muted)]">
+                            Bu talebi üzerinize alarak işleme başlayabilirsiniz.
+                          </p>
+                          <button
+                            onClick={() => handleClaimSelf(action)}
+                            disabled={executing}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {executing ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Hand className="w-3.5 h-3.5" />
+                            )}
+                            Üzerime Al
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    // ── Generic: combo + uygula butonu ──
+                    return (
                     <div key={action.bookmarkId} className="space-y-2">
                       {/* Action label */}
                       <div className="flex items-center gap-2">
@@ -866,7 +931,8 @@ export default function TicketDetailPage() {
                         );
                       })()}
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   /* No active bookmarks — workflow is running but no user action needed */
                   <div className="py-3 text-center">

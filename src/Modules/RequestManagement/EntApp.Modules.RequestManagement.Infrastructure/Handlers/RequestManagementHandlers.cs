@@ -456,7 +456,18 @@ public sealed class ClaimTicketHandler(RequestManagementDbContext db, IEventBus 
             ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
 
         if (ticket.AssigneeUserId.HasValue)
-            throw new InvalidOperationException("Ticket is already assigned.");
+        {
+            // İdempotent: Aynı kullanıcı zaten atanmışsa → event'i tekrar publish et
+            // (WaitForAssignment bookmark'ı resume olsun diye)
+            if (ticket.AssigneeUserId.Value == request.ClaimerUserId)
+            {
+                await eventBus.PublishAsync(new TicketAssignedEvent(
+                    ticket.Id.Value, ticket.Number, request.ClaimerUserId, request.ClaimerUserId), ct);
+                return;
+            }
+
+            throw new InvalidOperationException("Ticket is already assigned to another user.");
+        }
 
         // Kullanıcının ticket'ın kuyruğunda üye olup olmadığını kontrol et
         if (ticket.ServiceQueueId.HasValue)
