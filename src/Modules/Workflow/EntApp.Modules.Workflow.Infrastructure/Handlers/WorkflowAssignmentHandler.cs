@@ -3,6 +3,7 @@ using Elsa.Workflows.Runtime.Stimuli;
 using EntApp.Modules.RequestManagement.Application.IntegrationEvents;
 using EntApp.Modules.Workflow.Infrastructure.Activities;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Handlers;
@@ -16,9 +17,12 @@ namespace EntApp.Modules.Workflow.Infrastructure.Handlers;
 /// Hem AssignTicketCommand hem ClaimTicketCommand sonucu tetiklenen
 /// TicketAssignedEvent'i dinler — dropdown ile atama veya "Üstlen" butonu
 /// ile self-assign yapıldığında workflow ilerler.
+/// 
+/// Not: IStimulusSender Elsa tarafından scoped olarak kaydedildiğinden,
+/// constructor injection yerine IServiceProvider ile yeni scope oluşturulur.
 /// </summary>
 public sealed class WorkflowAssignmentHandler(
-    IStimulusSender stimulusSender,
+    IServiceScopeFactory scopeFactory,
     ILogger<WorkflowAssignmentHandler> logger)
     : INotificationHandler<TicketAssignedEvent>
 {
@@ -31,6 +35,10 @@ public sealed class WorkflowAssignmentHandler(
 
         try
         {
+            // Elsa'nın scoped servislerini çözmek için yeni scope oluştur
+            using var scope = scopeFactory.CreateScope();
+            var stimulusSender = scope.ServiceProvider.GetRequiredService<IStimulusSender>();
+
             // WaitForAssignmentActivity'nin bookmark payload'ı ile eşleşen stimulus oluştur
             // AssignmentBookmarkPayload sadece TicketId içerir — hash eşleşmesi bu sayede sağlanır
             var payload = new AssignmentBookmarkPayload(notification.TicketId);
@@ -66,3 +74,4 @@ public sealed class WorkflowAssignmentHandler(
         }
     }
 }
+
