@@ -21,35 +21,60 @@
 - [x] 5 demo kullanıcı (org+dept atanmış)
 - [x] 4 Request departmanı + 8 hizmet kuyruğu + 13 üyelik + 8 kategori
 
+### Ticket → Queue Routing
+- [x] Kategori seçildiğinde ticket otomatik olarak ilgili kuyruğa yönlendirilsin
+- [x] Kategori ↔ Queue eşlemesi (DefaultQueueId üzerinden otomatik)
+- [x] RouteToQueue activity — Elsa workflow'dan programatik route
+
+### Claim (Üzerime Al)
+- [x] Backend: `ClaimTicketCommand` + `ClaimTicketHandler` (kuyruk üyelik validasyonu, idempotent)
+- [x] Backend: `AssignTicketCommand` + `AssignTicketHandler`
+- [x] Backend: `TicketAssignedEvent` integration event
+- [x] Frontend: Ticket detayında "Üzerime Al" butonu (workflow aksiyonlar panelinden)
+- [x] Üzerime Al sonrası otomatik status değişimi (New → InProgress)
+- [x] Üzerime Al sonrası UI otomatik güncelleme (delay + refreshAll)
+
+### Workflow Entegrasyonu (Elsa v3)
+- [x] Kategori bazlı workflow tanımı (RequestCategory.WorkflowDefinitionId)
+- [x] Talep oluşturulduğunda otomatik workflow başlatma
+- [x] Custom blocking activities: WaitForAssignment, WaitForStatusDecision, WaitForAllTasksDone
+- [x] RouteToQueue activity — otomatik kuyruk yönlendirmesi
+- [x] Ticket detay sayfasında dinamik aksiyonlar paneli (bookmark-driven)
+- [x] Workflow bookmark resume mekanizması (doğrudan bookmarkId ile)
+- [x] Elsa Designer entegrasyonu (Blazor WASM iframe)
+- [x] Programatik workflow seed ("Destek Talebi Akışı")
+
+### Görev Entegrasyonu
+- [x] Bağımsız görev yönetimi (TaskManagement modülü)
+- [x] Ticket'a bağlı görev oluşturma (from-source)
+- [x] WaitForAllTasksDone activity — tüm görevler bitene kadar bekle
+- [x] Denormalized görev sayaçları (LinkedTaskCount, CompletedTaskCount)
+
 ---
 
 ## 📋 Devam Edilecek Maddeler
 
-### 1. Ticket → Queue Routing
-- [ ] Kategori seçildiğinde ticket otomatik olarak ilgili kuyruğa yönlendirilsin
-- [ ] Kategori ↔ Queue eşlemesi (veya departman üzerinden otomatik)
+### 1. Unclaim (Havuza Bırak)
+- [ ] Backend: `UnclaimTicketCommand` — atamayı kaldır, havuza geri bırak
+- [ ] Frontend: Ticket detayında "Havuza Bırak" butonu
+- [ ] Workflow: WaitForAssignment'a geri dönüş mekanizması
 
-### 2. Claim/Unclaim (Üzerime Al / Havuza Bırak)
-- [ ] Kuyruk üyeleri talepleri "üzerine alsın" (`AssignedUserId` set)
-- [ ] Üzerinden bırakabilsin (tekrar havuza düşsün)
-- [ ] Backend: `ClaimTicketCommand`, `UnclaimTicketCommand`
-- [ ] Frontend: Ticket detayında "Üzerime Al" / "Havuza Bırak" butonları
-
-### 3. Taleplerim Sayfası (Talep Sahibi Görünümü)
+### 2. Taleplerim Sayfası (Talep Sahibi Görünümü)
 - [ ] Kullanıcının kendi oluşturduğu talepleri listesi
 - [ ] Durum takibi, detay görüntüleme
 - [ ] Gerektiğinde düzenleme imkanı
 
-### 4. Triage / Dispatcher Akışı
+### 3. Triage / Dispatcher Akışı
 - [ ] Dispatcher'ın gelen talepleri sınıflandırması
 - [ ] Kategori atama ve ilgili kuyruğa route etme
 - [ ] Önceliklendirme
 
-### 5. Workflow Entegrasyonu (Elsa)
-- [ ] Kategori bazlı workflow tanımı
-- [ ] Talep oluşturulduğunda otomatik workflow başlatma
-- [ ] Onay akışları (departman yöneticisi approval)
+### 4. Onay Akışları
+- [ ] Departman yöneticisi approval workflow
+- [ ] WaitForApprovalActivity kullanımı
+- [ ] Çoklu onaylayıcı zinciri
 
-### 6. Organizasyon Yönetim Sayfası
+### 5. Organizasyon Yönetim Sayfası
 - [ ] `/manage/organizations` — ağaç görünümü
 - [ ] Departman ekleme/düzenleme
+

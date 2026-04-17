@@ -718,6 +718,7 @@
 ### 16a — Request Management (Talep Yönetimi)
 
 > **Backend tamamlanma:** 2026-04-05
+> **Workflow entegrasyonu:** 2026-04-17
 
 - [x] `Department`, `RequestCategory`, `SlaDefinition`, `Ticket`, `TicketComment`, `TicketStatusHistory` entity'leri
 - [x] Talep oluşturma + SLA takibi (`SlaCalculator`, otomatik deadline hesaplama)
@@ -725,8 +726,16 @@
 - [x] CQRS: 12 command, 8 query, 5 validator, 20 handler, 20 API endpoint (`/api/req/`)
 - [x] Integration Events: `TicketCreatedEvent`, `TicketAssignedEvent`, `TicketSlaBreachedEvent`, `TicketResolvedEvent`
 - [x] `RequestManagementDbContext` (schema: `req`, 6 tablo)
+- [x] ServiceQueue + QueueMembership — kuyruk yönetimi, üyelik CRUDs
+- [x] Ticket → Queue routing (kategori bazlı DefaultQueueId + RouteToQueue activity)
+- [x] Claim (Üzerime Al) — `ClaimTicketCommand`, kuyruk üyelik validasyonu, idempotent
+- [x] Elsa v3 workflow entegrasyonu — kategori bazlı otomatik başlatma
+- [x] Custom blocking activities: `WaitForAssignment`, `WaitForStatusDecision`, `WaitForAllTasksDone`
+- [x] Ticket detay sayfasında dinamik aksiyonlar paneli (bookmark-driven)
+- [x] Elsa Designer entegrasyonu (Blazor WASM iframe, programatik seed)
 - [ ] Departman/kategori bazlı dinamik form (RequestCategory.FormSchema → Dynamic UI)
-- [ ] Workflow entegrasyonu (kategori bazlı onay akışları — WorkflowDefinitionId ready)
+- [ ] `CreateTaskForAssignee` activity ile workflow'dan otomatik görev oluşturma (activity mevcut, workflow akışına eklenmedi)
+- [ ] Unclaim (Havuza Bırak) — `UnclaimTicketCommand` + frontend butonu
 - [ ] Talep sahibi portalı (self-service UI)
 
 ### 16b — Project & Portfolio Management
