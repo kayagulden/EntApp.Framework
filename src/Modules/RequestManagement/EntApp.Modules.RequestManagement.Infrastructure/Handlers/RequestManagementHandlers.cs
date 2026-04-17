@@ -447,7 +447,8 @@ public sealed class GetMyTicketsHandler(RequestManagementDbContext db)
 //  Claim Ticket Handler
 // ═══════════════════════════════════════════════════════════════
 
-public sealed class ClaimTicketHandler(RequestManagementDbContext db, IEventBus eventBus)
+public sealed class ClaimTicketHandler(
+    RequestManagementDbContext db, IEventBus eventBus)
     : IRequestHandler<ClaimTicketCommand>
 {
     public async Task Handle(ClaimTicketCommand request, CancellationToken ct)

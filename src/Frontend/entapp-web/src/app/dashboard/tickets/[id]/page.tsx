@@ -335,9 +335,12 @@ export default function TicketDetailPage() {
     if (!ticket?.workflowInstanceId) return;
     setActionExecuting(action.bookmarkId + "ClaimSelf");
     try {
-      // DEV: Keycloak yokken ilk kullanıcıyı (Ahmet Yılmaz) "mevcut kullanıcı" olarak kullan.
+      // DEV: Gerçek kuyruk üyesinin userId'sini kullan (seed'de oluşturulan).
+      // Hardcoded DEV_USERS ID'leri veritabanındaki gerçek ID'lerle eşleşmez!
       // Production'da backend ICurrentUser üzerinden JWT'den alacak.
-      const devClaimerId = DEV_USERS[0].id;
+      const claimerId = queueMembers.length > 0
+        ? queueMembers[0].userId
+        : DEV_USERS[0].id; // fallback — kuyruk üyeleri yüklenemezse
 
       const res = await fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions/${action.bookmarkId}`, {
         method: "POST",
@@ -345,13 +348,16 @@ export default function TicketDetailPage() {
         body: JSON.stringify({
           decision: "ClaimSelf",
           ticketId: action.ticketId || ticketId,
-          claimerUserId: devClaimerId,
+          claimerUserId: claimerId,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error("ClaimSelf failed:", err);
+        console.error("ClaimSelf failed:", res.status, err);
       }
+      // Backend workflow dispatch asenkron çalışır — bookmark resume edilene kadar
+      // kısa bir bekleme gerekir, yoksa eski bookmark hala görünür.
+      await new Promise((r) => setTimeout(r, 1500));
       await refreshAll();
     } catch {
     } finally {

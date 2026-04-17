@@ -60,7 +60,7 @@ public sealed class WaitForAssignmentActivity : Activity
         // Label ve AutoSetInProgress activity property olarak saklanır.
         // Bu, WorkflowAssignmentHandler'ın sadece TicketId bilerek resume yapabilmesini sağlar.
         var payload = new AssignmentBookmarkPayload(ticketId);
-        context.CreateBookmark(payload, OnResumed, includeActivityInstanceId: true);
+        context.CreateBookmark(payload, OnResumed, includeActivityInstanceId: false);
         return ValueTask.CompletedTask;
     }
 

@@ -187,7 +187,7 @@ try
     });
 
     // ── Event Bus ────────────────────────────────────────────
-    builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
+    builder.Services.AddScoped<IEventBus, InMemoryEventBus>();
 
     // ── Elsa Workflows v3 ────────────────────────────────────
     var elsaSigningKey = builder.Configuration["Elsa:SigningKey"]

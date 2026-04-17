@@ -150,8 +150,10 @@ public static class WorkflowEndpoints
 
                 // ── ClaimSelf: "Üzerime Al" ──────────────────────────
                 // WaitForAssignment activity'si için özel akış:
-                // Doğrudan bookmark resume etmek yerine ClaimTicketCommand çalıştır.
-                // TicketAssignedEvent → WorkflowAssignmentHandler → bookmark otomatik resume olur.
+                // 1. ClaimTicketCommand ile ticket'ı ata
+                // 2. Doğrudan bookmark'ı resume et (bookmarkId zaten URL'de var)
+                // NOT: Event-driven yaklaşım (IStimulusSender) hash uyuşmazlığı
+                // nedeniyle güvenilir değil; doğrudan resume daha sağlam.
                 var decision = input.TryGetValue("Decision", out var dv) ? dv.ToString() : null;
                 if (decision == "ClaimSelf")
                 {
@@ -174,8 +176,13 @@ public static class WorkflowEndpoints
                     if (claimerUserId == Guid.Empty)
                         return Results.BadRequest(new { error = "ClaimSelf requires a valid user. Either authenticate or provide claimerUserId." });
 
+                    // 1. Ticket'ı ata
                     await mediator.Send(new EntApp.Modules.RequestManagement.Application.Commands.ClaimTicketCommand(
                         ticketId, claimerUserId));
+
+                    // 2. Bookmark'ı doğrudan resume et — assignee bilgileriyle
+                    input["AssigneeUserId"] = claimerUserId.ToString();
+                    await svc.ResumeActionAsync(instanceId, bookmarkId, input);
 
                     return Results.NoContent();
                 }
