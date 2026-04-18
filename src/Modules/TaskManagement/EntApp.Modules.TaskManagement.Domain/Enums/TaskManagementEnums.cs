@@ -39,3 +39,35 @@ public enum TaskType
     Improvement = 3,
     Epic = 4
 }
+
+/// <summary>Portfolyo durumu.</summary>
+public enum PortfolioStatus
+{
+    Active = 0,
+    OnHold = 1,
+    Archived = 2
+}
+
+/// <summary>Proje metodolojisi.</summary>
+public enum ProjectMethodology
+{
+    Kanban = 0,
+    Scrum = 1,
+    ScrumBan = 2,
+    Waterfall = 3
+}
+
+/// <summary>Proje kategorisi — hangi özelliklerin aktif olduğunu belirler.</summary>
+public enum ProjectCategory
+{
+    /// <summary>Genel proje — sadece Task + Milestone.</summary>
+    General = 0,
+    /// <summary>Yazılım geliştirme — Sprint, BacklogHierarchy, Board, Release.</summary>
+    SoftwareDevelopment = 1,
+    /// <summary>Sistem / Altyapı / Network — Milestone, WBS, Timeline.</summary>
+    Infrastructure = 2,
+    /// <summary>Tedarik / Edinme — Milestone, Vendor, Budget.</summary>
+    Procurement = 3,
+    /// <summary>İş / Organizasyonel — Milestone, Timeline, Budget.</summary>
+    Business = 4
+}

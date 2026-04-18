@@ -3,8 +3,43 @@ using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Queries;
 
-public sealed record ListProjectsQuery(string? Status) : IRequest<List<object>>;
-public sealed record GetProjectQuery(Guid Id) : IRequest<object?>;
+// ── Portfolio ────────────────────────────────────────────────
+public sealed record ListPortfoliosQuery(string? Status = null) : IRequest<List<PortfolioListDto>>;
+public sealed record GetPortfolioQuery(Guid Id) : IRequest<PortfolioDetailDto?>;
+
+public sealed record PortfolioListDto(
+    Guid Id, string Name, string Code, string? Description,
+    string Status, Guid? OwnerUserId, int ProjectCount,
+    DateTime CreatedAt);
+
+public sealed record PortfolioDetailDto(
+    Guid Id, string Name, string Code, string? Description,
+    string Status, Guid? OwnerUserId,
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<ProjectListDto> Projects);
+
+// ── Project ─────────────────────────────────────────────────
+public sealed record ListProjectsQuery(string? Status = null, Guid? PortfolioId = null) : IRequest<List<ProjectListDto>>;
+public sealed record GetProjectQuery(Guid Id) : IRequest<ProjectDetailDto?>;
+
+public sealed record ProjectListDto(
+    Guid Id, string Key, string Name, string? Description,
+    string Status, string Methodology, string Category,
+    DateTime? StartDate, DateTime? EndDate, DateTime? TargetEndDate,
+    Guid? ManagerUserId, Guid? OwnerUserId,
+    Guid? PortfolioId, string? PortfolioName,
+    int TaskCount, DateTime CreatedAt);
+
+public sealed record ProjectDetailDto(
+    Guid Id, string Key, string Name, string? Description,
+    string Status, string Methodology, string Category,
+    DateTime? StartDate, DateTime? EndDate, DateTime? TargetEndDate,
+    Guid? ManagerUserId, Guid? OwnerUserId,
+    Guid? PortfolioId, string? PortfolioName, string? PortfolioCode,
+    int TaskCount, int TaskSequence,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+
+// ── Task ────────────────────────────────────────────────────
 public sealed record ListTasksQuery(Guid? ProjectId, string? Status, string? Assignee, string? Priority,
     int Page = 1, int PageSize = 20, Guid? ReporterUserId = null, string? AssigneeUserIds = null,
     string? Type = null, string? SourceFilter = null) : IRequest<PagedResult<object>>;

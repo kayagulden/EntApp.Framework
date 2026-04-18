@@ -14,25 +14,150 @@ using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
 
 namespace EntApp.Modules.TaskManagement.Infrastructure.Handlers;
 
-// ── Queries ─────────────────────────────────────────────────
-public sealed class ListProjectsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListProjectsQuery, List<object>>
+// ── Portfolio Queries ────────────────────────────────────────
+public sealed class ListPortfoliosQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListPortfoliosQuery, List<PortfolioListDto>>
 {
-    public async Task<List<object>> Handle(ListProjectsQuery request, CancellationToken ct)
+    public async Task<List<PortfolioListDto>> Handle(ListPortfoliosQuery request, CancellationToken ct)
     {
-        var query = db.Projects.AsQueryable();
-        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<ProjectStatus>(request.Status, out var s))
+        var query = db.Portfolios.AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<PortfolioStatus>(request.Status, out var s))
             query = query.Where(p => p.Status == s);
         return await query.OrderBy(p => p.Name)
-            .Select(p => (object)new { p.Id, p.Key, p.Name, Status = p.Status.ToString(),
-                p.StartDate, p.EndDate, p.ManagerUserId, TaskCount = p.Tasks.Count })
+            .Select(p => new PortfolioListDto(
+                p.Id.Value, p.Name, p.Code, p.Description,
+                p.Status.ToString(), p.OwnerUserId,
+                p.Projects.Count, p.CreatedAt))
             .ToListAsync(ct);
     }
 }
 
-public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetProjectQuery, object?>
+public sealed class GetPortfolioQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetPortfolioQuery, PortfolioDetailDto?>
 {
-    public async Task<object?> Handle(GetProjectQuery request, CancellationToken ct)
-        => await db.Projects.FindAsync([request.Id], ct);
+    public async Task<PortfolioDetailDto?> Handle(GetPortfolioQuery request, CancellationToken ct)
+    {
+        var p = await db.Portfolios.Include(x => x.Projects)
+            .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
+        if (p is null) return null;
+        return new PortfolioDetailDto(
+            p.Id.Value, p.Name, p.Code, p.Description,
+            p.Status.ToString(), p.OwnerUserId,
+            p.CreatedAt, p.UpdatedAt,
+            p.Projects.Select(pr => new ProjectListDto(
+                pr.Id.Value, pr.Key, pr.Name, pr.Description,
+                pr.Status.ToString(), pr.Methodology.ToString(), pr.Category.ToString(),
+                pr.StartDate, pr.EndDate, pr.TargetEndDate,
+                pr.ManagerUserId, pr.OwnerUserId,
+                pr.PortfolioId.HasValue ? pr.PortfolioId.Value.Value : null, p.Name,
+                pr.Tasks.Count, pr.CreatedAt)).ToList());
+    }
+}
+
+// ── Project Queries ─────────────────────────────────────────
+public sealed class ListProjectsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListProjectsQuery, List<ProjectListDto>>
+{
+    public async Task<List<ProjectListDto>> Handle(ListProjectsQuery request, CancellationToken ct)
+    {
+        var query = db.Projects.Include(p => p.Portfolio).AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<ProjectStatus>(request.Status, out var s))
+            query = query.Where(p => p.Status == s);
+        if (request.PortfolioId.HasValue)
+            query = query.Where(p => p.PortfolioId.HasValue && p.PortfolioId.Value.Value == request.PortfolioId.Value);
+        return await query.OrderBy(p => p.Name)
+            .Select(p => new ProjectListDto(
+                p.Id.Value, p.Key, p.Name, p.Description,
+                p.Status.ToString(), p.Methodology.ToString(), p.Category.ToString(),
+                p.StartDate, p.EndDate, p.TargetEndDate,
+                p.ManagerUserId, p.OwnerUserId,
+                p.PortfolioId.HasValue ? p.PortfolioId.Value.Value : null,
+                p.Portfolio != null ? p.Portfolio.Name : null,
+                p.Tasks.Count, p.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetProjectQuery, ProjectDetailDto?>
+{
+    public async Task<ProjectDetailDto?> Handle(GetProjectQuery request, CancellationToken ct)
+    {
+        var p = await db.Projects.Include(x => x.Portfolio).Include(x => x.Tasks)
+            .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
+        if (p is null) return null;
+        return new ProjectDetailDto(
+            p.Id.Value, p.Key, p.Name, p.Description,
+            p.Status.ToString(), p.Methodology.ToString(), p.Category.ToString(),
+            p.StartDate, p.EndDate, p.TargetEndDate,
+            p.ManagerUserId, p.OwnerUserId,
+            p.PortfolioId.HasValue ? p.PortfolioId.Value.Value : null,
+            p.Portfolio?.Name, p.Portfolio?.Code,
+            p.Tasks.Count, p.TaskSequence,
+            p.CreatedAt, p.UpdatedAt);
+    }
+}
+
+// ── Portfolio Commands ──────────────────────────────────────
+public sealed class CreatePortfolioCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreatePortfolioCommand, Guid>
+{
+    public async Task<Guid> Handle(CreatePortfolioCommand request, CancellationToken ct)
+    {
+        var portfolio = PortfolioBase.Create(request.Name, request.Code,
+            request.Description, request.OwnerUserId);
+        db.Portfolios.Add(portfolio);
+        await db.SaveChangesAsync(ct);
+        return portfolio.Id.Value;
+    }
+}
+
+public sealed class UpdatePortfolioCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdatePortfolioCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdatePortfolioCommand request, CancellationToken ct)
+    {
+        var portfolio = await db.Portfolios.FindAsync([new PortfolioId(request.PortfolioId)], ct)
+            ?? throw new KeyNotFoundException($"Portfolio {request.PortfolioId} not found");
+        Enum.TryParse<PortfolioStatus>(request.Status, out var status);
+        portfolio.Update(request.Name, request.Code, request.Description,
+            request.OwnerUserId, request.Status is not null ? status : null);
+        await db.SaveChangesAsync(ct);
+        return portfolio.Id.Value;
+    }
+}
+
+// ── Project Commands ────────────────────────────────────────
+public sealed class CreateProjectCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateProjectCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateProjectCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<ProjectMethodology>(request.Methodology, out var methodology);
+        Enum.TryParse<ProjectCategory>(request.Category, out var category);
+        var project = ProjectBase.Create(request.Key, request.Name, request.Description,
+            request.StartDate, request.EndDate, request.TargetEndDate,
+            request.ManagerUserId, request.OwnerUserId,
+            request.PortfolioId.HasValue ? new PortfolioId(request.PortfolioId.Value) : null,
+            methodology, category);
+        db.Projects.Add(project);
+        await db.SaveChangesAsync(ct);
+        return project.Id.Value;
+    }
+}
+
+public sealed class UpdateProjectCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateProjectCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateProjectCommand request, CancellationToken ct)
+    {
+        var project = await db.Projects.FindAsync([new ProjectId(request.ProjectId)], ct)
+            ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
+        Enum.TryParse<ProjectStatus>(request.Status, out var status);
+        Enum.TryParse<ProjectMethodology>(request.Methodology, out var methodology);
+        Enum.TryParse<ProjectCategory>(request.Category, out var category);
+        project.Update(request.Name, request.Description,
+            request.StartDate, request.EndDate, request.TargetEndDate,
+            request.ManagerUserId, request.OwnerUserId,
+            request.PortfolioId.HasValue ? new PortfolioId(request.PortfolioId.Value) : null,
+            request.Status is not null ? status : null,
+            request.Methodology is not null ? methodology : null,
+            request.Category is not null ? category : null);
+        await db.SaveChangesAsync(ct);
+        return project.Id.Value;
+    }
 }
 
 public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListTasksQuery, PagedResult<object>>
@@ -168,20 +293,7 @@ public sealed class ListTasksBySourceQueryHandler(TaskManagementDbContext db)
     }
 }
 
-// ── Commands ────────────────────────────────────────────────
-public sealed class CreateProjectCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateProjectCommand, Guid>
-{
-    public async Task<Guid> Handle(CreateProjectCommand request, CancellationToken ct)
-    {
-        var project = ProjectBase.Create(request.Key, request.Name, request.Description,
-            request.StartDate, request.EndDate, request.ManagerUserId);
-        project.Activate();
-        db.Projects.Add(project);
-        await db.SaveChangesAsync(ct);
-        return project.Id.Value;
-    }
-}
-
+// ── Task Commands ───────────────────────────────────────────
 public sealed class CreateTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateTaskCommand, CreateTaskResult>
 {
     public async Task<CreateTaskResult> Handle(CreateTaskCommand request, CancellationToken ct)

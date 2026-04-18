@@ -2,9 +2,28 @@ using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Commands;
 
-public sealed record CreateProjectCommand(string Key, string Name, string? Description = null,
-    DateTime? StartDate = null, DateTime? EndDate = null, Guid? ManagerUserId = null) : IRequest<Guid>;
+// ── Portfolio ────────────────────────────────────────────────
+public sealed record CreatePortfolioCommand(string Name, string Code,
+    string? Description = null, Guid? OwnerUserId = null) : IRequest<Guid>;
 
+public sealed record UpdatePortfolioCommand(Guid PortfolioId, string? Name = null,
+    string? Code = null, string? Description = null,
+    Guid? OwnerUserId = null, string? Status = null) : IRequest<Guid>;
+
+// ── Project ─────────────────────────────────────────────────
+public sealed record CreateProjectCommand(string Key, string Name, string? Description = null,
+    DateTime? StartDate = null, DateTime? EndDate = null, DateTime? TargetEndDate = null,
+    Guid? ManagerUserId = null, Guid? OwnerUserId = null,
+    Guid? PortfolioId = null, string Methodology = "Kanban",
+    string Category = "General") : IRequest<Guid>;
+
+public sealed record UpdateProjectCommand(Guid ProjectId, string? Name = null,
+    string? Description = null, DateTime? StartDate = null, DateTime? EndDate = null,
+    DateTime? TargetEndDate = null, Guid? ManagerUserId = null, Guid? OwnerUserId = null,
+    Guid? PortfolioId = null, string? Status = null, string? Methodology = null,
+    string? Category = null) : IRequest<Guid>;
+
+// ── Task ────────────────────────────────────────────────────
 public sealed record CreateTaskCommand(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,

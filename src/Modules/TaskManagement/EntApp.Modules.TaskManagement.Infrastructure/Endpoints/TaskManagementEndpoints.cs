@@ -12,16 +12,45 @@ public static class TaskManagementEndpoints
 {
     public static IEndpointRouteBuilder MapTaskManagementEndpoints(this IEndpointRouteBuilder app)
     {
+        // ── Portfolio ──────────────────────────────────────
+        var portfolios = app.MapGroup("/api/pm/portfolios").WithTags("PM - Portfolios");
+        portfolios.MapGet("/", async (ISender mediator, string? status) =>
+            Results.Ok(await mediator.Send(new ListPortfoliosQuery(status)))).WithName("ListPortfolios");
+        portfolios.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetPortfolioQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetPortfolio");
+        portfolios.MapPost("/", async (CreatePortfolioRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreatePortfolioCommand(req.Name, req.Code, req.Description, req.OwnerUserId));
+            return Results.Created($"/api/pm/portfolios/{id}", new { id });
+        }).WithName("CreatePortfolio");
+        portfolios.MapPut("/{id:guid}", async (Guid id, UpdatePortfolioRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdatePortfolioCommand(id, req.Name, req.Code, req.Description, req.OwnerUserId, req.Status));
+            return Results.Ok(new { id });
+        }).WithName("UpdatePortfolio");
+
+        // ── Project ────────────────────────────────────────
         var proj = app.MapGroup("/api/pm/projects").WithTags("PM - Projects");
-        proj.MapGet("/", async (ISender mediator, string? status) => Results.Ok(await mediator.Send(new ListProjectsQuery(status)))).WithName("ListProjects");
+        proj.MapGet("/", async (ISender mediator, string? status, Guid? portfolioId) =>
+            Results.Ok(await mediator.Send(new ListProjectsQuery(status, portfolioId)))).WithName("ListProjects");
         proj.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
         { var r = await mediator.Send(new GetProjectQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetProject");
         proj.MapPost("/", async (CreateProjectRequest req, ISender mediator) =>
         {
-            var id = await mediator.Send(new CreateProjectCommand(req.Key, req.Name, req.Description, req.StartDate, req.EndDate, req.ManagerUserId));
+            var id = await mediator.Send(new CreateProjectCommand(req.Key, req.Name, req.Description,
+                req.StartDate, req.EndDate, req.TargetEndDate,
+                req.ManagerUserId, req.OwnerUserId, req.PortfolioId,
+                req.Methodology ?? "Kanban", req.Category ?? "General"));
             return Results.Created($"/api/pm/projects/{id}", new { id });
         }).WithName("CreateProject");
-
+        proj.MapPut("/{id:guid}", async (Guid id, UpdateProjectRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateProjectCommand(id, req.Name, req.Description,
+                req.StartDate, req.EndDate, req.TargetEndDate,
+                req.ManagerUserId, req.OwnerUserId, req.PortfolioId, req.Status, req.Methodology,
+                req.Category));
+            return Results.Ok(new { id });
+        }).WithName("UpdateProject");
         var tasks = app.MapGroup("/api/pm/tasks").WithTags("PM - Tasks");
         tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
             int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
@@ -89,8 +118,19 @@ public static class TaskManagementEndpoints
 }
 
 // ── Request DTO'lar ─────────────────────────────────────────
+public sealed record CreatePortfolioRequest(string Name, string Code,
+    string? Description = null, Guid? OwnerUserId = null);
+public sealed record UpdatePortfolioRequest(string? Name = null, string? Code = null,
+    string? Description = null, Guid? OwnerUserId = null, string? Status = null);
 public sealed record CreateProjectRequest(string Key, string Name, string? Description = null,
-    DateTime? StartDate = null, DateTime? EndDate = null, Guid? ManagerUserId = null);
+    DateTime? StartDate = null, DateTime? EndDate = null, DateTime? TargetEndDate = null,
+    Guid? ManagerUserId = null, Guid? OwnerUserId = null,
+    Guid? PortfolioId = null, string? Methodology = null, string? Category = null);
+public sealed record UpdateProjectRequest(string? Name = null, string? Description = null,
+    DateTime? StartDate = null, DateTime? EndDate = null, DateTime? TargetEndDate = null,
+    Guid? ManagerUserId = null, Guid? OwnerUserId = null,
+    Guid? PortfolioId = null, string? Status = null, string? Methodology = null,
+    string? Category = null);
 public sealed record CreateTaskRequest(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,

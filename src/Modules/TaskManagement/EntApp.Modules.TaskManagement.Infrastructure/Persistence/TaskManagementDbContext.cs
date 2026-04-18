@@ -13,6 +13,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public const string Schema = "pm";
     protected override string SchemaName => Schema;
 
+    public DbSet<PortfolioBase> Portfolios => Set<PortfolioBase>();
     public DbSet<ProjectBase> Projects => Set<ProjectBase>();
     public DbSet<TaskItemBase> Tasks => Set<TaskItemBase>();
     public DbSet<CommentBase> Comments => Set<CommentBase>();
@@ -24,18 +25,40 @@ public sealed class TaskManagementDbContext : BaseDbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // ── Portfolio ──────────────────────────────────────
+        modelBuilder.Entity<PortfolioBase>(e =>
+        {
+            e.ToTable("portfolios");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<PortfolioId>());
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Code).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(5000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        });
+
+        // ── Project ────────────────────────────────────────
         modelBuilder.Entity<ProjectBase>(e =>
         {
             e.ToTable("projects");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.PortfolioId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new PortfolioId(v.Value) : null).IsRequired(false);
             e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => x.PortfolioId);
             e.Property(x => x.Key).HasMaxLength(10).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Description).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Methodology).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(30);
+            e.HasOne(x => x.Portfolio).WithMany(p => p.Projects).HasForeignKey(x => x.PortfolioId).IsRequired(false);
         });
 
+        // ── Task ───────────────────────────────────────────
         modelBuilder.Entity<TaskItemBase>(e =>
         {
             e.ToTable("tasks");
@@ -70,6 +93,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Ignore(x => x.TotalLoggedHours);
         });
 
+        // ── Comment ────────────────────────────────────────
         modelBuilder.Entity<CommentBase>(e =>
         {
             e.ToTable("comments");
@@ -81,6 +105,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.HasOne(x => x.Task).WithMany(t => t.Comments).HasForeignKey(x => x.TaskId);
         });
 
+        // ── TimeEntry ──────────────────────────────────────
         modelBuilder.Entity<TimeEntryBase>(e =>
         {
             e.ToTable("time_entries");

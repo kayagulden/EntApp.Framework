@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   TicketIcon,
   ListTodo,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
@@ -47,6 +48,7 @@ const STATIC_SECTIONS: SidebarSection[] = [
     links: [
       { href: "/dashboard/tickets", label: "Talepler", icon: TicketIcon, matchPrefix: true },
       { href: "/dashboard/tasks", label: "Görevler", icon: ListTodo, matchPrefix: true },
+      { href: "/dashboard/projects", label: "Projeler", icon: FolderKanban, matchPrefix: true },
     ],
   },
   {

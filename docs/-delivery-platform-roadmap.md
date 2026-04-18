@@ -43,13 +43,21 @@
 ---
 
 ## 16b — Project & Portfolio Management
-- [ ] `Program`, `Project` (genişletilmiş), `BacklogItem`, `Sprint`, `SprintRetrospective`, `BoardColumn`, `TeamMember` entity'leri
-- [ ] Metodoloji desteği: Scrum / Kanban / ScrumBan
+- [x] `PortfolioBase` entity (projeleri stratejik gruplandırma)
+- [x] `ProjectBase` genişletme: PortfolioId, OwnerUserId, TargetEndDate, Methodology, Category
+- [x] Metodoloji desteği: Scrum / Kanban / ScrumBan / Waterfall
+- [x] Proje kategorileri: SoftwareDevelopment / Infrastructure / Procurement / Business / General
+- [x] Portfolio & Proje CRUD API + Frontend sayfaları
+- [ ] `BacklogItem` → TaskItemBase genişletme (StoryPoints, SprintId, hiyerarşi kuralları)
+- [ ] `Sprint`, `SprintRetrospective` entity'leri
 - [ ] Sprint planlama + burndown + velocity metrikleri
+- [ ] `BoardColumn`, `TeamMember` entity'leri
 - [ ] Kanban board: drag & drop, WIP limit, swim lanes
 - [ ] Backlog hiyerarşisi: Epic → User Story → Task → Sub-task
 - [ ] Efor tahmini: Story Points, Saat, T-Shirt, AI tahmini
 - [ ] WSJF (Weighted Shortest Job First) önceliklendirme
+- [ ] Ticket → Proje bağlantısı (ConvertToProject, AddToBacklog)
+- [ ] **Proje Template Sistemi** — Kategori bazlı varsayılan ayarlar: hangi sekmeler/özellikler aktif, hangi TaskType'lar geçerli, varsayılan BoardColumn'lar, UI label eşlemeleri (Epic→Aşama, Story→İş Paketi), metodoloji kısıtlamaları. Template DB veya JSON tabanlı, runtime konfigürabl.
 
 ---
 
