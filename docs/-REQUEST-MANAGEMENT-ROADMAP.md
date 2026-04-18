@@ -60,11 +60,11 @@
 - [x] Yorum bırakabilme (ticket detay sayfasında)
 - [ ] ~Düzenleme imkanı~ — şimdilik gerekli değil, ihtiyaç olursa eklenebilir
 
-### 3. Organizasyon Yönetim Sayfası
-- [ ] `/manage/organizations` — ağaç görünümü
-- [ ] Departman ekleme/düzenleme
-- [ ] IAM User'a `ManagerUserId` alanı eklenmesi (onay akışı için gerekli ön koşul)
-- [ ] Kullanıcı-yönetici ilişkisinin yönetilmesi
+### 3. Organizasyon Yönetim Sayfası ✅
+- [x] `/manage/organizations` — 3 panelli ağaç görünümü (org tree, departman listesi, departman detayı)
+- [x] Organizasyon ekleme (API bağlantılı)
+- [x] Departman ekleme/düzenleme (yönetici, üst departman, varsayılan kuyruk)
+- [ ] Yönetici atama dropdown'u — Keycloak aktif olduğunda IAM users API üzerinden çalışacak
 
 ### 4. Onay Akışları
 > **Not:** Organizasyon Yönetim Sayfası'ndan sonra implemente edilecek — kullanıcı-yönetici ilişkisi onay akışının ön koşuludur.
