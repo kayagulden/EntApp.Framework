@@ -50,6 +50,9 @@ public sealed record RouteTicketToQueueCommand(Guid TicketId, Guid QueueId) : IR
 /// <summary>Kullanıcı ticket'ı kendi üzerine alır (claim). Queue havuzundan self-assign.</summary>
 public sealed record ClaimTicketCommand(Guid TicketId, Guid ClaimerUserId) : IRequest;
 
+/// <summary>Ticket'ı havuza geri bırakır — assignee kaldırılır, status Open'a döner.</summary>
+public sealed record UnclaimTicketCommand(Guid TicketId) : IRequest;
+
 // ── TicketComment ────────────────────────────────────────────
 public sealed record AddCommentCommand(
     Guid TicketId, string Content, bool IsInternal) : IRequest<Guid>;

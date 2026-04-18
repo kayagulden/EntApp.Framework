@@ -24,7 +24,7 @@ public sealed class WorkflowActionsService(
     {
         ["WaitForApprovalActivity"] = ["Approved", "Rejected"],
         ["EntApp.WaitForApprovalActivity"] = ["Approved", "Rejected"],
-        ["WaitForStatusDecisionActivity"] = ["Resolved", "Cancelled"],
+        ["WaitForStatusDecisionActivity"] = ["Resolved", "Cancelled", "ReturnToPool"],
         ["WaitForAssignmentActivity"] = ["ClaimSelf"],
         ["EntApp.WaitForAssignmentActivity"] = ["ClaimSelf"],
     };

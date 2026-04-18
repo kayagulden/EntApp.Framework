@@ -489,6 +489,23 @@ public sealed class ClaimTicketHandler(
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  UnclaimTicket Handler — Havuza Bırak
+// ═══════════════════════════════════════════════════════════════
+
+public sealed class UnclaimTicketHandler(RequestManagementDbContext db)
+    : IRequestHandler<UnclaimTicketCommand>
+{
+    public async Task Handle(UnclaimTicketCommand request, CancellationToken ct)
+    {
+        var ticket = await db.Tickets.FindAsync([new TicketId(request.TicketId)], ct)
+            ?? throw new Shared.Kernel.Exceptions.NotFoundException("Ticket", request.TicketId);
+
+        ticket.Unassign();
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  GetMyQueues Handler
 // ═══════════════════════════════════════════════════════════════
 

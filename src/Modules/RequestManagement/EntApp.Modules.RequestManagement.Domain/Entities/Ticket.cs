@@ -101,6 +101,13 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         if (Status == TicketStatus.New) Status = TicketStatus.Open;
     }
 
+    /// <summary>Ticket'ı havuza geri bırakır — assignee kaldırılır, status Open'a döner.</summary>
+    public void Unassign()
+    {
+        AssigneeUserId = null;
+        if (Status == TicketStatus.InProgress) Status = TicketStatus.Open;
+    }
+
     public void ChangeStatus(TicketStatus newStatus, Guid changedByUserId, string? reason = null)
     {
         var old = Status;

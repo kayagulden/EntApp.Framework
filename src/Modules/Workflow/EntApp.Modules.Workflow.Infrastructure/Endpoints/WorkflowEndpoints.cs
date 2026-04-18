@@ -137,6 +137,9 @@ public static class WorkflowEndpoints
         {
             try
             {
+                System.IO.File.AppendAllText(@"C:\Users\kaya\wf_debug.log", 
+                    $"[{DateTime.UtcNow:HH:mm:ss}] POST action: instanceId={instanceId}, bookmarkId={bookmarkId}, body={body.GetRawText()}\n");
+                
                 var input = new Dictionary<string, object>();
                 
                 if (body.TryGetProperty("decision", out var d) && d.ValueKind == JsonValueKind.String)
@@ -187,7 +190,12 @@ public static class WorkflowEndpoints
                     return Results.NoContent();
                 }
 
+                var logger = svc as object; // just for context
+                Console.WriteLine($"[WF-ENDPOINT] ResumeAction called: instanceId={instanceId}, bookmarkId={bookmarkId}, decision={decision}");
+                foreach (var kv in input) Console.WriteLine($"  input[{kv.Key}] = {kv.Value}");
+                
                 await svc.ResumeActionAsync(instanceId, bookmarkId, input);
+                Console.WriteLine($"[WF-ENDPOINT] ResumeAction completed for bookmarkId={bookmarkId}");
                 return Results.NoContent();
             }
             catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }

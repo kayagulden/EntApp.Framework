@@ -13,6 +13,7 @@ import {
   Loader2,
   Building2,
   User,
+  UserPlus,
   MessageSquare,
   Send,
   Tag,
@@ -218,6 +219,7 @@ export default function TicketDetailPage() {
   const [taskFormData, setTaskFormData] = useState({ title: "", priority: "Medium", assigneeUserId: "" });
   const [taskCreating, setTaskCreating] = useState(false);
   const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
+  const [reassigning, setReassigning] = useState(false);
 
   // Fetch ticket
   useEffect(() => {
@@ -324,6 +326,8 @@ export default function TicketDetailPage() {
         body: JSON.stringify({ decision, comment: actionComment.trim() || null }),
       });
       setActionComment("");
+      // Backend workflow dispatch asenkron — bookmark işlenene kadar bekle
+      await new Promise((r) => setTimeout(r, 2500));
       await refreshAll();
     } catch {
     } finally {
@@ -362,6 +366,25 @@ export default function TicketDetailPage() {
     } catch {
     } finally {
       setActionExecuting(null);
+    }
+  };
+
+  const handleReassign = async (newAssigneeUserId: string) => {
+    if (!ticket || !ticketId || reassigning) return;
+    setReassigning(true);
+    try {
+      const res = await fetch(`/api/req/tickets/${ticketId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeUserId: newAssigneeUserId }),
+      });
+      if (!res.ok) {
+        console.error("Reassign failed:", res.status);
+      }
+      await refreshAll();
+    } catch {
+    } finally {
+      setReassigning(false);
     }
   };
 
@@ -812,6 +835,7 @@ export default function TicketDetailPage() {
                 { icon: Building2, label: "Departman", value: ticket.department?.name ?? "—" },
                 { icon: Tag, label: "Kategori", value: ticket.category?.name ?? "—" },
                 { icon: Inbox, label: "Kuyruk", value: ticket.serviceQueue?.name ?? "Atanmamış" },
+                { icon: User, label: "Atanan", value: getUserName(ticket.assigneeUserId) },
                 { icon: GitBranch, label: "Yönlendirme", value: ROUTING_LABELS[ticket.routingSource ?? ""] ?? ticket.routingSource ?? "—" },
                 { icon: MessageSquare, label: "Kanal", value: CHANNEL_LABELS[ticket.channel] ?? ticket.channel },
                 { icon: Calendar, label: "Oluşturma", value: formatDateTime(ticket.createdAt) },
@@ -822,6 +846,38 @@ export default function TicketDetailPage() {
                   <span className="text-xs text-[var(--color-text)] truncate">{item.value}</span>
                 </div>
               ))}
+
+              {/* Başkasına Ata — sadece kuyruk üyeleri varsa ve ticket atanmışsa */}
+              {ticket.assigneeUserId && queueMembers.length > 1 && (
+                <div className="pt-2 mt-2 border-t border-[var(--color-border)]">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <UserPlus className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    <span className="text-xs text-[var(--color-text-muted)]">Başkasına Ata</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      id="reassign-select"
+                      defaultValue=""
+                      disabled={reassigning}
+                      onChange={(e) => {
+                        if (e.target.value) handleReassign(e.target.value);
+                        e.target.value = "";
+                      }}
+                      className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-teal-500/40 disabled:opacity-40"
+                    >
+                      <option value="">Kişi seçin...</option>
+                      {queueMembers
+                        .filter((m) => m.userId !== ticket.assigneeUserId)
+                        .map((m) => (
+                          <option key={m.userId} value={m.userId}>
+                            {m.displayName || getUserName(m.userId)}
+                          </option>
+                        ))}
+                    </select>
+                    {reassigning && <Loader2 className="w-4 h-4 text-teal-400 animate-spin shrink-0 self-center" />}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -904,6 +960,7 @@ export default function TicketDetailPage() {
                           escalated: "Eskale Et", closed: "Kapat",
                           reopened: "Yeniden Aç", inprogress: "İşleme Al",
                           waitingforinfo: "Bilgi İste", open: "Aç",
+                          returntopool: "Havuza Bırak",
                         };
                         const getLabel = (o: string) => statusLabels[o.toLowerCase()] || o;
                         const currentOutcome = selectedOutcome || action.outcomes[0] || "";
