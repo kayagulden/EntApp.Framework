@@ -108,7 +108,9 @@ public abstract class BaseDbContext : DbContext, IUnitOfWork
         // Tüm entity'ler için soft delete global filter
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            if (typeof(BaseEntity<>).IsAssignableFrom(entityType.ClrType.BaseType?.GetGenericTypeDefinition() ?? typeof(object)))
+            var baseType = entityType.ClrType.BaseType;
+            if (baseType is { IsGenericType: true }
+                && baseType.GetGenericTypeDefinition() == typeof(BaseEntity<>))
             {
                 // Soft delete ve tenant filter'lar concrete DbContext'lerde uygulanır
                 // çünkü generic base type constraint'leri model builder'da doğrudan kullanılamaz.

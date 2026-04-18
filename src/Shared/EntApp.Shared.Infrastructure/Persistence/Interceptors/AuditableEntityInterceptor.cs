@@ -52,9 +52,8 @@ public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
 
         foreach (var entry in context.ChangeTracker.Entries())
         {
-            // BaseEntity — CreatedAt, UpdatedAt
-            if (entry.Entity.GetType().BaseType is { IsGenericType: true } baseType
-                && baseType.GetGenericTypeDefinition() == typeof(BaseEntity<>))
+            // BaseEntity — CreatedAt, UpdatedAt (hiyerarşide yukarı traverse eder)
+            if (IsBaseEntity(entry.Entity.GetType()))
             {
                 switch (entry.State)
                 {
@@ -67,9 +66,8 @@ public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
                 }
             }
 
-            // AuditableEntity — CreatedBy, ModifiedBy
-            if (entry.Entity.GetType().BaseType is { IsGenericType: true } auditBaseType
-                && IsAuditableEntity(auditBaseType))
+            // AuditableEntity — CreatedBy, ModifiedBy (hiyerarşide yukarı traverse eder)
+            if (IsAuditableEntity(entry.Entity.GetType()))
             {
                 switch (entry.State)
                 {
@@ -82,6 +80,21 @@ public sealed class AuditableEntityInterceptor : SaveChangesInterceptor
                 }
             }
         }
+    }
+
+    private static bool IsBaseEntity(Type type)
+    {
+        while (type is not null && type != typeof(object))
+        {
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(BaseEntity<>))
+            {
+                return true;
+            }
+
+            type = type.BaseType!;
+        }
+
+        return false;
     }
 
     private static bool IsAuditableEntity(Type type)

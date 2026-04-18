@@ -15,6 +15,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
 
     public DbSet<PortfolioBase> Portfolios => Set<PortfolioBase>();
     public DbSet<ProjectBase> Projects => Set<ProjectBase>();
+    public DbSet<ApplicationBase> Applications => Set<ApplicationBase>();
     public DbSet<TaskItemBase> Tasks => Set<TaskItemBase>();
     public DbSet<CommentBase> Comments => Set<CommentBase>();
     public DbSet<TimeEntryBase> TimeEntries => Set<TimeEntryBase>();
@@ -56,6 +57,31 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Methodology).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(30);
             e.HasOne(x => x.Portfolio).WithMany(p => p.Projects).HasForeignKey(x => x.PortfolioId).IsRequired(false);
+        });
+
+        // ── Configuration Item (CMDB Base — TPT) ─────────────
+        modelBuilder.Entity<ConfigurationItemBase>(e =>
+        {
+            e.ToTable("configuration_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ConfigurationItemId>());
+            e.HasIndex(x => x.Code).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Code).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Criticality).HasConversion<string>().HasMaxLength(20);
+        });
+
+        // ── Application (CI derived — TPT) ────────────────
+        modelBuilder.Entity<ApplicationBase>(e =>
+        {
+            e.ToTable("applications");
+            e.Property(x => x.ApplicationType).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.TechnologyStack).HasMaxLength(500);
+            e.Property(x => x.RepositoryUrl).HasMaxLength(500);
+            e.Property(x => x.DocumentationUrl).HasMaxLength(500);
+            e.Property(x => x.CurrentVersion).HasMaxLength(50);
         });
 
         // ── Task ───────────────────────────────────────────

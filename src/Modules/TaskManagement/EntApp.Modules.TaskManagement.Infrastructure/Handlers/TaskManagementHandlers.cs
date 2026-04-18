@@ -52,6 +52,81 @@ public sealed class GetPortfolioQueryHandler(TaskManagementDbContext db) : IRequ
     }
 }
 
+// ── Application Queries ─────────────────────────────────────
+public sealed class ListApplicationsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListApplicationsQuery, List<ApplicationListDto>>
+{
+    public async Task<List<ApplicationListDto>> Handle(ListApplicationsQuery request, CancellationToken ct)
+    {
+        var query = db.Applications.AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<CIStatus>(request.Status, out var s))
+            query = query.Where(a => a.Status == s);
+        if (!string.IsNullOrEmpty(request.ApplicationType) && Enum.TryParse<ApplicationType>(request.ApplicationType, out var t))
+            query = query.Where(a => a.ApplicationType == t);
+        return await query.OrderBy(a => a.Name)
+            .Select(a => new ApplicationListDto(
+                a.Id.Value, a.Name, a.Code, a.Description,
+                a.ApplicationType.ToString(), a.Status.ToString(), a.Criticality.ToString(),
+                a.OwnerUserId, a.TechLeadUserId,
+                a.TechnologyStack, a.CurrentVersion,
+                a.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetApplicationQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetApplicationQuery, ApplicationDetailDto?>
+{
+    public async Task<ApplicationDetailDto?> Handle(GetApplicationQuery request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.Id);
+        var a = await db.Applications.FirstOrDefaultAsync(x => x.Id == ciId, ct);
+        if (a is null) return null;
+        return new ApplicationDetailDto(
+            a.Id.Value, a.Name, a.Code, a.Description,
+            a.ApplicationType.ToString(), a.Status.ToString(), a.Criticality.ToString(),
+            a.OwnerUserId, a.TechLeadUserId,
+            a.TechnologyStack, a.RepositoryUrl, a.DocumentationUrl, a.CurrentVersion,
+            a.CreatedAt, a.UpdatedAt);
+    }
+}
+
+// ── Application Commands ────────────────────────────────────
+public sealed class CreateApplicationCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateApplicationCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateApplicationCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<ApplicationType>(request.ApplicationType, out var appType);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        var app = ApplicationBase.Create(request.Name, request.Code, request.Description,
+            appType, crit, request.OwnerUserId, request.TechLeadUserId,
+            request.TechnologyStack, request.RepositoryUrl, request.DocumentationUrl,
+            request.CurrentVersion);
+        db.Applications.Add(app);
+        await db.SaveChangesAsync(ct);
+        return app.Id.Value;
+    }
+}
+
+public sealed class UpdateApplicationCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateApplicationCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateApplicationCommand request, CancellationToken ct)
+    {
+        var app = await db.Applications.FindAsync([new ConfigurationItemId(request.ApplicationId)], ct)
+            ?? throw new KeyNotFoundException($"Application {request.ApplicationId} not found");
+        Enum.TryParse<ApplicationType>(request.ApplicationType, out var appType);
+        Enum.TryParse<CIStatus>(request.Status, out var status);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        app.Update(request.Name, request.Description,
+            request.ApplicationType is not null ? appType : null,
+            request.Status is not null ? status : null,
+            request.Criticality is not null ? crit : null,
+            request.OwnerUserId, request.TechLeadUserId,
+            request.TechnologyStack, request.RepositoryUrl,
+            request.DocumentationUrl, request.CurrentVersion);
+        await db.SaveChangesAsync(ct);
+        return app.Id.Value;
+    }
+}
+
 // ── Project Queries ─────────────────────────────────────────
 public sealed class ListProjectsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListProjectsQuery, List<ProjectListDto>>
 {

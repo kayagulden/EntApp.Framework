@@ -18,6 +18,25 @@ public sealed record PortfolioDetailDto(
     DateTime CreatedAt, DateTime? UpdatedAt,
     List<ProjectListDto> Projects);
 
+// ── Application ─────────────────────────────────────────────
+public sealed record ListApplicationsQuery(string? Status = null, string? ApplicationType = null) : IRequest<List<ApplicationListDto>>;
+public sealed record GetApplicationQuery(Guid Id) : IRequest<ApplicationDetailDto?>;
+
+public sealed record ApplicationListDto(
+    Guid Id, string Name, string Code, string? Description,
+    string ApplicationType, string Status, string Criticality,
+    Guid? OwnerUserId, Guid? TechLeadUserId,
+    string? TechnologyStack, string? CurrentVersion,
+    DateTime CreatedAt);
+
+public sealed record ApplicationDetailDto(
+    Guid Id, string Name, string Code, string? Description,
+    string ApplicationType, string Status, string Criticality,
+    Guid? OwnerUserId, Guid? TechLeadUserId,
+    string? TechnologyStack, string? RepositoryUrl,
+    string? DocumentationUrl, string? CurrentVersion,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+
 // ── Project ─────────────────────────────────────────────────
 public sealed record ListProjectsQuery(string? Status = null, Guid? PortfolioId = null) : IRequest<List<ProjectListDto>>;
 public sealed record GetProjectQuery(Guid Id) : IRequest<ProjectDetailDto?>;

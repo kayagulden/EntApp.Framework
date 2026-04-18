@@ -1,5 +1,37 @@
 namespace EntApp.Modules.TaskManagement.Domain.Enums;
 
+/// <summary>Uygulama tipi.</summary>
+public enum ApplicationType
+{
+    /// <summary>İç geliştirme.</summary>
+    InHouse = 0,
+    /// <summary>Paket / lisanslı / SaaS.</summary>
+    COTS = 1,
+    /// <summary>Altyapı bileşeni.</summary>
+    Infrastructure = 2,
+    /// <summary>İç geliştirme + paket entegrasyonu.</summary>
+    Hybrid = 3
+}
+
+/// <summary>Configuration Item durumu — tüm CI tipleri paylaşır.</summary>
+public enum CIStatus
+{
+    Planned = 0,
+    InDevelopment = 1,
+    Active = 2,
+    Deprecated = 3,
+    Retired = 4
+}
+
+/// <summary>Configuration Item kritiklik seviyesi.</summary>
+public enum CICriticality
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3
+}
+
 /// <summary>Proje durumu.</summary>
 public enum ProjectStatus
 {

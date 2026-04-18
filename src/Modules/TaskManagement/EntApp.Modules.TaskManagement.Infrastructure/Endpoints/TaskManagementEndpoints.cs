@@ -29,7 +29,30 @@ public static class TaskManagementEndpoints
             return Results.Ok(new { id });
         }).WithName("UpdatePortfolio");
 
-        // ── Project ────────────────────────────────────────
+        // ── Application ───────────────────────────────────────
+        var apps = app.MapGroup("/api/pm/applications").WithTags("PM - Applications");
+        apps.MapGet("/", async (ISender mediator, string? status, string? applicationType) =>
+            Results.Ok(await mediator.Send(new ListApplicationsQuery(status, applicationType)))).WithName("ListApplications");
+        apps.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetApplicationQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetApplication");
+        apps.MapPost("/", async (CreateApplicationRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateApplicationCommand(req.Name, req.Code, req.Description,
+                req.ApplicationType ?? "InHouse", req.Criticality ?? "Medium",
+                req.OwnerUserId, req.TechLeadUserId, req.TechnologyStack,
+                req.RepositoryUrl, req.DocumentationUrl, req.CurrentVersion));
+            return Results.Created($"/api/pm/applications/{id}", new { id });
+        }).WithName("CreateApplication");
+        apps.MapPut("/{id:guid}", async (Guid id, UpdateApplicationRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateApplicationCommand(id, req.Name, req.Description,
+                req.ApplicationType, req.Status, req.Criticality,
+                req.OwnerUserId, req.TechLeadUserId, req.TechnologyStack,
+                req.RepositoryUrl, req.DocumentationUrl, req.CurrentVersion));
+            return Results.Ok(new { id });
+        }).WithName("UpdateApplication");
+
+        // ── Project ──────────────────────────────────────────
         var proj = app.MapGroup("/api/pm/projects").WithTags("PM - Projects");
         proj.MapGet("/", async (ISender mediator, string? status, Guid? portfolioId) =>
             Results.Ok(await mediator.Send(new ListProjectsQuery(status, portfolioId)))).WithName("ListProjects");
@@ -122,6 +145,18 @@ public sealed record CreatePortfolioRequest(string Name, string Code,
     string? Description = null, Guid? OwnerUserId = null);
 public sealed record UpdatePortfolioRequest(string? Name = null, string? Code = null,
     string? Description = null, Guid? OwnerUserId = null, string? Status = null);
+public sealed record CreateApplicationRequest(string Name, string Code,
+    string? Description = null, string? ApplicationType = null,
+    string? Criticality = null, Guid? OwnerUserId = null,
+    Guid? TechLeadUserId = null, string? TechnologyStack = null,
+    string? RepositoryUrl = null, string? DocumentationUrl = null,
+    string? CurrentVersion = null);
+public sealed record UpdateApplicationRequest(string? Name = null,
+    string? Description = null, string? ApplicationType = null,
+    string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? TechLeadUserId = null,
+    string? TechnologyStack = null, string? RepositoryUrl = null,
+    string? DocumentationUrl = null, string? CurrentVersion = null);
 public sealed record CreateProjectRequest(string Key, string Name, string? Description = null,
     DateTime? StartDate = null, DateTime? EndDate = null, DateTime? TargetEndDate = null,
     Guid? ManagerUserId = null, Guid? OwnerUserId = null,

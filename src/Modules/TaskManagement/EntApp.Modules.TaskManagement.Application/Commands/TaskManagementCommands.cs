@@ -10,6 +10,21 @@ public sealed record UpdatePortfolioCommand(Guid PortfolioId, string? Name = nul
     string? Code = null, string? Description = null,
     Guid? OwnerUserId = null, string? Status = null) : IRequest<Guid>;
 
+// ── Application ─────────────────────────────────────────────
+public sealed record CreateApplicationCommand(string Name, string Code,
+    string? Description = null, string ApplicationType = "InHouse",
+    string Criticality = "Medium", Guid? OwnerUserId = null,
+    Guid? TechLeadUserId = null, string? TechnologyStack = null,
+    string? RepositoryUrl = null, string? DocumentationUrl = null,
+    string? CurrentVersion = null) : IRequest<Guid>;
+
+public sealed record UpdateApplicationCommand(Guid ApplicationId, string? Name = null,
+    string? Description = null, string? ApplicationType = null,
+    string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? TechLeadUserId = null,
+    string? TechnologyStack = null, string? RepositoryUrl = null,
+    string? DocumentationUrl = null, string? CurrentVersion = null) : IRequest<Guid>;
+
 // ── Project ─────────────────────────────────────────────────
 public sealed record CreateProjectCommand(string Key, string Name, string? Description = null,
     DateTime? StartDate = null, DateTime? EndDate = null, DateTime? TargetEndDate = null,
