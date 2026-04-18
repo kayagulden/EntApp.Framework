@@ -26,7 +26,7 @@ namespace EntApp.Modules.Workflow.Infrastructure.Activities;
     "Pauses the workflow and waits for the user to select a ticket status. " +
     "Automatically changes the ticket status upon selection.",
     DisplayName = "Wait for Status Decision")]
-[FlowNode("Done", "ReturnToPool")]
+[FlowNode("Done")]
 public sealed class WaitForStatusDecisionActivity : Activity
 {
     [Input(Description = "The ticket ID awaiting a status decision.")]
@@ -35,9 +35,9 @@ public sealed class WaitForStatusDecisionActivity : Activity
     [Input(Description = "Label shown on the decision step (e.g. 'Yönetici Kararı', 'Onay Adımı').")]
     public Input<string> Label { get; set; } = default!;
 
-    [Input(Description = "Kullanıcıya sunulacak status seçenekleri (virgülle ayrılmış). " +
+        [Input(Description = "Kullanıcıya sunulacak status seçenekleri (virgülle ayrılmış). " +
                           "Örnek: Resolved, Cancelled, Escalated. " +
-                          "Geçerli değerler: New, Open, InProgress, WaitingForInfo, Escalated, Resolved, Closed, Cancelled, Reopened, ReturnToPool")]
+                          "Geçerli değerler: New, Open, InProgress, WaitingForInfo, Escalated, Resolved, Closed, Cancelled, Reopened")]
     public Input<string> AllowedStatuses { get; set; } = default!;
 
     [Input(Description = "Optional: specific user ID who should decide. If empty, any queue member can decide.")]
@@ -55,20 +55,15 @@ public sealed class WaitForStatusDecisionActivity : Activity
         var label = context.Get(Label) ?? "Durum Kararı";
         var deciderUserId = context.Get(DeciderUserId);
 
-        // AllowedStatuses parse — ReturnToPool özel bir outcome, TicketStatus değil
+        // AllowedStatuses parse
         var rawStatuses = context.Get(AllowedStatuses) ?? "Resolved, Cancelled";
         var statuses = rawStatuses
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => Enum.TryParse<TicketStatus>(s, true, out _) ||
-                        string.Equals(s, "ReturnToPool", StringComparison.OrdinalIgnoreCase))
+            .Where(s => Enum.TryParse<TicketStatus>(s, true, out _))
             .ToArray();
 
         if (statuses.Length == 0)
             statuses = ["Resolved", "Cancelled"];
-
-        // ReturnToPool her zaman seçenek olarak ekle (ticket status değil, workflow kontrol)
-        if (!statuses.Contains("ReturnToPool", StringComparer.OrdinalIgnoreCase))
-            statuses = [.. statuses, "ReturnToPool"];
 
         // Activity property'lerini sakla — resume'da tekrar okunabilir
         context.SetProperty("ResolvedTicketId", ticketId.ToString());
@@ -118,33 +113,6 @@ public sealed class WaitForStatusDecisionActivity : Activity
             return;
         }
 
-        // ── ReturnToPool: Havuza geri bırak ──
-        // Flowchart routing güvenilir çalışmıyor — self-loop kullan:
-        // 1. Ticket'ı unassign et
-        // 2. Yeni AssignmentBookmarkPayload oluştur (workflow aynı activity'de duraklar)
-        // 3. Frontend "Üzerime Al" gösterir
-        if (string.Equals(selectedStatusStr, "ReturnToPool", StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogInformation("[StatusDecision] ReturnToPool branch entered for ticket {TicketId}", ticketId);
-            
-            try
-            {
-                var sender = context.GetRequiredService<ISender>();
-                await sender.Send(new UnclaimTicketCommand(ticketId));
-                logger.LogInformation("[StatusDecision] UnclaimTicketCommand succeeded for ticket {TicketId}", ticketId);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[StatusDecision] UnclaimTicketCommand FAILED for ticket {TicketId}", ticketId);
-            }
-
-            // Yeni assignment bookmark oluştur — workflow burada tekrar duraklar
-            var assignmentPayload = new AssignmentBookmarkPayload(ticketId);
-            context.CreateBookmark(assignmentPayload, OnAssignmentResumed, includeActivityInstanceId: false);
-            logger.LogInformation("[StatusDecision] AssignmentBookmark created — waiting for re-assignment");
-            return; // Activity tamamlanMAZ
-        }
-
         // ── Normal status değişikliği ──
         if (string.IsNullOrWhiteSpace(selectedStatusStr) ||
             !Enum.TryParse<TicketStatus>(selectedStatusStr, true, out var newStatus))
@@ -163,59 +131,10 @@ public sealed class WaitForStatusDecisionActivity : Activity
         context.Set(Comment, comment);
 
         // Tek outcome: Done → sıradaki adıma ilerle
-        await context.CompleteActivityAsync();
+        await context.CompleteActivityWithOutcomesAsync("Done");
     }
 
-    /// <summary>
-    /// ReturnToPool sonrası tekrar atama yapıldığında çağrılır.
-    /// Ticket'ı atar, status → InProgress, StatusDecision bookmark yeniden oluşturur.
-    /// </summary>
-    private async ValueTask OnAssignmentResumed(ActivityExecutionContext context)
-    {
-        var logger = context.GetRequiredService<ILogger<WaitForStatusDecisionActivity>>();
-        var input = context.WorkflowInput;
-
-        logger.LogInformation("[StatusDecision] OnAssignmentResumed called");
-
-        // Atanan kullanıcı ID
-        var assigneeUserId = Guid.Empty;
-        if (input.TryGetValue("AssigneeUserId", out var uid))
-        {
-            if (uid is Guid g) assigneeUserId = g;
-            else if (uid is string s && Guid.TryParse(s, out var parsed)) assigneeUserId = parsed;
-        }
-
-        var ticketId = Guid.Parse(context.GetProperty<string>("ResolvedTicketId") ?? Guid.Empty.ToString());
-
-        if (assigneeUserId != Guid.Empty && ticketId != Guid.Empty)
-        {
-            var mediator = context.GetRequiredService<ISender>();
-
-            // 1. Ticket'ı ata
-            try { await mediator.Send(new EntApp.Modules.RequestManagement.Application.Commands.ClaimTicketCommand(ticketId, assigneeUserId)); }
-            catch (Exception ex) { logger.LogWarning(ex, "[StatusDecision] ClaimTicket failed"); }
-
-            // 2. Status → InProgress
-            try { await mediator.Send(new ChangeTicketStatusCommand(ticketId, TicketStatus.InProgress, "Ticket yeniden atandı")); }
-            catch (Exception ex) { logger.LogWarning(ex, "[StatusDecision] ChangeStatus failed"); }
-        }
-
-        // 3. StatusDecision bookmark'ı yeniden oluştur
-        var rawStatuses = context.GetProperty<string>("ResolvedAllowedStatuses") ?? "Resolved, Cancelled";
-        var label = context.GetProperty<string>("ResolvedLabel") ?? "Durum Kararı";
-        var statuses = rawStatuses
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToArray();
-
-        if (!statuses.Contains("ReturnToPool", StringComparer.OrdinalIgnoreCase))
-            statuses = [.. statuses, "ReturnToPool"];
-
-        var payload = new StatusDecisionBookmarkPayload(ticketId, label, statuses, null);
-        context.CreateBookmark(payload, OnResumed, includeActivityInstanceId: true);
-        logger.LogInformation("[StatusDecision] StatusDecision bookmark recreated — decision loop restarted");
-    }
 }
-
 /// <summary>
 /// Bookmark payload — status karar adımı bilgileri.
 /// Frontend bu bilgiyi okuyarak dinamik butonlar gösterir.

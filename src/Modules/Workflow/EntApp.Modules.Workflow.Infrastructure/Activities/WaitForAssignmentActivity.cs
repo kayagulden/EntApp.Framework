@@ -1,6 +1,7 @@
 using Elsa.Extensions;
 using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
+using Elsa.Workflows.Activities.Flowchart.Attributes;
 using Elsa.Workflows.Models;
 using EntApp.Modules.RequestManagement.Application.Commands;
 using EntApp.Modules.RequestManagement.Domain.Enums;
@@ -25,6 +26,7 @@ namespace EntApp.Modules.Workflow.Infrastructure.Activities;
     "Pauses the workflow until the ticket is assigned to someone. " +
     "Blocks status changes until assignment is complete.",
     DisplayName = "Wait for Assignment")]
+[FlowNode("Done")]
 public sealed class WaitForAssignmentActivity : Activity
 {
     [Input(Description = "The ticket ID awaiting assignment.")]

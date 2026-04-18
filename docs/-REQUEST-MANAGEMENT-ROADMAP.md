@@ -54,11 +54,6 @@
 
 ## 📋 Devam Edilecek Maddeler
 
-### 1. Unclaim (Havuza Bırak)
-- [ ] Backend: `UnclaimTicketCommand` — atamayı kaldır, havuza geri bırak
-- [ ] Frontend: Ticket detayında "Havuza Bırak" butonu
-- [ ] Workflow: WaitForAssignment'a geri dönüş mekanizması
-
 ### 2. Taleplerim Sayfası (Talep Sahibi Görünümü)
 - [ ] Kullanıcının kendi oluşturduğu talepleri listesi
 - [ ] Durum takibi, detay görüntüleme
@@ -78,3 +73,10 @@
 - [ ] `/manage/organizations` — ağaç görünümü
 - [ ] Departman ekleme/düzenleme
 
+---
+
+## 🛑 Ertelenenler
+
+### Unclaim (Havuza Bırak)
+- [ ] Elsa v3'ün teknik yetersizlikleri ve döngüsel state kısıtlamaları nedeniyle şimdilik rafa kaldırıldı.
+- [ ] Backend (`UnclaimTicketCommand`) ve Frontend servisleri hazır, ancak Workflow (WaitForAssignment) entegrasyonu bekliyor.
