@@ -54,24 +54,34 @@
 
 ## 📋 Devam Edilecek Maddeler
 
-### 2. Taleplerim Sayfası (Talep Sahibi Görünümü)
-- [ ] Kullanıcının kendi oluşturduğu talepleri listesi
-- [ ] Durum takibi, detay görüntüleme
-- [ ] Gerektiğinde düzenleme imkanı
+### 2. Taleplerim Sayfası (Talep Sahibi Görünümü) ✅
+- [x] Kullanıcının kendi oluşturduğu talepleri listesi (`/dashboard/tickets` → "Taleplerim" sekmesi)
+- [x] Durum takibi, detay görüntüleme (`/dashboard/tickets/[id]`)
+- [x] Yorum bırakabilme (ticket detay sayfasında)
+- [ ] ~Düzenleme imkanı~ — şimdilik gerekli değil, ihtiyaç olursa eklenebilir
 
-### 3. Triage / Dispatcher Akışı
-- [ ] Dispatcher'ın gelen talepleri sınıflandırması
-- [ ] Kategori atama ve ilgili kuyruğa route etme
-- [ ] Önceliklendirme
-
-### 4. Onay Akışları
-- [ ] Departman yöneticisi approval workflow
-- [ ] WaitForApprovalActivity kullanımı
-- [ ] Çoklu onaylayıcı zinciri
-
-### 5. Organizasyon Yönetim Sayfası
+### 3. Organizasyon Yönetim Sayfası
 - [ ] `/manage/organizations` — ağaç görünümü
 - [ ] Departman ekleme/düzenleme
+- [ ] IAM User'a `ManagerUserId` alanı eklenmesi (onay akışı için gerekli ön koşul)
+- [ ] Kullanıcı-yönetici ilişkisinin yönetilmesi
+
+### 4. Onay Akışları
+> **Not:** Organizasyon Yönetim Sayfası'ndan sonra implemente edilecek — kullanıcı-yönetici ilişkisi onay akışının ön koşuludur.
+
+**Mevcut altyapı (hazır):**
+- [x] `WaitForApprovalActivity` — configurable outcome'lu blocking activity
+- [x] Bookmark payload (`ApprovalBookmarkPayload`) — ticketId, label, outcomes, approverUserId
+- [x] Frontend aksiyonlar paneli — ticket detayında Onayla/Reddet butonları otomatik render
+- [x] "Bekleyen Onaylar" sayfası (`/dashboard/approvals`) — UI mevcut, backend bağlantısı güncellenecek
+
+**Yapılacaklar:**
+- [ ] `RequestCategory.RequiresApproval: bool` — kategori bazlı onay zorunluluğu
+- [ ] `ResolveApproverActivity` — talebi açanın yöneticisini IAM User.ManagerUserId üzerinden çözen Elsa activity
+- [ ] Workflow akışı: `ResolveApprover → WaitForApproval → (Approved: RouteToQueue) / (Rejected: Cancel)`
+- [ ] "Bekleyen Onaylar" sayfasının Elsa bookmark API'sine bağlanması
+- [ ] Onaylayıcı çözümleme: `IAM.User.ManagerUserId` → talebi açanın yöneticisi dinamik olarak bulunur
+- [ ] Herhangi bir onaylayıcının onayı yeterli (tek onay mantığı)
 
 ---
 
@@ -80,3 +90,13 @@
 ### Unclaim (Havuza Bırak)
 - [ ] Elsa v3'ün teknik yetersizlikleri ve döngüsel state kısıtlamaları nedeniyle şimdilik rafa kaldırıldı.
 - [ ] Backend (`UnclaimTicketCommand`) ve Frontend servisleri hazır, ancak Workflow (WaitForAssignment) entegrasyonu bekliyor.
+
+### Triage / Dispatcher Akışı
+- [ ] Mevcut sistemde kuyruk yönlendirmesi workflow (RouteToQueue activity) ve kategori bazlı otomatik routing ile yapılıyor, ayrı bir Dispatcher akışına şu an ihtiyaç yok.
+- [ ] **Workflow uyumsuzluk riski:** Dispatcher bir ticket'ı manuel olarak farklı bir kuyruğa yönlendirdiğinde, workflow'daki RouteToQueue activity'si ile çakışma yaratabilir. Workflow kuyruğu A olarak belirlemiş ama Dispatcher B'ye taşımışsa, workflow state'i tutarsız hale gelebilir.
+- [ ] İleride ihtiyaç olursa, ticket detayında basit bir "Kuyruğu Değiştir" dropdown'u (backend API zaten hazır: `POST /tickets/{id}/route`) yeterli olabilir — ancak workflow uyumluluğu önce analiz edilmeli.
+
+### Paralel Onay Akışı
+- [ ] Birden fazla onaylayıcının aynı anda onaylaması gereken senaryolar (ör: 3 kişiden 2'si onaylarsa geç).
+- [ ] Yeni bir `WaitForParallelApprovalActivity` gerektirir.
+- [ ] Tek onay akışı stabil çalıştıktan sonra değerlendirilecek.
