@@ -9,6 +9,7 @@ import {
   ChevronRight, Tag, Link2, GitBranch, Ticket, FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CIRelationshipsPanel from "@/components/ci-relationships-panel";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -326,6 +327,7 @@ export default function ApplicationDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          <CIRelationshipsPanel ciId={appId} ciName={app.name} accentColor="cyan" />
           {/* İlgili Projeler */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
             <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 flex items-center gap-2">
