@@ -72,3 +72,59 @@ public sealed record AddProjectDeliverableCommand(
 
 public sealed record RemoveProjectDeliverableCommand(
     Guid ProjectId, Guid ConfigurationItemId) : IRequest;
+
+// ── Server ──────────────────────────────────────────────────
+public sealed record CreateServerCommand(string Name, string Code,
+    string? Description = null, string ServerType = "Virtual",
+    string Environment = "Production", string Criticality = "Medium",
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? OperatingSystem = null, string? IpAddress = null,
+    string? Hostname = null, int? CpuCores = null, int? RamGB = null,
+    int? DiskGB = null, string? DataCenter = null) : IRequest<Guid>;
+
+public sealed record UpdateServerCommand(Guid ServerId, string? Name = null,
+    string? Description = null, string? ServerType = null,
+    string? Environment = null, string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? OperatingSystem = null, string? IpAddress = null,
+    string? Hostname = null, int? CpuCores = null, int? RamGB = null,
+    int? DiskGB = null, string? DataCenter = null) : IRequest<Guid>;
+
+// ── Database ────────────────────────────────────────────────
+public sealed record CreateDatabaseCommand(string Name, string Code,
+    string? Description = null, string DatabaseEngine = "PostgreSQL",
+    string Criticality = "Medium",
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? Version = null, int? Port = null, decimal? SizeGB = null,
+    string? ConnectionString = null, string? BackupSchedule = null) : IRequest<Guid>;
+
+public sealed record UpdateDatabaseCommand(Guid DatabaseId, string? Name = null,
+    string? Description = null, string? DatabaseEngine = null,
+    string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? Version = null, int? Port = null, decimal? SizeGB = null,
+    string? ConnectionString = null, string? BackupSchedule = null) : IRequest<Guid>;
+
+// ── Licence ─────────────────────────────────────────────────
+public sealed record CreateLicenceCommand(string Name, string Code,
+    string? Description = null, string LicenceType = "Subscription",
+    string Criticality = "Medium", Guid? OwnerUserId = null,
+    string? Vendor = null, string? ProductName = null, string? LicenceKey = null,
+    int? MaxUsers = null, int? CurrentUsers = null,
+    DateTime? ExpirationDate = null, DateTime? PurchaseDate = null,
+    decimal? AnnualCost = null, string? Currency = null) : IRequest<Guid>;
+
+public sealed record UpdateLicenceCommand(Guid LicenceId, string? Name = null,
+    string? Description = null, string? LicenceType = null,
+    string? Status = null, string? Criticality = null, Guid? OwnerUserId = null,
+    string? Vendor = null, string? ProductName = null, string? LicenceKey = null,
+    int? MaxUsers = null, int? CurrentUsers = null,
+    DateTime? ExpirationDate = null, DateTime? PurchaseDate = null,
+    decimal? AnnualCost = null, string? Currency = null) : IRequest<Guid>;
+
+// ── CIRelationship ──────────────────────────────────────────
+public sealed record AddCIRelationshipCommand(
+    Guid SourceCIId, Guid TargetCIId,
+    string RelationType, string? Notes = null) : IRequest<Guid>;
+
+public sealed record RemoveCIRelationshipCommand(Guid RelationshipId) : IRequest;

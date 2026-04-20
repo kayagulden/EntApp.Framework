@@ -93,6 +93,99 @@ public static class TaskManagementEndpoints
             return Results.NoContent();
         }).WithName("RemoveProjectDeliverable");
 
+        // ── Server ──────────────────────────────────────────────
+        var servers = app.MapGroup("/api/pm/servers").WithTags("PM - Servers");
+        servers.MapGet("/", async (ISender mediator, string? status, string? serverType, string? environment) =>
+            Results.Ok(await mediator.Send(new ListServersQuery(status, serverType, environment)))).WithName("ListServers");
+        servers.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetServerQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetServer");
+        servers.MapPost("/", async (CreateServerRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateServerCommand(req.Name, req.Code, req.Description,
+                req.ServerType ?? "Virtual", req.Environment ?? "Production", req.Criticality ?? "Medium",
+                req.OwnerUserId, req.AdminUserId, req.OperatingSystem, req.IpAddress,
+                req.Hostname, req.CpuCores, req.RamGB, req.DiskGB, req.DataCenter));
+            return Results.Created($"/api/pm/servers/{id}", new { id });
+        }).WithName("CreateServer");
+        servers.MapPut("/{id:guid}", async (Guid id, UpdateServerRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateServerCommand(id, req.Name, req.Description,
+                req.ServerType, req.Environment, req.Status, req.Criticality,
+                req.OwnerUserId, req.AdminUserId, req.OperatingSystem, req.IpAddress,
+                req.Hostname, req.CpuCores, req.RamGB, req.DiskGB, req.DataCenter));
+            return Results.Ok(new { id });
+        }).WithName("UpdateServer");
+        servers.MapGet("/{id:guid}/projects", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListCIProjectsQuery(id)))).WithName("ListServerProjects");
+
+        // ── Database ────────────────────────────────────────────
+        var databases = app.MapGroup("/api/pm/databases").WithTags("PM - Databases");
+        databases.MapGet("/", async (ISender mediator, string? status, string? databaseEngine) =>
+            Results.Ok(await mediator.Send(new ListDatabasesQuery(status, databaseEngine)))).WithName("ListDatabases");
+        databases.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetDatabaseQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetDatabase");
+        databases.MapPost("/", async (CreateDatabaseRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateDatabaseCommand(req.Name, req.Code, req.Description,
+                req.DatabaseEngine ?? "PostgreSQL", req.Criticality ?? "Medium",
+                req.OwnerUserId, req.AdminUserId, req.Version, req.Port, req.SizeGB,
+                req.ConnectionString, req.BackupSchedule));
+            return Results.Created($"/api/pm/databases/{id}", new { id });
+        }).WithName("CreateDatabase");
+        databases.MapPut("/{id:guid}", async (Guid id, UpdateDatabaseRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateDatabaseCommand(id, req.Name, req.Description,
+                req.DatabaseEngine, req.Status, req.Criticality,
+                req.OwnerUserId, req.AdminUserId, req.Version, req.Port, req.SizeGB,
+                req.ConnectionString, req.BackupSchedule));
+            return Results.Ok(new { id });
+        }).WithName("UpdateDatabase");
+        databases.MapGet("/{id:guid}/projects", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListCIProjectsQuery(id)))).WithName("ListDatabaseProjects");
+
+        // ── Licence ─────────────────────────────────────────────
+        var licences = app.MapGroup("/api/pm/licences").WithTags("PM - Licences");
+        licences.MapGet("/", async (ISender mediator, string? status, string? licenceType) =>
+            Results.Ok(await mediator.Send(new ListLicencesQuery(status, licenceType)))).WithName("ListLicences");
+        licences.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetLicenceQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetLicence");
+        licences.MapPost("/", async (CreateLicenceRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateLicenceCommand(req.Name, req.Code, req.Description,
+                req.LicenceType ?? "Subscription", req.Criticality ?? "Medium", req.OwnerUserId,
+                req.Vendor, req.ProductName, req.LicenceKey,
+                req.MaxUsers, req.CurrentUsers,
+                req.ExpirationDate, req.PurchaseDate, req.AnnualCost, req.Currency));
+            return Results.Created($"/api/pm/licences/{id}", new { id });
+        }).WithName("CreateLicence");
+        licences.MapPut("/{id:guid}", async (Guid id, UpdateLicenceRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateLicenceCommand(id, req.Name, req.Description,
+                req.LicenceType, req.Status, req.Criticality, req.OwnerUserId,
+                req.Vendor, req.ProductName, req.LicenceKey,
+                req.MaxUsers, req.CurrentUsers,
+                req.ExpirationDate, req.PurchaseDate, req.AnnualCost, req.Currency));
+            return Results.Ok(new { id });
+        }).WithName("UpdateLicence");
+        licences.MapGet("/{id:guid}/projects", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListCIProjectsQuery(id)))).WithName("ListLicenceProjects");
+
+        // ── CI Relationships ────────────────────────────────────
+        var ciRels = app.MapGroup("/api/pm/ci").WithTags("PM - CI Relationships");
+        ciRels.MapGet("/{id:guid}/relationships", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListCIRelationshipsQuery(id)))).WithName("ListCIRelationships");
+        ciRels.MapPost("/{id:guid}/relationships", async (Guid id, AddCIRelationshipRequest req, ISender mediator) =>
+        {
+            var relId = await mediator.Send(new AddCIRelationshipCommand(
+                id, req.TargetCIId, req.RelationType, req.Notes));
+            return Results.Created($"/api/pm/ci/{id}/relationships", new { id = relId });
+        }).WithName("AddCIRelationship");
+        ciRels.MapDelete("/relationships/{relId:guid}", async (Guid relId, ISender mediator) =>
+        {
+            await mediator.Send(new RemoveCIRelationshipCommand(relId));
+            return Results.NoContent();
+        }).WithName("RemoveCIRelationship");
+
         var tasks = app.MapGroup("/api/pm/tasks").WithTags("PM - Tasks");
         tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
             int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
@@ -203,3 +296,46 @@ public sealed record UpdateTaskRequest(string? Title = null, string? Description
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null);
 public sealed record AddDeliverableRequest(Guid ConfigurationItemId, string? Role = "Primary", string? Notes = null);
+
+// Server
+public sealed record CreateServerRequest(string Name, string Code,
+    string? Description = null, string? ServerType = null, string? Environment = null,
+    string? Criticality = null, Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? OperatingSystem = null, string? IpAddress = null, string? Hostname = null,
+    int? CpuCores = null, int? RamGB = null, int? DiskGB = null, string? DataCenter = null);
+public sealed record UpdateServerRequest(string? Name = null, string? Description = null,
+    string? ServerType = null, string? Environment = null, string? Status = null,
+    string? Criticality = null, Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? OperatingSystem = null, string? IpAddress = null, string? Hostname = null,
+    int? CpuCores = null, int? RamGB = null, int? DiskGB = null, string? DataCenter = null);
+
+// Database
+public sealed record CreateDatabaseRequest(string Name, string Code,
+    string? Description = null, string? DatabaseEngine = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? Version = null, int? Port = null, decimal? SizeGB = null,
+    string? ConnectionString = null, string? BackupSchedule = null);
+public sealed record UpdateDatabaseRequest(string? Name = null, string? Description = null,
+    string? DatabaseEngine = null, string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null, Guid? AdminUserId = null,
+    string? Version = null, int? Port = null, decimal? SizeGB = null,
+    string? ConnectionString = null, string? BackupSchedule = null);
+
+// Licence
+public sealed record CreateLicenceRequest(string Name, string Code,
+    string? Description = null, string? LicenceType = null, string? Criticality = null,
+    Guid? OwnerUserId = null,
+    string? Vendor = null, string? ProductName = null, string? LicenceKey = null,
+    int? MaxUsers = null, int? CurrentUsers = null,
+    DateTime? ExpirationDate = null, DateTime? PurchaseDate = null,
+    decimal? AnnualCost = null, string? Currency = null);
+public sealed record UpdateLicenceRequest(string? Name = null, string? Description = null,
+    string? LicenceType = null, string? Status = null, string? Criticality = null,
+    Guid? OwnerUserId = null,
+    string? Vendor = null, string? ProductName = null, string? LicenceKey = null,
+    int? MaxUsers = null, int? CurrentUsers = null,
+    DateTime? ExpirationDate = null, DateTime? PurchaseDate = null,
+    decimal? AnnualCost = null, string? Currency = null);
+
+// CI Relationship
+public sealed record AddCIRelationshipRequest(Guid TargetCIId, string RelationType, string? Notes = null);

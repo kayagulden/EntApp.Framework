@@ -104,3 +104,78 @@ public sealed record TaskDetailDto(
     Guid? ProjectId, string? ProjectKey, string? ProjectName,
     DateTime CreatedAt, DateTime? UpdatedAt,
     List<TaskBySourceDto> SubTasks);
+
+// ── Server ──────────────────────────────────────────────────
+public sealed record ListServersQuery(string? Status = null, string? ServerType = null,
+    string? Environment = null) : IRequest<List<ServerListDto>>;
+public sealed record GetServerQuery(Guid Id) : IRequest<ServerDetailDto?>;
+
+public sealed record ServerListDto(
+    Guid Id, string Name, string Code, string? Description,
+    string ServerType, string Environment, string Status, string Criticality,
+    string? OperatingSystem, string? IpAddress, string? Hostname,
+    int? CpuCores, int? RamGB, int? DiskGB, string? DataCenter,
+    Guid? OwnerUserId, Guid? AdminUserId,
+    DateTime CreatedAt);
+
+public sealed record ServerDetailDto(
+    Guid Id, string Name, string Code, string? Description,
+    string ServerType, string Environment, string Status, string Criticality,
+    string? OperatingSystem, string? IpAddress, string? Hostname,
+    int? CpuCores, int? RamGB, int? DiskGB, string? DataCenter,
+    Guid? OwnerUserId, Guid? AdminUserId,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+
+// ── Database ────────────────────────────────────────────────
+public sealed record ListDatabasesQuery(string? Status = null,
+    string? DatabaseEngine = null) : IRequest<List<DatabaseListDto>>;
+public sealed record GetDatabaseQuery(Guid Id) : IRequest<DatabaseDetailDto?>;
+
+public sealed record DatabaseListDto(
+    Guid Id, string Name, string Code, string? Description,
+    string DatabaseEngine, string Status, string Criticality,
+    string? Version, int? Port, decimal? SizeGB,
+    string? BackupSchedule,
+    Guid? OwnerUserId, Guid? AdminUserId,
+    DateTime CreatedAt);
+
+public sealed record DatabaseDetailDto(
+    Guid Id, string Name, string Code, string? Description,
+    string DatabaseEngine, string Status, string Criticality,
+    string? Version, int? Port, decimal? SizeGB,
+    string? ConnectionString, string? BackupSchedule,
+    Guid? OwnerUserId, Guid? AdminUserId,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+
+// ── Licence ─────────────────────────────────────────────────
+public sealed record ListLicencesQuery(string? Status = null,
+    string? LicenceType = null) : IRequest<List<LicenceListDto>>;
+public sealed record GetLicenceQuery(Guid Id) : IRequest<LicenceDetailDto?>;
+
+public sealed record LicenceListDto(
+    Guid Id, string Name, string Code, string? Description,
+    string LicenceType, string Status, string Criticality,
+    string? Vendor, string? ProductName,
+    int? MaxUsers, int? CurrentUsers,
+    DateTime? ExpirationDate, decimal? AnnualCost, string? Currency,
+    Guid? OwnerUserId,
+    DateTime CreatedAt);
+
+public sealed record LicenceDetailDto(
+    Guid Id, string Name, string Code, string? Description,
+    string LicenceType, string Status, string Criticality,
+    string? Vendor, string? ProductName, string? LicenceKey,
+    int? MaxUsers, int? CurrentUsers,
+    DateTime? ExpirationDate, DateTime? PurchaseDate,
+    decimal? AnnualCost, string? Currency,
+    Guid? OwnerUserId,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+
+// ── CIRelationship ──────────────────────────────────────────
+public sealed record ListCIRelationshipsQuery(Guid CIId) : IRequest<List<CIRelationshipDto>>;
+
+public sealed record CIRelationshipDto(
+    Guid Id, Guid SourceCIId, string SourceName, string SourceCode, string SourceType,
+    Guid TargetCIId, string TargetName, string TargetCode, string TargetType,
+    string RelationType, string? Notes,
+    string Direction); // "outgoing" or "incoming" relative to the queried CI

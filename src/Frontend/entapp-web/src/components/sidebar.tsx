@@ -20,6 +20,9 @@ import {
   ListTodo,
   FolderKanban,
   AppWindow,
+  Server,
+  HardDrive,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores";
@@ -50,7 +53,16 @@ const STATIC_SECTIONS: SidebarSection[] = [
       { href: "/dashboard/tickets", label: "Talepler", icon: TicketIcon, matchPrefix: true },
       { href: "/dashboard/tasks", label: "Görevler", icon: ListTodo, matchPrefix: true },
       { href: "/dashboard/projects", label: "Projeler", icon: FolderKanban, matchPrefix: true },
+    ],
+  },
+  {
+    key: "cmdb",
+    label: "CMDB",
+    links: [
       { href: "/dashboard/applications", label: "Uygulamalar", icon: AppWindow, matchPrefix: true },
+      { href: "/dashboard/servers", label: "Sunucular", icon: Server, matchPrefix: true },
+      { href: "/dashboard/databases", label: "Veritabanları", icon: HardDrive, matchPrefix: true },
+      { href: "/dashboard/licences", label: "Lisanslar", icon: KeyRound, matchPrefix: true },
     ],
   },
   {

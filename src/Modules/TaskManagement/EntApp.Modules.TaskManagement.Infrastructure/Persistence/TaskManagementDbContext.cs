@@ -20,6 +20,10 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<CommentBase> Comments => Set<CommentBase>();
     public DbSet<TimeEntryBase> TimeEntries => Set<TimeEntryBase>();
     public DbSet<ProjectDeliverable> ProjectDeliverables => Set<ProjectDeliverable>();
+    public DbSet<ServerCI> Servers => Set<ServerCI>();
+    public DbSet<DatabaseCI> Databases => Set<DatabaseCI>();
+    public DbSet<LicenceCI> Licences => Set<LicenceCI>();
+    public DbSet<CIRelationship> CIRelationships => Set<CIRelationship>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -83,6 +87,41 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.RepositoryUrl).HasMaxLength(500);
             e.Property(x => x.DocumentationUrl).HasMaxLength(500);
             e.Property(x => x.CurrentVersion).HasMaxLength(50);
+        });
+
+        // ── Server (CI derived — TPT) ─────────────────────
+        modelBuilder.Entity<ServerCI>(e =>
+        {
+            e.ToTable("servers");
+            e.Property(x => x.ServerType).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Environment).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.OperatingSystem).HasMaxLength(100);
+            e.Property(x => x.IpAddress).HasMaxLength(100);
+            e.Property(x => x.Hostname).HasMaxLength(200);
+            e.Property(x => x.DataCenter).HasMaxLength(200);
+        });
+
+        // ── Database (CI derived — TPT) ───────────────────
+        modelBuilder.Entity<DatabaseCI>(e =>
+        {
+            e.ToTable("databases");
+            e.Property(x => x.DatabaseEngine).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Version).HasMaxLength(50);
+            e.Property(x => x.ConnectionString).HasMaxLength(500);
+            e.Property(x => x.BackupSchedule).HasMaxLength(200);
+            e.Property(x => x.SizeGB).HasPrecision(10, 2);
+        });
+
+        // ── Licence (CI derived — TPT) ────────────────────
+        modelBuilder.Entity<LicenceCI>(e =>
+        {
+            e.ToTable("licences");
+            e.Property(x => x.LicenceType).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Vendor).HasMaxLength(200);
+            e.Property(x => x.ProductName).HasMaxLength(200);
+            e.Property(x => x.LicenceKey).HasMaxLength(500);
+            e.Property(x => x.Currency).HasMaxLength(10);
+            e.Property(x => x.AnnualCost).HasPrecision(18, 2);
         });
 
         // ── Task ───────────────────────────────────────────
@@ -160,6 +199,24 @@ public sealed class TaskManagementDbContext : BaseDbContext
                 .HasDatabaseName("ix_project_deliverables_unique");
             e.HasOne(x => x.Project).WithMany(p => p.Deliverables).HasForeignKey(x => x.ProjectId);
             e.HasOne(x => x.ConfigurationItem).WithMany(ci => ci.ProjectDeliverables).HasForeignKey(x => x.ConfigurationItemId);
+        });
+
+        // ── CIRelationship (CI ↔ CI directed graph) ─────────
+        modelBuilder.Entity<CIRelationship>(e =>
+        {
+            e.ToTable("ci_relationships");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<CIRelationshipId>());
+            e.Property(x => x.SourceCIId).HasConversion(new StronglyTypedIdValueConverter<ConfigurationItemId>());
+            e.Property(x => x.TargetCIId).HasConversion(new StronglyTypedIdValueConverter<ConfigurationItemId>());
+            e.Property(x => x.RelationType).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => new { x.SourceCIId, x.TargetCIId, x.RelationType }).IsUnique()
+                .HasDatabaseName("ix_ci_relationships_unique");
+            e.HasIndex(x => x.SourceCIId).HasDatabaseName("ix_ci_relationships_source");
+            e.HasIndex(x => x.TargetCIId).HasDatabaseName("ix_ci_relationships_target");
+            e.HasOne(x => x.SourceCI).WithMany().HasForeignKey(x => x.SourceCIId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.TargetCI).WithMany().HasForeignKey(x => x.TargetCIId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

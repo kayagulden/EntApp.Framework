@@ -650,3 +650,327 @@ public sealed class ListCIProjectsQueryHandler(TaskManagementDbContext db)
             .ToListAsync(ct);
     }
 }
+
+// ══════════════════════════════════════════════════════════════
+// SERVER HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListServersQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListServersQuery, List<ServerListDto>>
+{
+    public async Task<List<ServerListDto>> Handle(ListServersQuery request, CancellationToken ct)
+    {
+        var query = db.Servers.AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<CIStatus>(request.Status, out var s))
+            query = query.Where(x => x.Status == s);
+        if (!string.IsNullOrEmpty(request.ServerType) && Enum.TryParse<ServerType>(request.ServerType, out var st))
+            query = query.Where(x => x.ServerType == st);
+        if (!string.IsNullOrEmpty(request.Environment) && Enum.TryParse<DeploymentEnvironment>(request.Environment, out var env))
+            query = query.Where(x => x.Environment == env);
+        return await query.OrderBy(x => x.Name)
+            .Select(x => new ServerListDto(
+                x.Id.Value, x.Name, x.Code, x.Description,
+                x.ServerType.ToString(), x.Environment.ToString(), x.Status.ToString(), x.Criticality.ToString(),
+                x.OperatingSystem, x.IpAddress, x.Hostname,
+                x.CpuCores, x.RamGB, x.DiskGB, x.DataCenter,
+                x.OwnerUserId, x.AdminUserId, x.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetServerQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetServerQuery, ServerDetailDto?>
+{
+    public async Task<ServerDetailDto?> Handle(GetServerQuery request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.Id);
+        var s = await db.Servers.FirstOrDefaultAsync(x => x.Id == ciId, ct);
+        if (s is null) return null;
+        return new ServerDetailDto(
+            s.Id.Value, s.Name, s.Code, s.Description,
+            s.ServerType.ToString(), s.Environment.ToString(), s.Status.ToString(), s.Criticality.ToString(),
+            s.OperatingSystem, s.IpAddress, s.Hostname,
+            s.CpuCores, s.RamGB, s.DiskGB, s.DataCenter,
+            s.OwnerUserId, s.AdminUserId, s.CreatedAt, s.UpdatedAt);
+    }
+}
+
+public sealed class CreateServerCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateServerCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateServerCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<ServerType>(request.ServerType, out var st);
+        Enum.TryParse<DeploymentEnvironment>(request.Environment, out var env);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        var server = ServerCI.Create(request.Name, request.Code, request.Description,
+            st, env, crit, request.OwnerUserId, request.AdminUserId,
+            request.OperatingSystem, request.IpAddress, request.Hostname,
+            request.CpuCores, request.RamGB, request.DiskGB, request.DataCenter);
+        db.Servers.Add(server);
+        await db.SaveChangesAsync(ct);
+        return server.Id.Value;
+    }
+}
+
+public sealed class UpdateServerCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateServerCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateServerCommand request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.ServerId);
+        var server = await db.Servers.FirstOrDefaultAsync(x => x.Id == ciId, ct)
+            ?? throw new InvalidOperationException("Server not found");
+        Enum.TryParse<ServerType>(request.ServerType, out var st);
+        Enum.TryParse<DeploymentEnvironment>(request.Environment, out var env);
+        Enum.TryParse<CIStatus>(request.Status, out var status);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        server.Update(request.Name, request.Description,
+            request.ServerType != null ? st : null, request.Environment != null ? env : null,
+            request.Status != null ? status : null, request.Criticality != null ? crit : null,
+            request.OwnerUserId, request.AdminUserId,
+            request.OperatingSystem, request.IpAddress, request.Hostname,
+            request.CpuCores, request.RamGB, request.DiskGB, request.DataCenter);
+        await db.SaveChangesAsync(ct);
+        return server.Id.Value;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATABASE HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListDatabasesQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListDatabasesQuery, List<DatabaseListDto>>
+{
+    public async Task<List<DatabaseListDto>> Handle(ListDatabasesQuery request, CancellationToken ct)
+    {
+        var query = db.Databases.AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<CIStatus>(request.Status, out var s))
+            query = query.Where(x => x.Status == s);
+        if (!string.IsNullOrEmpty(request.DatabaseEngine) && Enum.TryParse<DatabaseEngine>(request.DatabaseEngine, out var eng))
+            query = query.Where(x => x.DatabaseEngine == eng);
+        return await query.OrderBy(x => x.Name)
+            .Select(x => new DatabaseListDto(
+                x.Id.Value, x.Name, x.Code, x.Description,
+                x.DatabaseEngine.ToString(), x.Status.ToString(), x.Criticality.ToString(),
+                x.Version, x.Port, x.SizeGB, x.BackupSchedule,
+                x.OwnerUserId, x.AdminUserId, x.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetDatabaseQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetDatabaseQuery, DatabaseDetailDto?>
+{
+    public async Task<DatabaseDetailDto?> Handle(GetDatabaseQuery request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.Id);
+        var d = await db.Databases.FirstOrDefaultAsync(x => x.Id == ciId, ct);
+        if (d is null) return null;
+        return new DatabaseDetailDto(
+            d.Id.Value, d.Name, d.Code, d.Description,
+            d.DatabaseEngine.ToString(), d.Status.ToString(), d.Criticality.ToString(),
+            d.Version, d.Port, d.SizeGB, d.ConnectionString, d.BackupSchedule,
+            d.OwnerUserId, d.AdminUserId, d.CreatedAt, d.UpdatedAt);
+    }
+}
+
+public sealed class CreateDatabaseCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateDatabaseCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateDatabaseCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<DatabaseEngine>(request.DatabaseEngine, out var eng);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        var database = DatabaseCI.Create(request.Name, request.Code, request.Description,
+            eng, crit, request.OwnerUserId, request.AdminUserId,
+            request.Version, request.Port, request.SizeGB,
+            request.ConnectionString, request.BackupSchedule);
+        db.Databases.Add(database);
+        await db.SaveChangesAsync(ct);
+        return database.Id.Value;
+    }
+}
+
+public sealed class UpdateDatabaseCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateDatabaseCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateDatabaseCommand request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.DatabaseId);
+        var database = await db.Databases.FirstOrDefaultAsync(x => x.Id == ciId, ct)
+            ?? throw new InvalidOperationException("Database not found");
+        Enum.TryParse<DatabaseEngine>(request.DatabaseEngine, out var eng);
+        Enum.TryParse<CIStatus>(request.Status, out var status);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        database.Update(request.Name, request.Description,
+            request.DatabaseEngine != null ? eng : null,
+            request.Status != null ? status : null, request.Criticality != null ? crit : null,
+            request.OwnerUserId, request.AdminUserId,
+            request.Version, request.Port, request.SizeGB,
+            request.ConnectionString, request.BackupSchedule);
+        await db.SaveChangesAsync(ct);
+        return database.Id.Value;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LICENCE HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListLicencesQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListLicencesQuery, List<LicenceListDto>>
+{
+    public async Task<List<LicenceListDto>> Handle(ListLicencesQuery request, CancellationToken ct)
+    {
+        var query = db.Licences.AsQueryable();
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<CIStatus>(request.Status, out var s))
+            query = query.Where(x => x.Status == s);
+        if (!string.IsNullOrEmpty(request.LicenceType) && Enum.TryParse<LicenceType>(request.LicenceType, out var lt))
+            query = query.Where(x => x.LicenceType == lt);
+        return await query.OrderBy(x => x.Name)
+            .Select(x => new LicenceListDto(
+                x.Id.Value, x.Name, x.Code, x.Description,
+                x.LicenceType.ToString(), x.Status.ToString(), x.Criticality.ToString(),
+                x.Vendor, x.ProductName,
+                x.MaxUsers, x.CurrentUsers,
+                x.ExpirationDate, x.AnnualCost, x.Currency,
+                x.OwnerUserId, x.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetLicenceQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetLicenceQuery, LicenceDetailDto?>
+{
+    public async Task<LicenceDetailDto?> Handle(GetLicenceQuery request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.Id);
+        var l = await db.Licences.FirstOrDefaultAsync(x => x.Id == ciId, ct);
+        if (l is null) return null;
+        return new LicenceDetailDto(
+            l.Id.Value, l.Name, l.Code, l.Description,
+            l.LicenceType.ToString(), l.Status.ToString(), l.Criticality.ToString(),
+            l.Vendor, l.ProductName, l.LicenceKey,
+            l.MaxUsers, l.CurrentUsers,
+            l.ExpirationDate, l.PurchaseDate,
+            l.AnnualCost, l.Currency,
+            l.OwnerUserId, l.CreatedAt, l.UpdatedAt);
+    }
+}
+
+public sealed class CreateLicenceCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateLicenceCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateLicenceCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<LicenceType>(request.LicenceType, out var lt);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        var licence = LicenceCI.Create(request.Name, request.Code, request.Description,
+            lt, crit, request.OwnerUserId,
+            request.Vendor, request.ProductName, request.LicenceKey,
+            request.MaxUsers, request.CurrentUsers,
+            request.ExpirationDate, request.PurchaseDate,
+            request.AnnualCost, request.Currency);
+        db.Licences.Add(licence);
+        await db.SaveChangesAsync(ct);
+        return licence.Id.Value;
+    }
+}
+
+public sealed class UpdateLicenceCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateLicenceCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateLicenceCommand request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.LicenceId);
+        var licence = await db.Licences.FirstOrDefaultAsync(x => x.Id == ciId, ct)
+            ?? throw new InvalidOperationException("Licence not found");
+        Enum.TryParse<LicenceType>(request.LicenceType, out var lt);
+        Enum.TryParse<CIStatus>(request.Status, out var status);
+        Enum.TryParse<CICriticality>(request.Criticality, out var crit);
+        licence.Update(request.Name, request.Description,
+            request.LicenceType != null ? lt : null,
+            request.Status != null ? status : null, request.Criticality != null ? crit : null,
+            request.OwnerUserId,
+            request.Vendor, request.ProductName, request.LicenceKey,
+            request.MaxUsers, request.CurrentUsers,
+            request.ExpirationDate, request.PurchaseDate,
+            request.AnnualCost, request.Currency);
+        await db.SaveChangesAsync(ct);
+        return licence.Id.Value;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CI RELATIONSHIP HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class AddCIRelationshipCommandHandler(TaskManagementDbContext db) : IRequestHandler<AddCIRelationshipCommand, Guid>
+{
+    public async Task<Guid> Handle(AddCIRelationshipCommand request, CancellationToken ct)
+    {
+        if (!Enum.TryParse<CIRelationType>(request.RelationType, out var relType))
+            throw new InvalidOperationException($"Invalid relation type: {request.RelationType}");
+        var sourceCIId = new ConfigurationItemId(request.SourceCIId);
+        var targetCIId = new ConfigurationItemId(request.TargetCIId);
+        // Self-reference check
+        if (sourceCIId == targetCIId)
+            throw new InvalidOperationException("Cannot create a relationship between a CI and itself");
+        // Verify both CIs exist
+        var sourceExists = await db.Set<ConfigurationItemBase>().AnyAsync(ci => ci.Id == sourceCIId, ct);
+        var targetExists = await db.Set<ConfigurationItemBase>().AnyAsync(ci => ci.Id == targetCIId, ct);
+        if (!sourceExists) throw new InvalidOperationException("Source CI not found");
+        if (!targetExists) throw new InvalidOperationException("Target CI not found");
+        // Check duplicate
+        var exists = await db.CIRelationships.AnyAsync(r =>
+            r.SourceCIId == sourceCIId && r.TargetCIId == targetCIId && r.RelationType == relType, ct);
+        if (exists) throw new InvalidOperationException("Relationship already exists");
+        var rel = CIRelationship.Create(sourceCIId, targetCIId, relType, request.Notes);
+        db.CIRelationships.Add(rel);
+        await db.SaveChangesAsync(ct);
+        return rel.Id.Value;
+    }
+}
+
+public sealed class RemoveCIRelationshipCommandHandler(TaskManagementDbContext db) : IRequestHandler<RemoveCIRelationshipCommand>
+{
+    public async Task Handle(RemoveCIRelationshipCommand request, CancellationToken ct)
+    {
+        var relId = new CIRelationshipId(request.RelationshipId);
+        var rel = await db.CIRelationships.FirstOrDefaultAsync(x => x.Id == relId, ct)
+            ?? throw new InvalidOperationException("Relationship not found");
+        db.CIRelationships.Remove(rel);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListCIRelationshipsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListCIRelationshipsQuery, List<CIRelationshipDto>>
+{
+    public async Task<List<CIRelationshipDto>> Handle(ListCIRelationshipsQuery request, CancellationToken ct)
+    {
+        var ciId = new ConfigurationItemId(request.CIId);
+
+        // Load outgoing relationships with target CI data
+        var outgoingRels = await db.CIRelationships
+            .Include(r => r.TargetCI)
+            .Where(r => r.SourceCIId == ciId)
+            .ToListAsync(ct);
+
+        var outgoing = outgoingRels.Select(r => new CIRelationshipDto(
+            r.Id.Value, r.SourceCIId.Value, "", "", "",
+            r.TargetCIId.Value, r.TargetCI?.Name ?? "", r.TargetCI?.Code ?? "", GetCIType(r.TargetCI),
+            r.RelationType.ToString(), r.Notes, "outgoing")).ToList();
+
+        // Load incoming relationships with source CI data
+        var incomingRels = await db.CIRelationships
+            .Include(r => r.SourceCI)
+            .Where(r => r.TargetCIId == ciId)
+            .ToListAsync(ct);
+
+        var incoming = incomingRels.Select(r => new CIRelationshipDto(
+            r.Id.Value, r.SourceCIId.Value, r.SourceCI?.Name ?? "", r.SourceCI?.Code ?? "", GetCIType(r.SourceCI),
+            r.TargetCIId.Value, "", "", "",
+            r.RelationType.ToString(), r.Notes, "incoming")).ToList();
+
+        return [..outgoing, ..incoming];
+    }
+
+    private static string GetCIType(ConfigurationItemBase? ci) => ci switch
+    {
+        ApplicationBase => "Application",
+        ServerCI => "Server",
+        DatabaseCI => "Database",
+        LicenceCI => "Licence",
+        _ => "CI"
+    };
+}

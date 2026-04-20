@@ -114,3 +114,61 @@ public enum DeliverableRole
     /// <summary>Destek — proje için altyapı/araç.</summary>
     Supporting = 2
 }
+
+// ── CMDB CI Enum'ları ────────────────────────────────────────
+
+/// <summary>Sunucu tipi.</summary>
+public enum ServerType
+{
+    Physical = 0,
+    Virtual = 1,
+    Container = 2,
+    Cloud = 3
+}
+
+/// <summary>Dağıtım ortamı.</summary>
+public enum DeploymentEnvironment
+{
+    Development = 0,
+    Staging = 1,
+    Production = 2,
+    DR = 3
+}
+
+/// <summary>Veritabanı motoru.</summary>
+public enum DatabaseEngine
+{
+    PostgreSQL = 0,
+    MSSQL = 1,
+    Oracle = 2,
+    MySQL = 3,
+    MongoDB = 4,
+    Redis = 5
+}
+
+/// <summary>Lisans tipi.</summary>
+public enum LicenceType
+{
+    Perpetual = 0,
+    Subscription = 1,
+    OpenSource = 2,
+    Trial = 3,
+    OEM = 4
+}
+
+/// <summary>CI-CI ilişki tipi — CMDB graf yapısı.</summary>
+public enum CIRelationType
+{
+    /// <summary>Uygulama → Server ("bu sunucuda çalışır").</summary>
+    RunsOn = 0,
+    /// <summary>Uygulama → Database ("bu veritabanına bağımlı").</summary>
+    DependsOn = 1,
+    /// <summary>Lisans → Uygulama/Server ("bu CI'a atanmış").</summary>
+    LicensedTo = 2,
+    /// <summary>Database → Server ("bu sunucuda barınır").</summary>
+    HostedOn = 3,
+    /// <summary>Uygulama → Uygulama ("entegre olur").</summary>
+    IntegratesWith = 4,
+    /// <summary>Server → Server ("yedek/DR").</summary>
+    BackupOf = 5
+}
