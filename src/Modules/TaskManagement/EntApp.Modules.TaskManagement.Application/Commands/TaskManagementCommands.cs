@@ -64,3 +64,11 @@ public sealed record CreateTimeEntryCommand(Guid TaskId, Guid UserId, decimal Ho
 public sealed record UpdateTaskCommand(Guid TaskId, string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null) : IRequest<Guid>;
+
+// ── ProjectDeliverable ─────────────────────────────────────
+public sealed record AddProjectDeliverableCommand(
+    Guid ProjectId, Guid ConfigurationItemId,
+    string Role = "Primary", string? Notes = null) : IRequest<Guid>;
+
+public sealed record RemoveProjectDeliverableCommand(
+    Guid ProjectId, Guid ConfigurationItemId) : IRequest;

@@ -116,7 +116,8 @@ public sealed class CreateTicketHandler(
         var ticket = Ticket.Create(number, request.Title,
             new RequestCategoryId(request.CategoryId), deptId,
             reporterUserId, request.Description, request.Priority, request.Channel,
-            request.FormDataJson);
+            request.FormDataJson,
+            configurationItemId: request.ConfigurationItemId);
 
         // SLA hesapla
         if (category?.SlaDefinitionEntity is not null)
@@ -207,7 +208,7 @@ public sealed class UpdateTicketHandler(RequestManagementDbContext db)
         var ticket = await db.Tickets.FindAsync([new TicketId(request.Id)], ct)
             ?? throw new KeyNotFoundException($"Ticket '{request.Id}' not found.");
 
-        ticket.Update(request.Title, request.Description, request.Priority);
+        ticket.Update(request.Title, request.Description, request.Priority, request.ConfigurationItemId);
         await db.SaveChangesAsync(ct);
     }
 }
@@ -359,6 +360,7 @@ public sealed class ListTicketsHandler(RequestManagementDbContext db)
         if (request.ReporterUserId.HasValue) query = query.Where(t => t.ReporterUserId == request.ReporterUserId.Value);
         if (request.DepartmentId.HasValue) query = query.Where(t => t.DepartmentId == new DepartmentId(request.DepartmentId.Value));
         if (request.ServiceQueueId.HasValue) query = query.Where(t => t.ServiceQueueId == new ServiceQueueId(request.ServiceQueueId.Value));
+        if (request.ConfigurationItemId.HasValue) query = query.Where(t => t.ConfigurationItemId == request.ConfigurationItemId.Value);
 
         // Kuyruk havuzu filtresi: virgülle ayrılmış queue ID'leri
         if (!string.IsNullOrWhiteSpace(request.QueueIds))

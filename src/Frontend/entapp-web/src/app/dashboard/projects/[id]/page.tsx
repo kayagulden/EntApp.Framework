@@ -6,7 +6,7 @@ import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
   Loader2, CheckCircle2, PauseCircle, RotateCcw, AlertCircle,
   Briefcase, Edit3, Save, X, ListTodo, Layout, Milestone, Archive,
-  ChevronRight, Monitor, ShoppingCart, Building2, Tag,
+  ChevronRight, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,23 @@ interface ProjectDetail {
   taskSequence: number;
   createdAt: string;
   updatedAt?: string;
+  deliverables?: DeliverableItem[];
+}
+
+interface DeliverableItem {
+  id: string;
+  configurationItemId: string;
+  ciName: string;
+  ciCode: string;
+  ciType: string;
+  role: string;
+  notes?: string;
+}
+
+interface ApplicationOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface PortfolioOption { id: string; name: string; code: string; }
@@ -106,6 +123,12 @@ export default function ProjectDetailPage() {
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // Deliverables
+  const [applications, setApplications] = useState<ApplicationOption[]>([]);
+  const [addingDeliverable, setAddingDeliverable] = useState(false);
+  const [selectedAppId, setSelectedAppId] = useState("");
+  const [selectedRole, setSelectedRole] = useState("Primary");
+
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -124,6 +147,38 @@ export default function ProjectDetailPage() {
   }, []);
 
   useEffect(() => { fetchProject(); fetchPortfolios(); }, [fetchProject, fetchPortfolios]);
+
+  // Fetch apps for deliverable dropdown
+  useEffect(() => {
+    fetch("/api/pm/applications")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setApplications(Array.isArray(data) ? data : []))
+      .catch(() => setApplications([]));
+  }, []);
+
+  const addDeliverable = async () => {
+    if (!selectedAppId || !projectId) return;
+    setAddingDeliverable(true);
+    try {
+      await fetch(`/api/pm/projects/${projectId}/deliverables`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configurationItemId: selectedAppId, role: selectedRole }),
+      });
+      setSelectedAppId("");
+      setSelectedRole("Primary");
+      fetchProject();
+    } catch { /* */ }
+    finally { setAddingDeliverable(false); }
+  };
+
+  const removeDeliverable = async (ciId: string) => {
+    if (!projectId) return;
+    try {
+      await fetch(`/api/pm/projects/${projectId}/deliverables/${ciId}`, { method: "DELETE" });
+      fetchProject();
+    } catch { /* */ }
+  };
 
   // Start editing
   const startEdit = () => {
@@ -378,6 +433,67 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <StatBox icon={BarChart3} label="Görevler" value={project.taskCount} color="indigo" />
                 <StatBox icon={GitBranch} label="Sıra" value={project.taskSequence} color="violet" />
+              </div>
+            </div>
+
+            {/* Teslim Edilebilirler */}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 flex items-center gap-2">
+                <AppWindow className="w-4 h-4 text-cyan-400" /> Teslim Edilebilirler
+              </h3>
+              {(project.deliverables && project.deliverables.length > 0) && (
+                <ul className="space-y-2 mb-3">
+                  {project.deliverables.map(d => (
+                    <li key={d.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-bg)] group">
+                      <button
+                        onClick={() => router.push(`/dashboard/applications/${d.configurationItemId}`)}
+                        className="text-left flex-1 min-w-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-cyan-400">{d.ciCode}</span>
+                          <span className="text-[10px] text-[var(--color-text-muted)]">{d.role}</span>
+                        </div>
+                        <p className="text-xs text-[var(--color-text)] truncate">{d.ciName}</p>
+                      </button>
+                      <button
+                        onClick={() => removeDeliverable(d.configurationItemId)}
+                        className="p-1 rounded text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Kaldır"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Add deliverable form */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedAppId}
+                  onChange={(e) => setSelectedAppId(e.target.value)}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                >
+                  <option value="">Uygulama seçin...</option>
+                  {applications
+                    .filter(a => !project.deliverables?.some(d => d.configurationItemId === a.id))
+                    .map(a => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}
+                </select>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-24 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                >
+                  <option value="Primary">Primary</option>
+                  <option value="Secondary">Secondary</option>
+                  <option value="Supporting">Supporting</option>
+                </select>
+                <button
+                  onClick={addDeliverable}
+                  disabled={!selectedAppId || addingDeliverable}
+                  className="p-1.5 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-40 transition-colors"
+                >
+                  {addingDeliverable ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
 

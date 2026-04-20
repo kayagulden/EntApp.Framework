@@ -51,8 +51,10 @@ public static class TaskManagementEndpoints
                 req.RepositoryUrl, req.DocumentationUrl, req.CurrentVersion));
             return Results.Ok(new { id });
         }).WithName("UpdateApplication");
+        apps.MapGet("/{id:guid}/projects", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListCIProjectsQuery(id)))).WithName("ListApplicationProjects");
 
-        // ── Project ──────────────────────────────────────────
+        // ── Project ────────────────────────────────────────────
         var proj = app.MapGroup("/api/pm/projects").WithTags("PM - Projects");
         proj.MapGet("/", async (ISender mediator, string? status, Guid? portfolioId) =>
             Results.Ok(await mediator.Send(new ListProjectsQuery(status, portfolioId)))).WithName("ListProjects");
@@ -74,6 +76,23 @@ public static class TaskManagementEndpoints
                 req.Category));
             return Results.Ok(new { id });
         }).WithName("UpdateProject");
+
+        // ── ProjectDeliverable (Proje ↔ CI) ─────────────────
+        proj.MapGet("/{id:guid}/deliverables", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListProjectDeliverablesQuery(id))))
+            .WithName("ListProjectDeliverables");
+        proj.MapPost("/{id:guid}/deliverables", async (Guid id, AddDeliverableRequest req, ISender mediator) =>
+        {
+            var deliverableId = await mediator.Send(new AddProjectDeliverableCommand(
+                id, req.ConfigurationItemId, req.Role ?? "Primary", req.Notes));
+            return Results.Created($"/api/pm/projects/{id}/deliverables", new { id = deliverableId });
+        }).WithName("AddProjectDeliverable");
+        proj.MapDelete("/{id:guid}/deliverables/{ciId:guid}", async (Guid id, Guid ciId, ISender mediator) =>
+        {
+            await mediator.Send(new RemoveProjectDeliverableCommand(id, ciId));
+            return Results.NoContent();
+        }).WithName("RemoveProjectDeliverable");
+
         var tasks = app.MapGroup("/api/pm/tasks").WithTags("PM - Tasks");
         tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
             int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
@@ -183,3 +202,4 @@ public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Ho
 public sealed record UpdateTaskRequest(string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null);
+public sealed record AddDeliverableRequest(Guid ConfigurationItemId, string? Role = "Primary", string? Notes = null);

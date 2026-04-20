@@ -26,6 +26,13 @@ public abstract class ConfigurationItemBase : AuditableEntity<ConfigurationItemI
 
     public Guid TenantId { get; set; }
 
+    // Navigation — projelerle ilişki
+    public ICollection<ProjectDeliverable> ProjectDeliverables { get; protected set; } = [];
+
+    public void Retire() => Status = CIStatus.Retired;
+    public void Deprecate() => Status = CIStatus.Deprecated;
+    public void Activate() => Status = CIStatus.Active;
+
     protected ConfigurationItemBase()
     {
         CreatedAt = DateTime.UtcNow;

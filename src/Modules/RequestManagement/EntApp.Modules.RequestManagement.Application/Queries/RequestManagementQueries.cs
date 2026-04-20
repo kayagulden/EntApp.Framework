@@ -18,6 +18,7 @@ public sealed record ListTicketsQuery(
     Guid? ServiceQueueId = null,
     string? QueueIds = null,
     bool UnassignedOnly = false,
+    Guid? ConfigurationItemId = null,
     int Page = 1, int PageSize = 20) : IRequest<TicketListResult>;
 
 public sealed record GetTicketQuery(Guid Id) : IRequest<Ticket?>;

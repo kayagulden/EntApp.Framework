@@ -23,6 +23,7 @@ import {
   ClipboardList,
   UserCheck,
   Hand,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +78,12 @@ interface MyQueueData {
   role: string;
   ticketCount: number;
   unassignedCount: number;
+}
+
+interface ApplicationOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 type TabKey = "my-requests" | "my-assignments" | "queue-pool";
@@ -181,8 +188,10 @@ export default function TicketsPage() {
   const [formCategoryId, setFormCategoryId] = useState("");
   const [formPriority, setFormPriority] = useState("Medium");
   const [formChannel, setFormChannel] = useState("Portal");
+  const [formApplicationId, setFormApplicationId] = useState("");
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [applications, setApplications] = useState<ApplicationOption[]>([]);
 
   // ── Claiming state ──
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -272,6 +281,10 @@ export default function TicketsPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setCategories(Array.isArray(data) ? data : []))
       .catch(() => setCategories([]));
+    fetch("/api/pm/applications")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setApplications(Array.isArray(data) ? data : []))
+      .catch(() => setApplications([]));
   }, [showCreate]);
 
   const filteredCategories = formDepartmentId
@@ -300,6 +313,7 @@ export default function TicketsPage() {
           priority: ({ Low: 0, Medium: 1, High: 2, Critical: 3, Urgent: 4 } as Record<string, number>)[formPriority] ?? 1,
           channel: ({ Portal: 0, Email: 1, Phone: 2, Chat: 3, Internal: 4 } as Record<string, number>)[formChannel] ?? 0,
           reporterUserId: currentUserId,
+          configurationItemId: formApplicationId || null,
         }),
       });
       if (res.ok) {
@@ -324,6 +338,7 @@ export default function TicketsPage() {
     setFormCategoryId("");
     setFormPriority("Medium");
     setFormChannel("Portal");
+    setFormApplicationId("");
     setFormError("");
   };
 
@@ -802,6 +817,27 @@ export default function TicketsPage() {
                   placeholder="Talebinizi detaylı açıklayın..."
                   className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
+              </div>
+
+              {/* İlgili Uygulama (opsiyonel) */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    İlgili Uygulama
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-normal">(opsiyonel)</span>
+                  </div>
+                </label>
+                <select
+                  value={formApplicationId}
+                  onChange={(e) => setFormApplicationId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                >
+                  <option value="">Uygulama seçin (opsiyonel)</option>
+                  {applications.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/10">

@@ -6,7 +6,7 @@ import {
   ArrowLeft, AppWindow, Calendar, Code2, Globe, ExternalLink,
   Loader2, CheckCircle2, RotateCcw, AlertTriangle, Archive,
   Clock, Edit3, Save, X, Shield, Monitor, ShoppingCart, Zap,
-  ChevronRight, Tag, Link2, GitBranch,
+  ChevronRight, Tag, Link2, GitBranch, Ticket, FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,25 @@ interface ApplicationDetail {
   currentVersion?: string;
   createdAt: string;
   updatedAt?: string;
+  projects?: CIProjectItem[];
+}
+
+interface CIProjectItem {
+  projectId: string;
+  projectKey: string;
+  projectName: string;
+  projectStatus: string;
+  role: string;
+  notes?: string;
+}
+
+interface RelatedTicket {
+  id: { value: string } | string;
+  number: string;
+  title: string;
+  status: string;
+  priority: string;
+  createdAt: string;
 }
 
 // ── Config ──────────────────────────────────────────────────
@@ -79,6 +98,8 @@ export default function ApplicationDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [relatedTickets, setRelatedTickets] = useState<RelatedTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
 
   const fetchApp = useCallback(async () => {
     if (!appId) return;
@@ -91,6 +112,17 @@ export default function ApplicationDetailPage() {
   }, [appId]);
 
   useEffect(() => { fetchApp(); }, [fetchApp]);
+
+  // Fetch related tickets
+  useEffect(() => {
+    if (!appId) return;
+    setTicketsLoading(true);
+    fetch(`/api/req/tickets?configurationItemId=${appId}&pageSize=10`)
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => setRelatedTickets(Array.isArray(data?.items) ? data.items : []))
+      .catch(() => setRelatedTickets([]))
+      .finally(() => setTicketsLoading(false));
+  }, [appId]);
 
   const startEdit = () => {
     if (!app) return;
@@ -294,25 +326,67 @@ export default function ApplicationDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* İlgili Projeler */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Yakında</h3>
-            <ul className="space-y-3">
-              {[
-                { icon: Link2, label: "Talep Bağlantısı", desc: "Bu uygulamaya bağlı talepler" },
-                { icon: GitBranch, label: "Proje Bağlantısı", desc: "Bu uygulamayı teslim eden projeler" },
-                { icon: Tag, label: "Release Geçmişi", desc: "Versiyon geçmişi ve release notes" },
-              ].map(item => (
-                <li key={item.label} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-border)] flex items-center justify-center mt-0.5 shrink-0">
-                    <item.icon className="w-4 h-4 text-[var(--color-text-muted)]" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-[var(--color-text)]">{item.label}</span>
-                    <p className="text-[11px] text-[var(--color-text-muted)]">{item.desc}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 flex items-center gap-2">
+              <FolderKanban className="w-4 h-4 text-cyan-400" /> İlgili Projeler
+            </h3>
+            {(app.projects && app.projects.length > 0) ? (
+              <ul className="space-y-2">
+                {app.projects.map(p => (
+                  <li key={p.projectId}>
+                    <button
+                      onClick={() => router.push(`/dashboard/projects/${p.projectId}`)}
+                      className="w-full text-left p-2.5 rounded-lg bg-[var(--color-bg)] hover:bg-[var(--color-border)] transition-colors group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono font-bold text-cyan-400">{p.projectKey}</span>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded-full border font-medium",
+                          p.projectStatus === "Active" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                        )}>{p.projectStatus}</span>
+                      </div>
+                      <p className="text-xs text-[var(--color-text)] mt-1 truncate">{p.projectName}</p>
+                      <span className="text-[10px] text-[var(--color-text-muted)]">{p.role}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)]">İlgili proje bulunmuyor.</p>
+            )}
+          </div>
+
+          {/* İlgili Talepler */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+            <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3 flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-indigo-400" /> İlgili Talepler
+            </h3>
+            {ticketsLoading ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 text-indigo-400 animate-spin" /></div>
+            ) : relatedTickets.length > 0 ? (
+              <ul className="space-y-2">
+                {relatedTickets.map(t => {
+                  const tid = typeof t.id === "object" ? t.id.value : t.id;
+                  return (
+                    <li key={tid}>
+                      <button
+                        onClick={() => router.push(`/dashboard/tickets/${tid}`)}
+                        className="w-full text-left p-2.5 rounded-lg bg-[var(--color-bg)] hover:bg-[var(--color-border)] transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono font-bold text-indigo-400">{t.number}</span>
+                          <span className="text-[10px] text-[var(--color-text-muted)]">{t.status}</span>
+                        </div>
+                        <p className="text-xs text-[var(--color-text)] mt-1 truncate">{t.title}</p>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)]">İlgili talep bulunmuyor.</p>
+            )}
           </div>
         </div>
       </div>

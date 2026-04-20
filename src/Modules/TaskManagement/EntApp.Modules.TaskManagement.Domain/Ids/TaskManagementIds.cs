@@ -8,3 +8,4 @@ public readonly record struct ConfigurationItemId(Guid Value) : IEntityId;
 public readonly record struct TaskItemId(Guid Value) : IEntityId;
 public readonly record struct CommentId(Guid Value) : IEntityId;
 public readonly record struct TimeEntryId(Guid Value) : IEntityId;
+public readonly record struct ProjectDeliverableId(Guid Value) : IEntityId;

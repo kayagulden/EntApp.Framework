@@ -31,11 +31,13 @@ public sealed record CreateTicketCommand(
     string Title, Guid CategoryId, Guid DepartmentId,
     string? Description, TicketPriority Priority,
     TicketChannel Channel, string? FormDataJson = null,
-    Guid? ReporterUserId = null) : IRequest<Guid>;
+    Guid? ReporterUserId = null,
+    Guid? ConfigurationItemId = null) : IRequest<Guid>;
 
 public sealed record UpdateTicketCommand(
     Guid Id, string Title, string? Description,
-    TicketPriority Priority) : IRequest;
+    TicketPriority Priority,
+    Guid? ConfigurationItemId = null) : IRequest;
 
 public sealed record AssignTicketCommand(Guid TicketId, Guid AssigneeUserId) : IRequest;
 

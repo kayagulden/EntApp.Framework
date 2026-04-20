@@ -103,3 +103,14 @@ public enum ProjectCategory
     /// <summary>İş / Organizasyonel — Milestone, Timeline, Budget.</summary>
     Business = 4
 }
+
+/// <summary>Teslim edilebilir rolü — CI'ın projede hangi kapasitede olduğu.</summary>
+public enum DeliverableRole
+{
+    /// <summary>Birincil çıktı — projenin ana ürünü.</summary>
+    Primary = 0,
+    /// <summary>İkincil çıktı — proje kapsamında güncelleme/entegrasyon.</summary>
+    Secondary = 1,
+    /// <summary>Destek — proje için altyapı/araç.</summary>
+    Supporting = 2
+}

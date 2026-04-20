@@ -43,6 +43,7 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
     // Navigation
     public PortfolioBase? Portfolio { get; private set; }
     public ICollection<TaskItemBase> Tasks { get; private set; } = [];
+    public ICollection<ProjectDeliverable> Deliverables { get; private set; } = [];
 
     private ProjectBase() { }
 

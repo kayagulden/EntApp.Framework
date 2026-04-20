@@ -19,6 +19,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<TaskItemBase> Tasks => Set<TaskItemBase>();
     public DbSet<CommentBase> Comments => Set<CommentBase>();
     public DbSet<TimeEntryBase> TimeEntries => Set<TimeEntryBase>();
+    public DbSet<ProjectDeliverable> ProjectDeliverables => Set<ProjectDeliverable>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -143,6 +144,22 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Hours).HasPrecision(8, 2);
             e.Property(x => x.Description).HasMaxLength(500);
             e.HasOne(x => x.Task).WithMany(t => t.TimeEntries).HasForeignKey(x => x.TaskId);
+        });
+
+        // ── ProjectDeliverable (Proje ↔ CI M:N) ────────────
+        modelBuilder.Entity<ProjectDeliverable>(e =>
+        {
+            e.ToTable("project_deliverables");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ProjectDeliverableId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.ConfigurationItemId).HasConversion(new StronglyTypedIdValueConverter<ConfigurationItemId>());
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => new { x.ProjectId, x.ConfigurationItemId }).IsUnique()
+                .HasDatabaseName("ix_project_deliverables_unique");
+            e.HasOne(x => x.Project).WithMany(p => p.Deliverables).HasForeignKey(x => x.ProjectId);
+            e.HasOne(x => x.ConfigurationItem).WithMany(ci => ci.ProjectDeliverables).HasForeignKey(x => x.ConfigurationItemId);
         });
     }
 }

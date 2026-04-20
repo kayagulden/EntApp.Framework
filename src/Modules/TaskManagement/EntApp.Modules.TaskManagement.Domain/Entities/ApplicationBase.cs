@@ -79,8 +79,4 @@ public sealed class ApplicationBase : ConfigurationItemBase
         if (documentationUrl is not null) DocumentationUrl = documentationUrl;
         if (currentVersion is not null) CurrentVersion = currentVersion;
     }
-
-    public void Activate() => Status = CIStatus.Active;
-    public void Deprecate() => Status = CIStatus.Deprecated;
-    public void Retire() => Status = CIStatus.Retired;
 }

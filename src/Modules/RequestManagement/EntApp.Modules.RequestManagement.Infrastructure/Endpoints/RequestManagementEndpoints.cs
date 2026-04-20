@@ -70,11 +70,11 @@ public static class RequestManagementEndpoints
 
         tickets.MapGet("/", async (ISender mediator, TicketStatus? status, TicketPriority? priority,
             Guid? assigneeUserId, Guid? reporterUserId, Guid? departmentId, Guid? serviceQueueId,
-            string? queueIds, bool unassignedOnly = false,
+            string? queueIds, bool unassignedOnly = false, Guid? configurationItemId = null,
             int page = 1, int pageSize = 20) =>
             Results.Ok(await mediator.Send(new ListTicketsQuery(
                 status, priority, assigneeUserId, reporterUserId, departmentId, serviceQueueId,
-                queueIds, unassignedOnly, page, pageSize))))
+                queueIds, unassignedOnly, configurationItemId, page, pageSize))))
             .WithName("ListTickets");
 
         tickets.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
@@ -92,13 +92,15 @@ public static class RequestManagementEndpoints
         {
             var id = await mediator.Send(new CreateTicketCommand(
                 req.Title, req.CategoryId, req.DepartmentId,
-                req.Description, req.Priority, req.Channel, req.FormDataJson, req.ReporterUserId));
+                req.Description, req.Priority, req.Channel, req.FormDataJson, req.ReporterUserId,
+                req.ConfigurationItemId));
             return Results.Created($"/api/req/tickets/{id}", new { id });
         }).WithName("CreateTicket");
 
         tickets.MapPut("/{id:guid}", async (Guid id, UpdateTicketRequest req, ISender mediator) =>
         {
-            await mediator.Send(new UpdateTicketCommand(id, req.Title, req.Description, req.Priority));
+            await mediator.Send(new UpdateTicketCommand(id, req.Title, req.Description, req.Priority,
+                req.ConfigurationItemId));
             return Results.NoContent();
         }).WithName("UpdateTicket");
 
@@ -173,8 +175,8 @@ public sealed record CreateCategoryRequest(string Name, string Code, Guid Depart
 public sealed record UpdateCategoryRequest(string Name, string Code, Guid DepartmentId, string? Description, Guid? SlaDefinitionId, string? WorkflowDefinitionId, string? FormSchemaJson, int? AutoProjectThreshold, Guid? DefaultQueueId = null);
 public sealed record CreateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
 public sealed record UpdateSlaRequest(string Name, string? Description, string? ResponseTimeJson, string? ResolutionTimeJson);
-public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null, Guid? ReporterUserId = null);
-public sealed record UpdateTicketRequest(string Title, string? Description, TicketPriority Priority);
+public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null, Guid? ReporterUserId = null, Guid? ConfigurationItemId = null);
+public sealed record UpdateTicketRequest(string Title, string? Description, TicketPriority Priority, Guid? ConfigurationItemId = null);
 public sealed record AssignTicketRequest(Guid AssigneeUserId);
 public sealed record ChangeStatusRequest(TicketStatus NewStatus, string? Reason);
 public sealed record CloseTicketRequest(string? Reason);

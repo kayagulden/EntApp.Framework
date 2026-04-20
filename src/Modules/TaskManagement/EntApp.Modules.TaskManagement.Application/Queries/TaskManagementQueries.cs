@@ -35,7 +35,8 @@ public sealed record ApplicationDetailDto(
     Guid? OwnerUserId, Guid? TechLeadUserId,
     string? TechnologyStack, string? RepositoryUrl,
     string? DocumentationUrl, string? CurrentVersion,
-    DateTime CreatedAt, DateTime? UpdatedAt);
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<CIProjectDto>? Projects = null);
 
 // ── Project ─────────────────────────────────────────────────
 public sealed record ListProjectsQuery(string? Status = null, Guid? PortfolioId = null) : IRequest<List<ProjectListDto>>;
@@ -56,7 +57,23 @@ public sealed record ProjectDetailDto(
     Guid? ManagerUserId, Guid? OwnerUserId,
     Guid? PortfolioId, string? PortfolioName, string? PortfolioCode,
     int TaskCount, int TaskSequence,
-    DateTime CreatedAt, DateTime? UpdatedAt);
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<ProjectDeliverableDto>? Deliverables = null);
+
+// ── ProjectDeliverable ──────────────────────────────────────
+public sealed record ProjectDeliverableDto(
+    Guid Id, Guid ConfigurationItemId, string CIName, string CICode,
+    string CIType, string Role, string? Notes);
+
+public sealed record CIProjectDto(
+    Guid ProjectId, string ProjectKey, string ProjectName,
+    string ProjectStatus, string Role, string? Notes);
+
+public sealed record ListProjectDeliverablesQuery(Guid ProjectId)
+    : IRequest<List<ProjectDeliverableDto>>;
+
+public sealed record ListCIProjectsQuery(Guid ConfigurationItemId)
+    : IRequest<List<CIProjectDto>>;
 
 // ── Task ────────────────────────────────────────────────────
 public sealed record ListTasksQuery(Guid? ProjectId, string? Status, string? Assignee, string? Priority,

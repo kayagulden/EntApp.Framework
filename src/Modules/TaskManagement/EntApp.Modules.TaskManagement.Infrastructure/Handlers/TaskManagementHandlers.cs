@@ -80,12 +80,22 @@ public sealed class GetApplicationQueryHandler(TaskManagementDbContext db) : IRe
         var ciId = new ConfigurationItemId(request.Id);
         var a = await db.Applications.FirstOrDefaultAsync(x => x.Id == ciId, ct);
         if (a is null) return null;
+
+        // Deliverables'ı ayrı sorguyla yükle (TPT include chain sorununu önler)
+        var projects = await db.ProjectDeliverables
+            .Include(d => d.Project)
+            .Where(d => d.ConfigurationItemId == ciId)
+            .Select(d => new CIProjectDto(
+                d.ProjectId.Value, d.Project!.Key, d.Project.Name,
+                d.Project.Status.ToString(), d.Role.ToString(), d.Notes))
+            .ToListAsync(ct);
+
         return new ApplicationDetailDto(
             a.Id.Value, a.Name, a.Code, a.Description,
             a.ApplicationType.ToString(), a.Status.ToString(), a.Criticality.ToString(),
             a.OwnerUserId, a.TechLeadUserId,
             a.TechnologyStack, a.RepositoryUrl, a.DocumentationUrl, a.CurrentVersion,
-            a.CreatedAt, a.UpdatedAt);
+            a.CreatedAt, a.UpdatedAt, projects);
     }
 }
 
@@ -154,9 +164,24 @@ public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IReques
 {
     public async Task<ProjectDetailDto?> Handle(GetProjectQuery request, CancellationToken ct)
     {
-        var p = await db.Projects.Include(x => x.Portfolio).Include(x => x.Tasks)
-            .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
+        var projectId = new ProjectId(request.Id);
+        var p = await db.Projects
+            .Include(x => x.Portfolio)
+            .Include(x => x.Tasks)
+            .FirstOrDefaultAsync(x => x.Id == projectId, ct);
         if (p is null) return null;
+
+        // Deliverables'ı ayrı sorguyla yükle
+        var deliverables = await db.ProjectDeliverables
+            .Include(d => d.ConfigurationItem)
+            .Where(d => d.ProjectId == projectId)
+            .Select(d => new ProjectDeliverableDto(
+                d.Id.Value, d.ConfigurationItemId.Value,
+                d.ConfigurationItem!.Name, d.ConfigurationItem.Code,
+                "Application",
+                d.Role.ToString(), d.Notes))
+            .ToListAsync(ct);
+
         return new ProjectDetailDto(
             p.Id.Value, p.Key, p.Name, p.Description,
             p.Status.ToString(), p.Methodology.ToString(), p.Category.ToString(),
@@ -165,7 +190,7 @@ public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IReques
             p.PortfolioId.HasValue ? p.PortfolioId.Value.Value : null,
             p.Portfolio?.Name, p.Portfolio?.Code,
             p.Tasks.Count, p.TaskSequence,
-            p.CreatedAt, p.UpdatedAt);
+            p.CreatedAt, p.UpdatedAt, deliverables);
     }
 }
 
@@ -551,5 +576,77 @@ public sealed class UpdateTaskCommandHandler(TaskManagementDbContext db) : IRequ
 
         await db.SaveChangesAsync(ct);
         return task.Id.Value;
+    }
+}
+
+// ── ProjectDeliverable Handlers ───────────────────────────────
+public sealed class AddProjectDeliverableCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<AddProjectDeliverableCommand, Guid>
+{
+    public async Task<Guid> Handle(AddProjectDeliverableCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var ciId = new ConfigurationItemId(request.ConfigurationItemId);
+
+        // Duplicate check
+        var exists = await db.ProjectDeliverables
+            .AnyAsync(d => d.ProjectId == projectId && d.ConfigurationItemId == ciId, ct);
+        if (exists)
+            throw new InvalidOperationException("Bu CI zaten projenin deliverable listesinde.");
+
+        Enum.TryParse<DeliverableRole>(request.Role, out var role);
+        var deliverable = ProjectDeliverable.Create(projectId, ciId, role, request.Notes);
+        db.ProjectDeliverables.Add(deliverable);
+        await db.SaveChangesAsync(ct);
+        return deliverable.Id.Value;
+    }
+}
+
+public sealed class RemoveProjectDeliverableCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<RemoveProjectDeliverableCommand>
+{
+    public async Task Handle(RemoveProjectDeliverableCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var ciId = new ConfigurationItemId(request.ConfigurationItemId);
+        var deliverable = await db.ProjectDeliverables
+            .FirstOrDefaultAsync(d => d.ProjectId == projectId && d.ConfigurationItemId == ciId, ct)
+            ?? throw new KeyNotFoundException("Deliverable not found.");
+        db.ProjectDeliverables.Remove(deliverable);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListProjectDeliverablesQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListProjectDeliverablesQuery, List<ProjectDeliverableDto>>
+{
+    public async Task<List<ProjectDeliverableDto>> Handle(ListProjectDeliverablesQuery request, CancellationToken ct)
+    {
+        return await db.ProjectDeliverables
+            .Include(d => d.ConfigurationItem)
+            .Where(d => d.ProjectId.Value == request.ProjectId)
+            .OrderBy(d => d.Role)
+            .Select(d => new ProjectDeliverableDto(
+                d.Id.Value, d.ConfigurationItemId.Value,
+                d.ConfigurationItem!.Name, d.ConfigurationItem.Code,
+                d.ConfigurationItem is ApplicationBase ? "Application" : "CI",
+                d.Role.ToString(), d.Notes))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class ListCIProjectsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListCIProjectsQuery, List<CIProjectDto>>
+{
+    public async Task<List<CIProjectDto>> Handle(ListCIProjectsQuery request, CancellationToken ct)
+    {
+        return await db.ProjectDeliverables
+            .Include(d => d.Project)
+            .Where(d => d.ConfigurationItemId.Value == request.ConfigurationItemId)
+            .OrderBy(d => d.Project!.Name)
+            .Select(d => new CIProjectDto(
+                d.ProjectId.Value, d.Project!.Key, d.Project.Name,
+                d.Project.Status.ToString(), d.Role.ToString(), d.Notes))
+            .ToListAsync(ct);
     }
 }

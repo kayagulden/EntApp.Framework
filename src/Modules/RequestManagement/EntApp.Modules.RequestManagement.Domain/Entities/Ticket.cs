@@ -36,6 +36,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public string? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
+    /// <summary>İlgili Configuration Item (uygulama, sunucu vb.) — cross-module, raw Guid.</summary>
+    public Guid? ConfigurationItemId { get; private set; }
+
     // Görev entegrasyonu (denormalized — event-driven güncellenir)
     /// <summary>Bu talebe bağlı toplam görev sayısı.</summary>
     public int LinkedTaskCount { get; private set; }
@@ -67,7 +70,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         TicketChannel channel = TicketChannel.Portal,
         string? formDataJson = null,
         ServiceQueueId? serviceQueueId = null,
-        TicketRoutingSource routingSource = TicketRoutingSource.Unrouted)
+        TicketRoutingSource routingSource = TicketRoutingSource.Unrouted,
+        Guid? configurationItemId = null)
     {
         return new Ticket
         {
@@ -83,11 +87,15 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
             FormDataJson = formDataJson,
             ServiceQueueId = serviceQueueId,
             RoutingSource = routingSource,
+            ConfigurationItemId = configurationItemId,
             CreatedAt = DateTime.UtcNow
         };
     }
 
     public void SetFormData(string? formDataJson) => FormDataJson = formDataJson;
+
+    /// <summary>İlgili CI'ı ayarlar veya kaldırır.</summary>
+    public void SetConfigurationItem(Guid? configurationItemId) => ConfigurationItemId = configurationItemId;
 
     public void SetSlaDeadlines(DateTime? responseDeadline, DateTime? resolutionDeadline)
     {
@@ -145,11 +153,13 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         RoutingSource = TicketRoutingSource.Unrouted;
     }
 
-    public void Update(string title, string? description, TicketPriority priority)
+    public void Update(string title, string? description, TicketPriority priority,
+        Guid? configurationItemId = null)
     {
         Title = title;
         Description = description;
         Priority = priority;
+        if (configurationItemId.HasValue) ConfigurationItemId = configurationItemId;
     }
 
     // ── Görev Entegrasyonu ──────────────────────────────────

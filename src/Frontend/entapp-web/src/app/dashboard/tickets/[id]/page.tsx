@@ -30,6 +30,7 @@ import {
   Zap,
   ShieldCheck,
   ShieldX,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ interface TicketDetail {
   serviceQueue?: { name: string; code: string; id?: { value: string } | string };
   comments?: CommentData[];
   statusHistory?: StatusHistoryData[];
+  configurationItemId?: string;
   createdAt: string;
   resolvedAt?: string;
 }
@@ -220,6 +222,7 @@ export default function TicketDetailPage() {
   const [taskCreating, setTaskCreating] = useState(false);
   const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
   const [reassigning, setReassigning] = useState(false);
+  const [ciName, setCiName] = useState<string | null>(null);
 
   // Fetch ticket
   useEffect(() => {
@@ -264,6 +267,15 @@ export default function TicketDetailPage() {
       .catch(() => setWorkflowActions([]))
       .finally(() => setActionsLoading(false));
   }, [ticket?.workflowInstanceId]);
+
+  // Fetch CI name for display
+  useEffect(() => {
+    if (!ticket?.configurationItemId) { setCiName(null); return; }
+    fetch(`/api/pm/applications/${ticket.configurationItemId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setCiName(data?.name ?? null))
+      .catch(() => setCiName(null));
+  }, [ticket?.configurationItemId]);
 
   const refreshAll = async () => {
     const [ticketRes, tasksRes] = await Promise.all([
@@ -838,12 +850,24 @@ export default function TicketDetailPage() {
                 { icon: User, label: "Atanan", value: getUserName(ticket.assigneeUserId) },
                 { icon: GitBranch, label: "Yönlendirme", value: ROUTING_LABELS[ticket.routingSource ?? ""] ?? ticket.routingSource ?? "—" },
                 { icon: MessageSquare, label: "Kanal", value: CHANNEL_LABELS[ticket.channel] ?? ticket.channel },
+                { icon: Monitor, label: "Uygulama", value: ciName ?? (ticket.configurationItemId ? ticket.configurationItemId.slice(0, 8) + "..." : "—") },
                 { icon: Calendar, label: "Oluşturma", value: formatDateTime(ticket.createdAt) },
-              ].map((item) => (
+              ]
+              .filter((item) => item.value !== "—" || item.label !== "Uygulama")
+              .map((item) => (
                 <div key={item.label} className="flex items-center gap-2.5">
                   <item.icon className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" />
                   <span className="text-xs text-[var(--color-text-muted)] w-20 shrink-0">{item.label}</span>
-                  <span className="text-xs text-[var(--color-text)] truncate">{item.value}</span>
+                  {item.label === "Uygulama" && ticket.configurationItemId ? (
+                    <button
+                      onClick={() => router.push(`/dashboard/applications/${ticket.configurationItemId}`)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors truncate"
+                    >
+                      {item.value}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-[var(--color-text)] truncate">{item.value}</span>
+                  )}
                 </div>
               ))}
 
