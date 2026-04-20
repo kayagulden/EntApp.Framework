@@ -3,6 +3,8 @@
 > **Tarih:** 2026-03-28  
 > **Temel:** EntApp.Framework (Technical Framework + Core Modüller)  
 > **Modül detayları:** [delivery-platform-modules.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-modules.md)  
+> **Work Item Modeli:** [unified-workitem-plan.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/unified-workitem-plan.md)  
+> **CMDB:** [cmdb-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/cmdb-roadmap.md)  
 > **Ön koşul:** EntApp.Framework `_roadmap.md` **Faz 1–10** tamamlanmış olmalı, ardından bu roadmap başlar.
 
 ---
