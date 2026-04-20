@@ -60,6 +60,7 @@
 **Hedef:** Modüller arası kontratları ve ortak altyapıyı oluştur.
 
 ### 3a — Shared.Contracts ✅
+
 - [x] `Shared.Contracts` class library projesi
 - [x] `IIntegrationEvent.cs` — modüller arası event kontratı + **IdempotencyKey** (Guid)
 - [x] `ICurrentUser.cs` — UserId, UserName, Roles, Permissions
@@ -69,6 +70,7 @@
 - [x] Ortak DTO'lar: `UserInfoDto`, `TenantInfoDto`, `PagedResult<T>`, `PagedRequest`, `LookupDto`
 
 ### 3b — Shared.Infrastructure: Persistence ✅
+
 - [x] `Shared.Infrastructure` class library projesi
 - [x] `BaseDbContext.cs` — audit fields otomatik set, soft delete filter, tenant filter, domain event dispatch (pre-commit), **AsSplitQuery varsayılan** (TPT JOIN performansı)
 - [x] `OutboxMessage.cs` entity + `OutboxProcessor.cs` — integration event'leri Outbox'tan publish
@@ -77,6 +79,7 @@
 - [x] EF Core interceptors: `AuditableEntityInterceptor`, `SoftDeleteInterceptor`, `DomainEventDispatchInterceptor` (**iki aşamalı dispatch:** `IDomainEvent` = pre-commit, `IPostCommitDomainEvent` = post-commit)
 
 ### 3c — Shared.Infrastructure: Pipeline Behaviors ✅
+
 - [x] `ValidationBehavior.cs` — FluentValidation entegrasyonu
 - [x] `LoggingBehavior.cs` — request/response Serilog ile loglama
 - [x] `PerformanceBehavior.cs` — >500ms süren sorgulara warning log
@@ -84,11 +87,13 @@
 - [x] `CachingBehavior.cs` — `ICacheableQuery` marker ile IDistributedCache
 
 ### 3d — Shared.Infrastructure: EventBus & Cache ✅
+
 - [x] `InMemoryEventBus.cs` — MediatR doğrudan publish (dev/test)
 - [x] `OutboxEventBus.cs` — Outbox tablosuna yazma (production)
 - [x] `ICacheService.cs`, `DistributedCacheService.cs`, `CacheKeyBuilder.cs`
 
 ### 3e — Shared.Infrastructure: Middleware ✅
+
 - [x] `ExceptionHandlingMiddleware.cs` — global hata yakalama, **RFC 7807 ProblemDetails** standart format
 - [x] `RequestLoggingMiddleware.cs` — HTTP request loglama
 - [x] `TenantResolutionMiddleware.cs` — header/subdomain/claim'den tenant belirleme
@@ -96,6 +101,7 @@
 - [x] `AuditMiddleware.cs` — hassas işlem loglama, **PII maskeleme** (KVKK/GDPR uyumu)
 
 ### 3f — Shared.Infrastructure: Auth & Health ✅
+
 - [x] `KeycloakAuthenticationExtensions.cs` — Keycloak JWT doğrulama + realm_access role mapping
 - [x] `HttpContextCurrentUser.cs` — ICurrentUser implementasyonu (JWT claims)
 - [x] `HttpContextCurrentTenant.cs` — ICurrentTenant implementasyonu
@@ -105,6 +111,7 @@
 - [x] `ModuleHealthCheckAdapter.cs` — modül bazlı health check
 
 ### 3g — Shared.Infrastructure: RealTime ✅
+
 - [x] `EntAppHub.cs` — merkezi SignalR hub (JWT auth, group join/leave, connection tracking)
 - [x] `EntityChangeNotifier.cs` — entity değişikliğini push et (dual-group: entity + list)
 - [x] `UserConnectionTracker.cs` — in-memory kullanıcı bağlantı takibi (thread-safe, multi-tab)
@@ -164,6 +171,7 @@
 **Hedef:** Kimlik ve erişim yönetimi.
 
 ### 6a — IAM Domain & Application ✅
+
 - [x] `IAM.Domain` — User, Role, Permission, Organization, Department entity'leri
 - [x] `IAM.Application` — Commands: CreateUser, UpdateUser, AssignRole, DeactivateUser, CreateRole, CreateOrganization
 - [x] `IAM.Application` — Queries: GetUserById, GetUsersPaged, GetRoles, GetOrganizationTree
@@ -171,11 +179,13 @@
 - [x] Domain Events: `UserCreatedEvent`, `RoleAssignedEvent`, `UserDeactivatedEvent`
 
 ### 6b — IAM Infrastructure ✅
+
 - [x] `IamDbContext.cs` — EF Core, PostgreSQL, kendi şeması (`iam.`)
 - [x] `IamModuleInstaller.cs` — convention-based auto-discovery DI
 - [x] Seed data: varsayılan roller (Admin, Manager, User, ReadOnly) + 6 IAM permission
 
 ### 6c — IAM API ✅
+
 - [x] Controllers: UserController, RoleController, OrganizationController
 - [x] Command Handlers: CreateUser, UpdateUser, AssignRole, DeactivateUser, CreateRole, CreateOrganization
 - [x] Query Handlers: GetUserById, GetUsersPaged, GetRoles, GetOrganizationTree
@@ -187,6 +197,7 @@
 ## Faz 7 — Diğer Core Modüller
 
 ### 7a — Audit Modülü ✅
+
 - [x] AuditLog, LoginRecord entity'leri (multi-tenant, jsonb old/new values)
 - [x] AuditDbContext (`audit.` schema, performance indexes)
 - [x] EF Interceptor (`AuditSaveChangesInterceptor`) — otomatik entity change tracking
@@ -195,6 +206,7 @@
 - [x] AuditController — `GET /api/v1/audit/logs`, `GET /api/v1/audit/logins`
 
 ### 7b — Configuration Modülü ✅
+
 - [x] AppSetting (key-value) + FeatureFlag entity'leri (tenant/global, scheduled, role-based)
 - [x] Tenant/global bazlı konfigürasyon desteği (tenant > global fallback)
 - [x] Feature flag açma/kapama/toggle API + zamanlama
@@ -203,6 +215,7 @@
 - [x] 34 unit test (AppSetting: 10, FeatureFlag: 14, Validators: 8)
 
 ### 7c — Notification Modülü ✅
+
 - [x] NotificationTemplate, NotificationLog, UserNotificationPreference entity'leri
 - [x] Provider'lar: SMTP e-posta (placeholder), InApp bildirim sender
 - [x] SimpleTemplateRenderer — `{{variable}}` regex substitution (Scriban CVE nedeniyle built-in)
@@ -212,6 +225,7 @@
 - [x] 24 unit test (Template: 6, Log: 5, Preference: 4, Validator: 8, auto: 1)
 
 ### 7d — FileManagement Modülü ✅
+
 - [x] FileEntry (soft delete, versioning, tagging, preview), FileVersion, FileTag entity'leri
 - [x] Storage provider abstraction: LocalDisk + MinIO/S3 (config-driven switch)
 - [x] Dosya yükleme/indirme API (100MB limit, IFormFile)
@@ -232,6 +246,7 @@
 - [x] 25 unit test (Tenant: 14, TenantSetting: 3, Validators: 7, auto: 1)
 
 ### 7f — Localization Modülü ✅
+
 - [x] Language (code, name, nativeName, default, active, displayOrder), TranslationEntry (namespace.key, verified, tenant-specific override, audit) entity'leri
 - [x] Dinamik çeviri yönetimi (DB'den) — upsert, bulk upsert, verify, delete
 - [x] API: 10 endpoint — diller (list, create, set-default, toggle), çeviriler (get, map, by-key, upsert, bulk, verify, delete)
@@ -308,7 +323,7 @@
 ### 8e — Test & Demo ✅
 
 > **Tamamlanma:** 2026-04-04
-
+>
 > [!IMPORTANT]
 > **DynamicDetailTable.tsx** Faz 11'e (Business Framework) taşındı — SalesOrder/OrderItem entity'leri orada oluşturulacak.
 
@@ -607,6 +622,7 @@
 **Hedef:** Tüm modülleri formal CQRS/MediatR Application Layer mimarisine taşı, CLI template'i güncelle.
 
 ### 14a — CQRS/MediatR Refactoring (9 Modül) ✅
+
 - [x] Tüm modüllere Application layer ekle: Commands, Queries, Validators
 - [x] Tüm modüllere Infrastructure/Handlers ekle: IRequestHandler implementasyonları
 - [x] Tüm endpoint'leri ISender thin proxy pattern'ine geçir
@@ -622,11 +638,13 @@
 - [x] **Toplam:** 47 query, 46 command, 25 validator, 9 handler dosyası
 
 ### 14b — CLI Template Güncelleme ✅
+
 - [x] `templates/entapp-module/` CQRS dosyaları eklendi (Commands, Queries, Validators, Handlers)
 - [x] Endpoint template ISender thin proxy'ye dönüştürüldü
 - [x] README.md mimari kurallar ile güncellendi
 
 ### 14c — CLI Paketleme (İleride)
+
 - [ ] `dotnet new` template paketi oluştur
 - [ ] `dotnet new entapp-module --name {ModuleName}` komutu
 - [ ] Template: test projesi
@@ -641,18 +659,21 @@
 ## Faz 15 — DevOps & Production Hazırlığı
 
 ### 15a — CI/CD Pipeline
+
 - [ ] Azure DevOps pipeline YAML: build → test → Docker image → push
 - [ ] Backend + frontend ayrı pipeline stage
 - [ ] Database migration otomatik çalıştırma (CD)
 - [ ] Environment bazlı deployment (dev → staging → production)
 
 ### 15b — Monitoring & Observability
+
 - [ ] Prometheus metrics endpoint
 - [ ] Grafana dashboard'lar: API response time, error rate, modül başına trafik
 - [ ] Serilog → Seq alerting kuralları
 - [ ] Jaeger tracing — modüller arası request takibi
 
 ### 15c — Kubernetes
+
 - [ ] Kubernetes manifest'leri: Deployment, Service, Ingress, ConfigMap, Secret
 - [ ] Helm chart (opsiyonel)
 - [ ] PostgreSQL, Redis, RabbitMQ Kubernetes operator'ları veya managed servis konfigürasyonu
@@ -722,7 +743,7 @@
 
 ---
 
-## Özet Tablo
+## Güncel Özet Tablo
 
 | Faz | Başlık | Tahmini Süre |
 |-----|--------|-------------|
