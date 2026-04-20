@@ -716,8 +716,9 @@
 | 16h | Ek Modüller (Change Req, Risk, Automation) | 📋 Planlandı |
 | 16i | Reporting & Analytics | 📋 Planlandı |
 | 16j | Cross-Module Entegrasyon | 📋 Planlandı |
+| 16k | **CMDB** ([cmdb-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/cmdb-roadmap.md)) | ✅ Temel (A-C) tamamlandı, ileri fazlar planlandı |
 
-**Çıktı:** Tam özellikli ALM/ITSM platformu — talep yönetimi, proje/portfolio, gereksinim, test, release, wiki, risk, otomasyon.
+**Çıktı:** Tam özellikli ALM/ITSM platformu — talep yönetimi, proje/portfolio, gereksinim, test, release, wiki, risk, otomasyon, CMDB.
 
 ---
 

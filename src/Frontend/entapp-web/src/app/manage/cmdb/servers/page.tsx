@@ -164,7 +164,7 @@ export default function ServersPage() {
             const TypeIcon = typeCfg.icon;
             const StatusIcon = statusCfg.icon;
             return (
-              <div key={srv.id} onClick={() => router.push(`/dashboard/servers/${srv.id}`)}
+              <div key={srv.id} onClick={() => router.push(`/manage/cmdb/servers/${srv.id}`)}
                 className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300 cursor-pointer">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-wrap">

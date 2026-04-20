@@ -145,7 +145,7 @@ export default function DatabasesPage() {
             const critCfg = CRITICALITY_CONFIG[db.criticality] || CRITICALITY_CONFIG.Medium;
             const StatusIcon = statusCfg.icon;
             return (
-              <div key={db.id} onClick={() => router.push(`/dashboard/databases/${db.id}`)}
+              <div key={db.id} onClick={() => router.push(`/manage/cmdb/databases/${db.id}`)}
                 className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 cursor-pointer">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2 flex-wrap">

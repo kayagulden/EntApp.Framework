@@ -11,6 +11,7 @@ interface MenuItem {
   href: string;
   icon: ReactNode;
   matchExact?: boolean; // true → exact match only (for Dashboard)
+  disabled?: boolean; // true → greyed out with "Yakında" badge
 }
 
 interface MenuSection {
@@ -101,6 +102,38 @@ const MENU_SECTIONS: MenuSection[] = [
         label: "İş Akışları",
         href: "/manage/workflows",
         icon: svgIcon("M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"),
+      },
+    ],
+  },
+  {
+    key: "cmdb",
+    label: "CMDB",
+    items: [
+      {
+        label: "Uygulamalar",
+        href: "/manage/cmdb/applications",
+        icon: svgIcon("M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25L12 17.25 2.25 12l4.179-2.25m11.142 0l4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25"),
+      },
+      {
+        label: "Sunucular",
+        href: "/manage/cmdb/servers",
+        icon: svgIcon(["M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z"]),
+      },
+      {
+        label: "Veritabanları",
+        href: "/manage/cmdb/databases",
+        icon: svgIcon(["M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m16.5 3.75c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"]),
+      },
+      {
+        label: "Lisanslar",
+        href: "/manage/cmdb/licences",
+        icon: svgIcon("M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"),
+      },
+      {
+        label: "Ağ Cihazları",
+        href: "/manage/cmdb/network-devices",
+        icon: svgIcon("M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"),
+        disabled: true,
       },
     ],
   },
@@ -204,6 +237,23 @@ export function ManageSidebar({ collapsed, onToggle }: ManageSidebarProps) {
           <div className="space-y-0.5 mt-0.5">
             {section.items.map((item) => {
               const active = isLinkActive(item);
+              if (item.disabled) {
+                return (
+                  <span
+                    key={item.href}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 cursor-not-allowed select-none"
+                    title={collapsed ? `${item.label} (Yakında)` : undefined}
+                  >
+                    <span>{item.icon}</span>
+                    {!collapsed && (
+                      <>
+                        <span>{item.label}</span>
+                        <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider bg-slate-700/50 text-slate-500 px-1.5 py-0.5 rounded">Yakında</span>
+                      </>
+                    )}
+                  </span>
+                );
+              }
               return (
                 <Link
                   key={item.href}

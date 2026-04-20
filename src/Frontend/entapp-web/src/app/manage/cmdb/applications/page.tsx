@@ -177,7 +177,7 @@ export default function ApplicationsPage() {
             const TypeIcon = typeCfg.icon;
             const StatusIcon = statusCfg.icon;
             return (
-              <div key={app.id} onClick={() => router.push(`/dashboard/applications/${app.id}`)}
+              <div key={app.id} onClick={() => router.push(`/manage/cmdb/applications/${app.id}`)}
                 className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-300 cursor-pointer">
                 {/* Top */}
                 <div className="flex items-start justify-between mb-3">

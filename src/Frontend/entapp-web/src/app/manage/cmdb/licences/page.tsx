@@ -160,7 +160,7 @@ export default function LicencesPage() {
             const StatusIcon = statusCfg.icon;
             const expiring = isExpiringSoon(lic.expirationDate);
             return (
-              <div key={lic.id} onClick={() => router.push(`/dashboard/licences/${lic.id}`)}
+              <div key={lic.id} onClick={() => router.push(`/manage/cmdb/licences/${lic.id}`)}
                 className={cn("group rounded-xl border bg-[var(--color-card-bg)] p-5 hover:shadow-lg transition-all duration-300 cursor-pointer",
                   expiring ? "border-amber-500/40 hover:shadow-amber-500/10" : "border-[var(--color-border)] hover:border-amber-500/40 hover:shadow-amber-500/5")}>
                 <div className="flex items-start justify-between mb-3">

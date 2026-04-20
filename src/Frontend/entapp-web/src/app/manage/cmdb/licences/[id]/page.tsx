@@ -104,7 +104,7 @@ export default function LicenceDetailPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-        <button onClick={() => router.push("/dashboard/licences")} className="flex items-center gap-1 hover:text-[var(--color-text)] transition-colors"><ArrowLeft className="w-4 h-4" /> Lisanslar</button>
+        <button onClick={() => router.push("/manage/cmdb/licences")} className="flex items-center gap-1 hover:text-[var(--color-text)] transition-colors"><ArrowLeft className="w-4 h-4" /> Lisanslar</button>
         <ChevronRight className="w-3 h-3" /><span className="text-[var(--color-text)] font-medium">{lic.code}</span>
       </div>
 
