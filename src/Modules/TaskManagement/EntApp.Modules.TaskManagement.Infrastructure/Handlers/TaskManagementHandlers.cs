@@ -348,13 +348,21 @@ public sealed class GetKanbanBoardQueryHandler(TaskManagementDbContext db) : IRe
 {
     public async Task<object> Handle(GetKanbanBoardQuery request, CancellationToken ct)
     {
-        var tasks = await db.WorkItems.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId)
+        var pid = new ProjectId(request.ProjectId);
+        var items = await db.WorkItems
+            .Where(t => t.ProjectId != null && t.ProjectId == pid)
             .OrderBy(t => t.SortOrder)
-            .Select(t => new { t.Id, t.WorkItemNumber, t.Title, Status = t.Status.ToString(),
-                Priority = t.Priority.ToString(), Type = t.Type.ToString(),
-                t.AssigneeUserId, t.SortOrder, t.DueDate })
             .ToListAsync(ct);
-        return tasks.GroupBy(t => t.Status).ToDictionary(g => g.Key, g => g.ToList());
+
+        var result = items.Select(t => new {
+            Id = t.Id.Value, t.WorkItemNumber, t.Title,
+            Status = t.Status.ToString(),
+            Priority = t.Priority.ToString(),
+            Type = t.Type.ToString(),
+            t.AssigneeUserId, t.SortOrder, t.DueDate,
+            t.StoryPoints
+        }).GroupBy(t => t.Status).ToDictionary(g => g.Key, g => g.ToList());
+        return result;
     }
 }
 
