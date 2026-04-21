@@ -1,4 +1,4 @@
-﻿# 16b - Project & Portfolio Management - Detayli Yol Haritasi
+# 16b - Project & Portfolio Management - Detayli Yol Haritasi
 
 > **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-modulleri)
 > **Backend entity evrim:** 2026-04-21 (Unified Work Item Model)
@@ -52,20 +52,26 @@
 > Backlog ayri bir entity degildir - projenin WorkItem koleksiyonunun siralanmis gorunumudur.
 
 ### Velocity & Burndown Metrikleri
-- [x] `BurndownSnapshot` entity - gunluk SP kaydi
+- [x] `BurndownSnapshot` entity - günlük SP kaydı
 - [x] Her MoveWorkItem'da aktif sprint snapshot otomatik upsert
-- [x] Velocity API (`GET /api/pm/projects/{id}/velocity`) - sprint bazli bar chart data
+- [x] Velocity API (`GET /api/pm/projects/{id}/velocity`) - sprint bazlı bar chart data
 - [x] Burndown API (`GET /api/pm/sprints/{id}/burndown`) - line chart data
+
+### Milestone (Kilometre Taşı)
+- [x] `MilestoneBase` entity oluşturuldu (ProjectId, Name, DueDate, Status, Description, SortOrder)
+- [x] WorkItemBase & SprintBase'e MilestoneId (nullable FK) eklendi
+- [x] Milestone CRUD API: 4 endpoint (`/api/pm/projects/{projectId}/milestones`)
+- [x] Milestones tab UI: timeline görünümü, oluşturma/düzenleme/silme formları
 
 ---
 
 ## Devam Edilecek Maddeler
 
-### Is Kalemleri Tab'i (Proje Detay Sayfasi)
-- [ ] "Is Kalemleri" tab'ini aktiflestirme (su an `disabled: true`)
-- [ ] Tablo gorunumu: flat liste, filtreleme (tip, status, sprint, assignee)
-- [ ] Agac gorunumu: hiyerarsik (Epic->Feature->Story->Task), drag & drop siralama
-- [ ] Proje icinden yeni WorkItem olusturma formu (tip secimli)
+### İş Kalemleri Tab'ı (Proje Detay Sayfası)
+- [x] "İş Kalemleri" tab'ını aktifleştirme → **"Backlog" olarak yeniden adlandırıldı**
+- [x] Tablo görünümü: flat liste, filtreleme (tip, status, sprint, assignee)
+- [ ] Ağaç görünümü: hiyerarşik (Epic->Feature->Story->Task), drag & drop sıralama
+- [x] Proje içinden yeni WorkItem oluşturma formu (tip seçimli)
 - [ ] Sprint'e atama (inline veya modal)
 
 ### Kanban Board Gelistirmeleri
@@ -81,8 +87,8 @@
 - [ ] Efor tahmini: Saat, T-Shirt, AI tahmini (StoryPoints mevcut)
 - [ ] WSJF (Weighted Shortest Job First) onceliklendirme
 
-### Cross-Module Baglantilar
-- [ ] Ticket -> Proje baglantisi (ConvertToProject, AddToBacklog)
+### Cross-Module Bağlantılar
+- [x] Ticket -> Proje bağlantısı: **"Projeye Aktar" modalı** (proje/tip/öncelik seçimi, mevcut task'ları taşıma, aktarıldıktan sonra kilitli durum)
 
 ### Proje Template Sistemi
 - [ ] Kategori bazli varsayilan ayarlar: hangi sekmeler/ozellikler aktif, hangi WorkItemType'lar gecerli, varsayilan BoardColumn'lar

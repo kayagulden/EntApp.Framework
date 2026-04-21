@@ -93,7 +93,8 @@ public sealed record WorkItemBySourceDto(
     Guid Id, string WorkItemNumber, string Title, string Status,
     string Priority, string Type, Guid? AssigneeUserId,
     DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt,
-    int? StoryPoints = null, int HierarchyLevel = 0);
+    int? StoryPoints = null, int HierarchyLevel = 0,
+    Guid? ProjectId = null);
 
 public sealed record WorkItemDetailDto(
     Guid Id, string WorkItemNumber, string Title, string? Description,

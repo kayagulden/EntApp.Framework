@@ -298,6 +298,16 @@ public static class TaskManagementEndpoints
             return Results.Created($"/api/pm/work-items/{result.Id}", result);
         }).WithName("CreateWorkItemFromSource").WithSummary("Dış kaynaktan iş kalemi oluşturur (Ticket → WorkItem)");
 
+        tasks.MapPost("/promote-ticket", async (PromoteTicketRequest req, ISender mediator) =>
+        {
+            var result = await mediator.Send(new PromoteTicketToProjectCommand(
+                req.TicketId, req.ProjectId, req.Title,
+                req.WorkItemType ?? "Feature", req.Priority ?? "Medium",
+                req.Description));
+            return Results.Created($"/api/pm/work-items/{result.ParentWorkItemId}",
+                new { parentWorkItemId = result.ParentWorkItemId, movedTaskCount = result.MovedTaskCount });
+        }).WithName("PromoteTicketToProject").WithSummary("Ticket'ı projeye aktarır, mevcut task'ları da taşır");
+
         var comments = app.MapGroup("/api/pm/comments").WithTags("PM - Comments");
         comments.MapGet("/{taskId:guid}", async (Guid taskId, ISender mediator)
             => Results.Ok(await mediator.Send(new ListCommentsQuery(taskId)))).WithName("ListComments");
@@ -472,3 +482,7 @@ public sealed record AddCIRelationshipRequest(Guid TargetCIId, string RelationTy
 // Milestone
 public sealed record CreateMilestoneRequest(string Name, DateTime DueDate, string? Description = null, int SortOrder = 0);
 public sealed record UpdateMilestoneRequest(string? Name = null, string? Description = null, DateTime? DueDate = null, int? SortOrder = null, string? Status = null);
+
+// Ticket Promotion
+public sealed record PromoteTicketRequest(Guid TicketId, Guid ProjectId, string Title,
+    string? WorkItemType = "Feature", string? Priority = "Medium", string? Description = null);

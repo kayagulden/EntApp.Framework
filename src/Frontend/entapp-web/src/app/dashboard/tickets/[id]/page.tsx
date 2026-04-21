@@ -31,6 +31,8 @@ import {
   ShieldCheck,
   ShieldX,
   Monitor,
+  FolderKanban,
+  Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +95,7 @@ interface TaskItem {
   dueDate?: string;
   estimatedHours: number;
   createdAt: string;
+  projectId?: string;
 }
 
 interface WorkflowAction {
@@ -223,6 +226,13 @@ export default function TicketDetailPage() {
   const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
   const [reassigning, setReassigning] = useState(false);
   const [ciName, setCiName] = useState<string | null>(null);
+
+  // Projeye Aktar state
+  interface ProjectOption { id: string; name: string; key: string; category: string; }
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [promoteForm, setPromoteForm] = useState({ projectId: "", workItemType: "Feature", priority: "Medium", title: "" });
+  const [promoting, setPromoting] = useState(false);
 
   // Fetch ticket
   useEffect(() => {
@@ -450,6 +460,42 @@ export default function TicketDetailPage() {
     } catch { /* silently fail */ }
   };
 
+  const openPromoteModal = async () => {
+    setPromoteForm({ projectId: "", workItemType: "Feature", priority: ticket?.priority || "Medium", title: ticket?.title || "" });
+    setShowPromoteModal(true);
+    try {
+      const res = await fetch("/api/pm/projects");
+      if (res.ok) {
+        const data = await res.json();
+        setProjects((data.items || data || []).map((p: any) => ({ id: p.id, name: p.name, key: p.key, category: p.category })));
+      }
+    } catch { /* */ }
+  };
+
+  const handlePromoteToProject = async () => {
+    if (!promoteForm.projectId || !promoteForm.title.trim()) return;
+    setPromoting(true);
+    try {
+      const res = await fetch("/api/pm/work-items/promote-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: ticketId,
+          projectId: promoteForm.projectId,
+          title: promoteForm.title.trim(),
+          description: ticket?.description || null,
+          priority: promoteForm.priority,
+          workItemType: promoteForm.workItemType,
+        }),
+      });
+      if (res.ok) {
+        setShowPromoteModal(false);
+        await refreshAll();
+      }
+    } catch { /* */ }
+    finally { setPromoting(false); }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -476,6 +522,7 @@ export default function TicketDetailPage() {
 
   const completedTaskCount = tasks.filter((t) => t.status === "Done" || t.status === "Cancelled").length;
   const taskProgress = tasks.length > 0 ? Math.round((completedTaskCount / tasks.length) * 100) : 0;
+  const isAlreadyPromoted = tasks.some((t) => t.projectId);
 
   // Merge comments and status history into activity feed
   const activities: { type: "comment" | "status"; time: string; data: any }[] = [
@@ -526,6 +573,116 @@ export default function TicketDetailPage() {
             </div>
           )}
 
+          {/* ══════════ PROJEYE AKTAR MODAL ══════════ */}
+          {showPromoteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-lg mx-4 rounded-2xl border border-violet-500/30 bg-[var(--color-card-bg)] shadow-2xl shadow-violet-500/10">
+                <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
+                    <FolderKanban className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text)]">Projeye Aktar</h3>
+                    <p className="text-[10px] text-[var(--color-text-muted)]">Talebi bir projenin backlog&apos;una iş kalemi olarak ekle</p>
+                  </div>
+                </div>
+                <div className="px-6 py-5 space-y-4">
+                  {/* Proje Seçimi */}
+                  <div>
+                    <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Hedef Proje *</label>
+                    <select
+                      value={promoteForm.projectId}
+                      onChange={e => setPromoteForm({ ...promoteForm, projectId: e.target.value })}
+                      className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                    >
+                      <option value="">Proje seçin...</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.key} — {p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Başlık */}
+                  <div>
+                    <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">İş Kalemi Başlığı *</label>
+                    <input
+                      type="text"
+                      value={promoteForm.title}
+                      onChange={e => setPromoteForm({ ...promoteForm, title: e.target.value })}
+                      className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                    />
+                  </div>
+                  {/* Tip + Öncelik */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Tip</label>
+                      <select
+                        value={promoteForm.workItemType}
+                        onChange={e => setPromoteForm({ ...promoteForm, workItemType: e.target.value })}
+                        className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                      >
+                        <option value="Feature">🏗 Feature</option>
+                        <option value="Epic">🎯 Epic</option>
+                        <option value="UserStory">📖 User Story</option>
+                        {tasks.length === 0 && (
+                          <>
+                            <option value="Bug">🐛 Bug</option>
+                            <option value="Task">📋 Task</option>
+                            <option value="TechDebt">🔧 Teknik Borç</option>
+                            <option value="Spike">🔬 Araştırma</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">Öncelik</label>
+                      <select
+                        value={promoteForm.priority}
+                        onChange={e => setPromoteForm({ ...promoteForm, priority: e.target.value })}
+                        className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                      >
+                        <option value="Low">Düşük</option>
+                        <option value="Medium">Orta</option>
+                        <option value="High">Yüksek</option>
+                        <option value="Critical">Kritik</option>
+                      </select>
+                    </div>
+                  </div>
+                  {/* Source info */}
+                  <div className="rounded-lg bg-violet-500/5 border border-violet-500/20 px-3 py-2">
+                    <p className="text-[10px] text-violet-300">
+                      <span className="font-medium">Kaynak:</span> {ticket.number} — {ticket.title}
+                    </p>
+                    {tasks.length > 0 ? (
+                      <p className="text-[10px] text-amber-400 mt-0.5">
+                        ⚡ {tasks.length} mevcut iş kalemi alt görev olarak taşınacak
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                        Talep açık kalacak, iş kalemi tamamlandığında takip edilebilir.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="px-6 py-4 border-t border-[var(--color-border)] flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setShowPromoteModal(false)}
+                    className="px-4 py-2 rounded-lg text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-border)] transition-colors"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={handlePromoteToProject}
+                    disabled={promoting || !promoteForm.projectId || !promoteForm.title.trim()}
+                    className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-medium bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors shadow-lg shadow-violet-500/20"
+                  >
+                    {promoting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FolderKanban className="w-3 h-3" />}
+                    Projeye Aktar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ══════════ GÖREVLER BÖLÜMÜ ══════════ */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)]">
             <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
@@ -549,17 +706,38 @@ export default function TicketDetailPage() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => setShowTaskForm(!showTaskForm)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-all"
-              >
-                <Plus className="w-3 h-3" />
-                İş Kalemi Ekle
-              </button>
+              <div className="flex items-center gap-2">
+                {isAlreadyPromoted ? (
+                  <a
+                    href={`/dashboard/projects/${tasks.find(t => t.projectId)?.projectId}`}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-colors"
+                  >
+                    <FolderKanban className="w-3 h-3" />
+                    Projeye Aktarıldı — Projeyi Aç
+                  </a>
+                ) : (
+                  <>
+                    <button
+                      onClick={openPromoteModal}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-violet-600 text-white hover:bg-violet-700 transition-all"
+                    >
+                      <FolderKanban className="w-3 h-3" />
+                      Projeye Aktar
+                    </button>
+                    <button
+                      onClick={() => setShowTaskForm(!showTaskForm)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      İş Kalemi Ekle
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Task creation form */}
-            {showTaskForm && (
+            {!isAlreadyPromoted && showTaskForm && (
               <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-input-bg)]/30">
                 <div className="space-y-3">
                   <input
@@ -628,7 +806,17 @@ export default function TicketDetailPage() {
 
             {/* Task list */}
             <div className="divide-y divide-[var(--color-border)]">
-              {tasksLoading ? (
+              {isAlreadyPromoted ? (
+                <div className="px-5 py-6 text-center">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/10 mb-3">
+                    <FolderKanban className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <p className="text-sm font-medium text-violet-400 mb-1">Bu talep projeye aktarıldı</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    İş kalemleri artık proje backlog&apos;undan yönetilmektedir.
+                  </p>
+                </div>
+              ) : tasksLoading ? (
                 <div className="px-5 py-8 text-center">
                   <Loader2 className="w-5 h-5 text-teal-400 animate-spin mx-auto" />
                 </div>

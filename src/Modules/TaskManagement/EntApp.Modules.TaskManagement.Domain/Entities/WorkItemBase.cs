@@ -166,6 +166,8 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     public void SetAcceptanceCriteria(string? criteria) => AcceptanceCriteria = criteria;
     public void AssignToSprint(SprintId? sprintId) => SprintId = sprintId;
     public void SetHierarchyLevel(int level) => HierarchyLevel = level;
+    public void MoveToProject(ProjectId projectId) => ProjectId = projectId;
+    public void SetParent(WorkItemId? parentId, int hierarchyLevel) { ParentTaskId = parentId; HierarchyLevel = hierarchyLevel; }
 
     /// <summary>Görev bilgilerini günceller.</summary>
     public void Update(string? title = null, string? description = null,

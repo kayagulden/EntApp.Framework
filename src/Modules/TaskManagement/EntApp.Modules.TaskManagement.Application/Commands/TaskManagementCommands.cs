@@ -169,3 +169,14 @@ public sealed record UpdateMilestoneCommand(Guid MilestoneId, string? Name = nul
 
 public sealed record DeleteMilestoneCommand(Guid MilestoneId) : IRequest;
 
+// ── Ticket → Project Promotion ──────────────────────────────
+/// <summary>
+/// Ticket'ı bir projenin backlog'una aktarır.
+/// Parent WorkItem oluşturur ve mevcut ticket task'larını altına taşır.
+/// </summary>
+public sealed record PromoteTicketToProjectCommand(
+    Guid TicketId, Guid ProjectId, string Title,
+    string WorkItemType = "Feature", string Priority = "Medium",
+    string? Description = null) : IRequest<PromoteTicketResult>;
+
+public sealed record PromoteTicketResult(Guid ParentWorkItemId, int MovedTaskCount);

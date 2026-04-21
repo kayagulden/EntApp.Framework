@@ -389,17 +389,20 @@ public sealed class ListWorkItemsBySourceQueryHandler(TaskManagementDbContext db
 {
     public async Task<List<WorkItemBySourceDto>> Handle(ListWorkItemsBySourceQuery request, CancellationToken ct)
     {
-        return await db.WorkItems
+        var items = await db.WorkItems
             .Where(t => t.SourceModule == request.SourceModule
                 && t.SourceType == request.SourceType
                 && t.SourceId == request.SourceId)
             .OrderBy(t => t.SortOrder).ThenBy(t => t.CreatedAt)
-            .Select(t => new WorkItemBySourceDto(
+            .ToListAsync(ct);
+
+        return items.Select(t => new WorkItemBySourceDto(
                 t.Id.Value, t.WorkItemNumber, t.Title, t.Status.ToString(),
                 t.Priority.ToString(), t.Type.ToString(), t.AssigneeUserId,
                 t.DueDate, t.EstimatedHours, t.CreatedAt,
-                t.StoryPoints, t.HierarchyLevel))
-            .ToListAsync(ct);
+                t.StoryPoints, t.HierarchyLevel,
+                t.ProjectId?.Value))
+            .ToList();
     }
 }
 
@@ -1469,5 +1472,65 @@ public sealed class GetMilestoneQueryHandler(TaskManagementDbContext db) : IRequ
                 m.SortOrder, m.WorkItems.Count, m.Sprints.Count,
                 m.CreatedAt, m.UpdatedAt))
             .FirstOrDefaultAsync(ct);
+    }
+}
+
+// ── Ticket → Project Promotion ──────────────────────────────
+public sealed class PromoteTicketToProjectCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<PromoteTicketToProjectCommand, PromoteTicketResult>
+{
+    public async Task<PromoteTicketResult> Handle(PromoteTicketToProjectCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+
+        // 1. Proje var mı kontrol et
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+            ?? throw new InvalidOperationException($"Proje bulunamadı: {request.ProjectId}");
+
+        // 2. Parent WorkItem oluştur (Feature/Epic seviyesinde)
+        var parentType = Enum.TryParse<WorkItemType>(request.WorkItemType, out var wt) ? wt : WorkItemType.Feature;
+        var parentPriority = Enum.TryParse<WorkItemPriority>(request.Priority, out var wp) ? wp : WorkItemPriority.Medium;
+        var parentNumber = project.NextWorkItemNumber();
+
+        // HierarchyLevel: Epic=0, Feature=1, UserStory=2, Task=3
+        var parentLevel = parentType switch
+        {
+            WorkItemType.Epic => 0,
+            WorkItemType.Feature => 1,
+            WorkItemType.UserStory => 2,
+            _ => 3
+        };
+
+        var parent = WorkItemBase.CreateFromSource(
+            sourceModule: "RequestManagement",
+            sourceType: "Ticket",
+            sourceId: request.TicketId,
+            taskNumber: parentNumber,
+            title: request.Title,
+            type: parentType,
+            priority: parentPriority,
+            description: request.Description,
+            projectId: projectId,
+            hierarchyLevel: parentLevel);
+
+        db.WorkItems.Add(parent);
+
+        // 3. Mevcut ticket task'larını bul ve taşı
+        var existingTasks = await db.WorkItems
+            .Where(w => w.SourceModule == "RequestManagement"
+                     && w.SourceType == "Ticket"
+                     && w.SourceId == request.TicketId
+                     && w.Id != parent.Id)
+            .ToListAsync(ct);
+
+        foreach (var task in existingTasks)
+        {
+            task.MoveToProject(projectId);
+            task.SetParent(parent.Id, parentLevel + 1);
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return new PromoteTicketResult(parent.Id.Value, existingTasks.Count);
     }
 }
