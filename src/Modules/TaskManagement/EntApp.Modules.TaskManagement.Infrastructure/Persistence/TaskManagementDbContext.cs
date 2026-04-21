@@ -1,5 +1,6 @@
 using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Ids;
+using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<DatabaseCI> Databases => Set<DatabaseCI>();
     public DbSet<LicenceCI> Licences => Set<LicenceCI>();
     public DbSet<CIRelationship> CIRelationships => Set<CIRelationship>();
+    public DbSet<SprintBase> Sprints => Set<SprintBase>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -124,6 +126,21 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.AnnualCost).HasPrecision(18, 2);
         });
 
+        // ── Sprint ─────────────────────────────────────────
+        modelBuilder.Entity<SprintBase>(e =>
+        {
+            e.ToTable("sprints");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<SprintId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.Status);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Goal).HasMaxLength(2000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+        });
+
         // ── Task ───────────────────────────────────────────
         modelBuilder.Entity<TaskItemBase>(e =>
         {
@@ -144,8 +161,16 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Tags).HasMaxLength(500);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30);
             e.Property(x => x.EstimatedHours).HasPrecision(8, 2);
+
+            // Work Item hierarchy & Sprint alanları
+            e.Property(x => x.AcceptanceCriteria).HasColumnType("text");
+            e.Property(x => x.SprintId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new SprintId(v.Value) : null).IsRequired(false);
+            e.HasIndex(x => x.SprintId).HasDatabaseName("ix_tasks_sprint");
+            e.Property(x => x.HierarchyLevel).HasDefaultValue(0);
 
             // Source referansı (cross-module)
             e.Property(x => x.SourceModule).HasMaxLength(50);
@@ -156,6 +181,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
 
             e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId).IsRequired(false);
             e.HasOne(x => x.ParentTask).WithMany(t => t.SubTasks).HasForeignKey(x => x.ParentTaskId);
+            e.HasOne(x => x.Sprint).WithMany(s => s.WorkItems).HasForeignKey(x => x.SprintId).IsRequired(false);
             e.Ignore(x => x.TotalLoggedHours);
         });
 

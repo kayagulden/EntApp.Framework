@@ -10,3 +10,5 @@ public readonly record struct CommentId(Guid Value) : IEntityId;
 public readonly record struct TimeEntryId(Guid Value) : IEntityId;
 public readonly record struct ProjectDeliverableId(Guid Value) : IEntityId;
 public readonly record struct CIRelationshipId(Guid Value) : IEntityId;
+public readonly record struct SprintId(Guid Value) : IEntityId;
+public readonly record struct BoardColumnId(Guid Value) : IEntityId;

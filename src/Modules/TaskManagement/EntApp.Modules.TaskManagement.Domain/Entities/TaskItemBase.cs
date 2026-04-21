@@ -57,11 +57,25 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     /// <summary>Kaynak entity ID. Örn: Ticket.Id</summary>
     public Guid? SourceId { get; private set; }
 
+    // ── Work Item Hierarchy & Sprint ─────────────────────────
+    /// <summary>Story Points — Scrum estimation (0, 1, 2, 3, 5, 8, 13, 21).</summary>
+    public int? StoryPoints { get; private set; }
+
+    /// <summary>Kabul kriterleri (Markdown) — UserStory/Feature için.</summary>
+    public string? AcceptanceCriteria { get; private set; }
+
+    /// <summary>Sprint bağlantısı (nullable — sprintsiz çalışma mümkün).</summary>
+    public SprintId? SprintId { get; private set; }
+
+    /// <summary>Hiyerarşi derinliği cache'i — 0:Epic, 1:Feature, 2:Story, 3:Task.</summary>
+    public int HierarchyLevel { get; private set; }
+
     public Guid TenantId { get; set; }
 
     // Navigation
     public ProjectBase? Project { get; private set; }
     public TaskItemBase? ParentTask { get; private set; }
+    public SprintBase? Sprint { get; private set; }
     public ICollection<TaskItemBase> SubTasks { get; private set; } = [];
     public ICollection<CommentBase> Comments { get; private set; } = [];
     public ICollection<TimeEntryBase> TimeEntries { get; private set; } = [];
@@ -141,11 +155,16 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     public void AssignTo(Guid userId) => AssigneeUserId = userId;
     public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;
+    public void SetStoryPoints(int? points) => StoryPoints = points;
+    public void SetAcceptanceCriteria(string? criteria) => AcceptanceCriteria = criteria;
+    public void AssignToSprint(SprintId? sprintId) => SprintId = sprintId;
+    public void SetHierarchyLevel(int level) => HierarchyLevel = level;
 
     /// <summary>Görev bilgilerini günceller.</summary>
     public void Update(string? title = null, string? description = null,
         TaskPriority? priority = null, TaskType? type = null,
-        DateTime? dueDate = null, decimal? estimatedHours = null, string? tags = null)
+        DateTime? dueDate = null, decimal? estimatedHours = null, string? tags = null,
+        int? storyPoints = null, string? acceptanceCriteria = null)
     {
         if (title is not null) Title = title;
         if (description is not null) Description = description;
@@ -154,6 +173,8 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
         if (dueDate.HasValue) DueDate = dueDate.Value;
         if (estimatedHours.HasValue) EstimatedHours = estimatedHours.Value;
         if (tags is not null) Tags = tags;
+        if (storyPoints.HasValue) StoryPoints = storyPoints.Value;
+        if (acceptanceCriteria is not null) AcceptanceCriteria = acceptanceCriteria;
     }
 
     /// <summary>Görevin bir kaynağa bağlı olup olmadığını kontrol eder.</summary>

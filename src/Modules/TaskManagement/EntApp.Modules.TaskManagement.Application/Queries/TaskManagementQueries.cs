@@ -92,7 +92,8 @@ public sealed record ListTasksBySourceQuery(
 public sealed record TaskBySourceDto(
     Guid Id, string TaskNumber, string Title, string Status,
     string Priority, string Type, Guid? AssigneeUserId,
-    DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt);
+    DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt,
+    int? StoryPoints = null, int HierarchyLevel = 0);
 
 public sealed record TaskDetailDto(
     Guid Id, string TaskNumber, string Title, string? Description,
@@ -103,7 +104,39 @@ public sealed record TaskDetailDto(
     string? SourceModule, string? SourceType, Guid? SourceId,
     Guid? ProjectId, string? ProjectKey, string? ProjectName,
     DateTime CreatedAt, DateTime? UpdatedAt,
-    List<TaskBySourceDto> SubTasks);
+    List<TaskBySourceDto> SubTasks,
+    int? StoryPoints = null, string? AcceptanceCriteria = null,
+    Guid? SprintId = null, string? SprintName = null,
+    int HierarchyLevel = 0);
+
+// ── Sprint ──────────────────────────────────────────────────
+public sealed record ListSprintsQuery(Guid ProjectId, string? Status = null) : IRequest<List<SprintListDto>>;
+public sealed record GetSprintQuery(Guid Id) : IRequest<SprintDetailDto?>;
+
+public sealed record SprintListDto(
+    Guid Id, string Name, string? Goal, string Status,
+    DateTime StartDate, DateTime EndDate, int? CapacityPoints,
+    Guid ProjectId, string ProjectKey,
+    int WorkItemCount, int? TotalStoryPoints,
+    DateTime CreatedAt);
+
+public sealed record SprintDetailDto(
+    Guid Id, string Name, string? Goal, string Status,
+    DateTime StartDate, DateTime EndDate, int? CapacityPoints,
+    Guid ProjectId, string ProjectKey, string ProjectName,
+    int WorkItemCount, int? TotalStoryPoints,
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<TaskBySourceDto> WorkItems);
+
+// ── Backlog ─────────────────────────────────────────────────
+/// <summary>Proje backlog'unu flat veya tree olarak getirir.</summary>
+public sealed record GetBacklogQuery(Guid ProjectId,
+    string View = "flat",      // flat | tree
+    string? Type = null,        // virgülle ayrılmış TaskType listesi
+    string? Sprint = null,      // "current" | sprint guid
+    Guid? Assignee = null,
+    string? Status = null       // virgülle ayrılmış TaskStatus listesi
+) : IRequest<object>;
 
 // ── Server ──────────────────────────────────────────────────
 public sealed record ListServersQuery(string? Status = null, string? ServerType = null,
@@ -179,3 +212,4 @@ public sealed record CIRelationshipDto(
     Guid TargetCIId, string TargetName, string TargetCode, string TargetType,
     string RelationType, string? Notes,
     string Direction); // "outgoing" or "incoming" relative to the queried CI
+

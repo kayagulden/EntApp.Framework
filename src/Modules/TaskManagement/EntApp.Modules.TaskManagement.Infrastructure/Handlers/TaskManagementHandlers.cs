@@ -315,7 +315,7 @@ public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHa
 {
     public async Task<TaskDetailDto?> Handle(GetTaskQuery request, CancellationToken ct)
     {
-        var t = await db.Tasks.Include(x => x.SubTasks).Include(x => x.Project)
+        var t = await db.Tasks.Include(x => x.SubTasks).Include(x => x.Project).Include(x => x.Sprint)
             .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
         if (t is null) return null;
         return new TaskDetailDto(
@@ -331,7 +331,11 @@ public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHa
             t.SubTasks.Select(st => new TaskBySourceDto(
                 st.Id.Value, st.TaskNumber, st.Title, st.Status.ToString(),
                 st.Priority.ToString(), st.Type.ToString(), st.AssigneeUserId,
-                st.DueDate, st.EstimatedHours, st.CreatedAt)).ToList());
+                st.DueDate, st.EstimatedHours, st.CreatedAt,
+                st.StoryPoints, st.HierarchyLevel)).ToList(),
+            t.StoryPoints, t.AcceptanceCriteria,
+            t.SprintId.HasValue ? t.SprintId.Value.Value : null,
+            t.Sprint?.Name, t.HierarchyLevel);
     }
 }
 
@@ -388,7 +392,8 @@ public sealed class ListTasksBySourceQueryHandler(TaskManagementDbContext db)
             .Select(t => new TaskBySourceDto(
                 t.Id.Value, t.TaskNumber, t.Title, t.Status.ToString(),
                 t.Priority.ToString(), t.Type.ToString(), t.AssigneeUserId,
-                t.DueDate, t.EstimatedHours, t.CreatedAt))
+                t.DueDate, t.EstimatedHours, t.CreatedAt,
+                t.StoryPoints, t.HierarchyLevel))
             .ToListAsync(ct);
     }
 }
@@ -569,10 +574,15 @@ public sealed class UpdateTaskCommandHandler(TaskManagementDbContext db) : IRequ
             type: request.Type is not null ? type : null,
             dueDate: request.DueDate,
             estimatedHours: request.EstimatedHours,
-            tags: request.Tags);
+            tags: request.Tags,
+            storyPoints: request.StoryPoints,
+            acceptanceCriteria: request.AcceptanceCriteria);
 
         if (request.AssigneeUserId.HasValue)
             task.AssignTo(request.AssigneeUserId.Value);
+
+        if (request.SprintId.HasValue)
+            task.AssignToSprint(new SprintId(request.SprintId.Value));
 
         await db.SaveChangesAsync(ct);
         return task.Id.Value;
@@ -973,4 +983,203 @@ public sealed class ListCIRelationshipsQueryHandler(TaskManagementDbContext db) 
         LicenceCI => "Licence",
         _ => "CI"
     };
+}
+
+// ══════════════════════════════════════════════════════════════
+// SPRINT HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListSprintsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListSprintsQuery, List<SprintListDto>>
+{
+    public async Task<List<SprintListDto>> Handle(ListSprintsQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.Sprints.Include(s => s.Project).Include(s => s.WorkItems)
+            .Where(s => s.ProjectId == projectId);
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<SprintStatus>(request.Status, out var status))
+            query = query.Where(s => s.Status == status);
+        return await query.OrderByDescending(s => s.StartDate)
+            .Select(s => new SprintListDto(
+                s.Id.Value, s.Name, s.Goal, s.Status.ToString(),
+                s.StartDate, s.EndDate, s.CapacityPoints,
+                s.ProjectId.Value, s.Project!.Key,
+                s.WorkItems.Count,
+                s.WorkItems.Where(w => w.StoryPoints.HasValue).Sum(w => w.StoryPoints),
+                s.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetSprintQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetSprintQuery, SprintDetailDto?>
+{
+    public async Task<SprintDetailDto?> Handle(GetSprintQuery request, CancellationToken ct)
+    {
+        var sprintId = new SprintId(request.Id);
+        var s = await db.Sprints.Include(x => x.Project).Include(x => x.WorkItems)
+            .FirstOrDefaultAsync(x => x.Id == sprintId, ct);
+        if (s is null) return null;
+        return new SprintDetailDto(
+            s.Id.Value, s.Name, s.Goal, s.Status.ToString(),
+            s.StartDate, s.EndDate, s.CapacityPoints,
+            s.ProjectId.Value, s.Project!.Key, s.Project.Name,
+            s.WorkItems.Count,
+            s.WorkItems.Where(w => w.StoryPoints.HasValue).Sum(w => w.StoryPoints),
+            s.CreatedAt, s.UpdatedAt,
+            s.WorkItems.OrderBy(w => w.SortOrder).Select(w => new TaskBySourceDto(
+                w.Id.Value, w.TaskNumber, w.Title, w.Status.ToString(),
+                w.Priority.ToString(), w.Type.ToString(), w.AssigneeUserId,
+                w.DueDate, w.EstimatedHours, w.CreatedAt,
+                w.StoryPoints, w.HierarchyLevel)).ToList());
+    }
+}
+
+public sealed class CreateSprintCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateSprintCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateSprintCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        _ = await db.Projects.FindAsync([projectId], ct)
+            ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
+        var sprint = SprintBase.Create(projectId, request.Name,
+            request.StartDate, request.EndDate, request.Goal, request.CapacityPoints);
+        db.Sprints.Add(sprint);
+        await db.SaveChangesAsync(ct);
+        return sprint.Id.Value;
+    }
+}
+
+public sealed class UpdateSprintCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateSprintCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateSprintCommand request, CancellationToken ct)
+    {
+        var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
+            ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
+        sprint.Update(request.Name, request.Goal, request.StartDate, request.EndDate, request.CapacityPoints);
+        await db.SaveChangesAsync(ct);
+        return sprint.Id.Value;
+    }
+}
+
+public sealed class StartSprintCommandHandler(TaskManagementDbContext db) : IRequestHandler<StartSprintCommand, Guid>
+{
+    public async Task<Guid> Handle(StartSprintCommand request, CancellationToken ct)
+    {
+        var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
+            ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
+        // Aynı projede başka aktif sprint var mı kontrol et
+        var hasActiveSprint = await db.Sprints
+            .AnyAsync(s => s.ProjectId == sprint.ProjectId && s.Status == SprintStatus.Active, ct);
+        if (hasActiveSprint)
+            throw new InvalidOperationException("Bu projede zaten aktif bir sprint var. Önce mevcut sprint'i tamamlayın.");
+        sprint.Start();
+        await db.SaveChangesAsync(ct);
+        return sprint.Id.Value;
+    }
+}
+
+public sealed class CompleteSprintCommandHandler(TaskManagementDbContext db) : IRequestHandler<CompleteSprintCommand, Guid>
+{
+    public async Task<Guid> Handle(CompleteSprintCommand request, CancellationToken ct)
+    {
+        var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
+            ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
+        sprint.Complete();
+        await db.SaveChangesAsync(ct);
+        return sprint.Id.Value;
+    }
+}
+
+public sealed class AssignToSprintCommandHandler(TaskManagementDbContext db) : IRequestHandler<AssignToSprintCommand, Guid>
+{
+    public async Task<Guid> Handle(AssignToSprintCommand request, CancellationToken ct)
+    {
+        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+            ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
+        task.AssignToSprint(request.SprintId.HasValue ? new SprintId(request.SprintId.Value) : null);
+        await db.SaveChangesAsync(ct);
+        return task.Id.Value;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BACKLOG HANDLER
+// ══════════════════════════════════════════════════════════════
+
+public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetBacklogQuery, object>
+{
+    public async Task<object> Handle(GetBacklogQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.Tasks.Where(t => t.ProjectId.HasValue && t.ProjectId == projectId);
+
+        // Tip filtresi
+        if (!string.IsNullOrEmpty(request.Type))
+        {
+            var types = request.Type.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => Enum.TryParse<TaskType>(x.Trim(), out var tp) ? tp : (TaskType?)null)
+                .Where(x => x.HasValue).Select(x => x!.Value).ToList();
+            if (types.Count > 0)
+                query = query.Where(t => types.Contains(t.Type));
+        }
+
+        // Sprint filtresi
+        if (!string.IsNullOrEmpty(request.Sprint))
+        {
+            if (request.Sprint.Equals("current", StringComparison.OrdinalIgnoreCase))
+            {
+                var activeSprint = await db.Sprints
+                    .FirstOrDefaultAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Active, ct);
+                if (activeSprint is not null)
+                    query = query.Where(t => t.SprintId.HasValue && t.SprintId == activeSprint.Id);
+            }
+            else if (Guid.TryParse(request.Sprint, out var sprintGuid))
+            {
+                var sprintId = new SprintId(sprintGuid);
+                query = query.Where(t => t.SprintId.HasValue && t.SprintId == sprintId);
+            }
+        }
+
+        // Assignee filtresi
+        if (request.Assignee.HasValue)
+            query = query.Where(t => t.AssigneeUserId == request.Assignee.Value);
+
+        // Status filtresi
+        if (!string.IsNullOrEmpty(request.Status))
+        {
+            var statuses = request.Status.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => Enum.TryParse<TaskStatusEnum>(x.Trim(), out var st) ? st : (TaskStatusEnum?)null)
+                .Where(x => x.HasValue).Select(x => x!.Value).ToList();
+            if (statuses.Count > 0)
+                query = query.Where(t => statuses.Contains(t.Status));
+        }
+
+        var items = await query.OrderBy(t => t.SortOrder).ThenByDescending(t => t.CreatedAt)
+            .Select(t => new
+            {
+                t.Id, t.TaskNumber, t.Title, t.Description,
+                Status = t.Status.ToString(), Priority = t.Priority.ToString(),
+                Type = t.Type.ToString(), t.AssigneeUserId, t.ReporterUserId,
+                ParentTaskId = t.ParentTaskId.HasValue ? t.ParentTaskId.Value.Value : (Guid?)null,
+                t.DueDate, t.EstimatedHours, t.SortOrder, t.Tags,
+                t.StoryPoints, t.AcceptanceCriteria, t.HierarchyLevel,
+                SprintId = t.SprintId.HasValue ? t.SprintId.Value.Value : (Guid?)null,
+                t.CreatedAt
+            }).ToListAsync(ct);
+
+        if (request.View.Equals("tree", StringComparison.OrdinalIgnoreCase))
+        {
+            // Hiyerarşik ağaç oluştur
+            var lookup = items.ToLookup(i => i.ParentTaskId);
+            object BuildTree(Guid? parentId) => lookup[parentId].Select(item => new
+            {
+                item.Id, item.TaskNumber, item.Title, item.Status, item.Priority, item.Type,
+                item.AssigneeUserId, item.DueDate, item.StoryPoints, item.HierarchyLevel,
+                item.SortOrder, item.SprintId,
+                Children = BuildTree(item.Id.Value)
+            }).ToList();
+            return BuildTree(null);
+        }
+
+        return items;
+    }
 }

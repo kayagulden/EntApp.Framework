@@ -93,6 +93,42 @@ public static class TaskManagementEndpoints
             return Results.NoContent();
         }).WithName("RemoveProjectDeliverable");
 
+        // ── Sprint (proje altında) ─────────────────────
+        proj.MapGet("/{projectId:guid}/sprints", async (Guid projectId, ISender mediator, string? status) =>
+            Results.Ok(await mediator.Send(new ListSprintsQuery(projectId, status))))
+            .WithName("ListProjectSprints").WithTags("PM - Sprints");
+        proj.MapPost("/{projectId:guid}/sprints", async (Guid projectId, CreateSprintRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateSprintCommand(projectId, req.Name,
+                req.StartDate, req.EndDate, req.Goal, req.CapacityPoints));
+            return Results.Created($"/api/pm/sprints/{id}", new { id });
+        }).WithName("CreateSprint").WithTags("PM - Sprints");
+
+        // ── Backlog ───────────────────────────────────
+        proj.MapGet("/{projectId:guid}/backlog", async (Guid projectId, ISender mediator,
+            string view = "flat", string? type = null, string? sprint = null,
+            Guid? assignee = null, string? status = null) =>
+            Results.Ok(await mediator.Send(new GetBacklogQuery(projectId, view, type, sprint, assignee, status))))
+            .WithName("GetProjectBacklog").WithTags("PM - Backlog")
+            .WithSummary("Proje backlog — flat veya tree görünüm");
+
+        // ── Sprint (bağımsız endpoint'ler) ───────────────
+        var sprints = app.MapGroup("/api/pm/sprints").WithTags("PM - Sprints");
+        sprints.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetSprintQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetSprint");
+        sprints.MapPut("/{id:guid}", async (Guid id, UpdateSprintRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateSprintCommand(id, req.Name, req.Goal, req.StartDate, req.EndDate, req.CapacityPoints));
+            return Results.Ok(new { id });
+        }).WithName("UpdateSprint");
+        sprints.MapPost("/{id:guid}/start", async (Guid id, ISender mediator) =>
+            Results.Ok(new { id = await mediator.Send(new StartSprintCommand(id)) }))
+            .WithName("StartSprint").WithSummary("Sprint başlat");
+        sprints.MapPost("/{id:guid}/complete", async (Guid id, ISender mediator) =>
+            Results.Ok(new { id = await mediator.Send(new CompleteSprintCommand(id)) }))
+            .WithName("CompleteSprint").WithSummary("Sprint tamamla");
+
         // ── Server ──────────────────────────────────────────────
         var servers = app.MapGroup("/api/pm/servers").WithTags("PM - Servers");
         servers.MapGet("/", async (ISender mediator, string? status, string? serverType, string? environment) =>
@@ -210,9 +246,13 @@ public static class TaskManagementEndpoints
         tasks.MapPut("/{id:guid}", async (Guid id, UpdateTaskRequest req, ISender mediator) =>
         {
             var taskId = await mediator.Send(new UpdateTaskCommand(id, req.Title, req.Description,
-                req.Priority, req.Type, req.DueDate, req.EstimatedHours, req.Tags, req.AssigneeUserId));
+                req.Priority, req.Type, req.DueDate, req.EstimatedHours, req.Tags, req.AssigneeUserId,
+                req.StoryPoints, req.AcceptanceCriteria, req.SprintId));
             return Results.Ok(new { id = taskId });
         }).WithName("UpdateTask").WithSummary("Görev bilgilerini günceller");
+        tasks.MapPost("/{id:guid}/sprint", async (Guid id, AssignToSprintRequest req, ISender mediator) =>
+            Results.Ok(new { id = await mediator.Send(new AssignToSprintCommand(id, req.SprintId)) }))
+            .WithName("AssignTaskToSprint").WithSummary("Work item'ı sprint'e ata veya çıkar");
         tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, ISender mediator)
             => Results.Ok(await mediator.Send(new GetKanbanBoardQuery(projectId)))).WithName("KanbanBoard").WithSummary("Kanban board — duruma göre gruplu");
 
@@ -294,8 +334,16 @@ public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Ho
     DateTime WorkDate, string? Description = null);
 public sealed record UpdateTaskRequest(string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
-    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null);
+    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
+    int? StoryPoints = null, string? AcceptanceCriteria = null, Guid? SprintId = null);
 public sealed record AddDeliverableRequest(Guid ConfigurationItemId, string? Role = "Primary", string? Notes = null);
+public sealed record AssignToSprintRequest(Guid? SprintId);
+
+// Sprint
+public sealed record CreateSprintRequest(string Name, DateTime StartDate, DateTime EndDate,
+    string? Goal = null, int? CapacityPoints = null);
+public sealed record UpdateSprintRequest(string? Name = null, string? Goal = null,
+    DateTime? StartDate = null, DateTime? EndDate = null, int? CapacityPoints = null);
 
 // Server
 public sealed record CreateServerRequest(string Name, string Code,

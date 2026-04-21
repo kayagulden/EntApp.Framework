@@ -63,7 +63,24 @@ public sealed record CreateTimeEntryCommand(Guid TaskId, Guid UserId, decimal Ho
 
 public sealed record UpdateTaskCommand(Guid TaskId, string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
-    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null) : IRequest<Guid>;
+    decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
+    int? StoryPoints = null, string? AcceptanceCriteria = null,
+    Guid? SprintId = null) : IRequest<Guid>;
+
+// ── Sprint ──────────────────────────────────────────────────
+public sealed record CreateSprintCommand(Guid ProjectId, string Name,
+    DateTime StartDate, DateTime EndDate,
+    string? Goal = null, int? CapacityPoints = null) : IRequest<Guid>;
+
+public sealed record UpdateSprintCommand(Guid SprintId, string? Name = null,
+    string? Goal = null, DateTime? StartDate = null, DateTime? EndDate = null,
+    int? CapacityPoints = null) : IRequest<Guid>;
+
+public sealed record StartSprintCommand(Guid SprintId) : IRequest<Guid>;
+public sealed record CompleteSprintCommand(Guid SprintId) : IRequest<Guid>;
+
+/// <summary>Work item'ı bir sprint'e atar veya sprint'ten çıkarır.</summary>
+public sealed record AssignToSprintCommand(Guid TaskId, Guid? SprintId) : IRequest<Guid>;
 
 // ── ProjectDeliverable ─────────────────────────────────────
 public sealed record AddProjectDeliverableCommand(
@@ -128,3 +145,4 @@ public sealed record AddCIRelationshipCommand(
     string RelationType, string? Notes = null) : IRequest<Guid>;
 
 public sealed record RemoveCIRelationshipCommand(Guid RelationshipId) : IRequest;
+

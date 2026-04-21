@@ -62,14 +62,29 @@ public enum TaskPriority
     Critical = 3
 }
 
-/// <summary>Görev tipi.</summary>
+/// <summary>Görev / iş kalemi tipi.</summary>
 public enum TaskType
 {
     Task = 0,
     Bug = 1,
     Feature = 2,
     Improvement = 3,
-    Epic = 4
+    Epic = 4,
+    /// <summary>Kullanıcı hikayesi — Epic/Feature altında.</summary>
+    UserStory = 5,
+    /// <summary>Teknik borç.</summary>
+    TechDebt = 6,
+    /// <summary>Araştırma / PoC.</summary>
+    Spike = 7,
+}
+
+/// <summary>Sprint durumu.</summary>
+public enum SprintStatus
+{
+    Planning = 0,
+    Active = 1,
+    Completed = 2,
+    Cancelled = 3
 }
 
 /// <summary>Portfolyo durumu.</summary>
