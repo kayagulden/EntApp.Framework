@@ -1,25 +1,29 @@
-# Request Management — İlerleme Durumu
+# 16a — Request Management (Talep Yönetimi) — Detaylı Yol Haritası
+
+> **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
+> **Backend tamamlanma:** 2026-04-05
+> **Workflow entegrasyonu:** 2026-04-17
+
+---
 
 ## ✅ Tamamlanan Maddeler
 
-### Backend
+### Backend Core
+- [x] `Department`, `RequestCategory`, `SlaDefinition`, `Ticket`, `TicketComment`, `TicketStatusHistory` entity'leri
+- [x] Talep oluşturma + SLA takibi (`SlaCalculator`, otomatik deadline hesaplama)
+- [x] Sequential ticket numarası (`TicketNumberGenerator` — REQ-0001 formatı)
+- [x] CQRS: 12 command, 8 query, 5 validator, 20 handler, 20 API endpoint (`/api/req/`)
+- [x] Integration Events: `TicketCreatedEvent`, `TicketAssignedEvent`, `TicketSlaBreachedEvent`, `TicketResolvedEvent`
+- [x] `RequestManagementDbContext` (schema: `req`, 6 tablo)
+- [x] Dinamik form altyapısı (FormSchemaJson, SchemaForm, FormSchemaBuilder)
+
+### Kuyruk Yönetimi
 - [x] ServiceQueue + QueueMembership entity'leri ve strongly-typed ID'ler
 - [x] DbContext (2 tablo: `service_queues`, `queue_memberships`)
 - [x] CQRS: 5 Command + 2 Query + 7 Handler
 - [x] 7 API Endpoint (`/api/req/queues`)
 - [x] DTO projeksiyonu (circular JSON reference düzeltmesi)
 - [x] IAM'den kullanıcı adı çözümleme (batch user lookup)
-- [x] Dinamik form altyapısı (FormSchemaJson, SchemaForm, FormSchemaBuilder)
-
-### Frontend
-- [x] `/manage/queues` — master-detail, create modal, departman dropdown, üye yönetimi
-- [x] Sidebar → Talep Yönetimi → Hizmet Kuyrukları
-- [x] `/dashboard/tickets` — talep listesi sayfası
-
-### Seed Data
-- [x] Demo şirket (EntApp Demo) + 2 şube + 6 IAM departman
-- [x] 5 demo kullanıcı (org+dept atanmış)
-- [x] 4 Request departmanı + 8 hizmet kuyruğu + 13 üyelik + 8 kategori
 
 ### Ticket → Queue Routing
 - [x] Kategori seçildiğinde ticket otomatik olarak ilgili kuyruğa yönlendirilsin
@@ -50,38 +54,58 @@
 - [x] WaitForAllTasksDone activity — tüm görevler bitene kadar bekle
 - [x] Denormalized görev sayaçları (LinkedTaskCount, CompletedTaskCount)
 
+### Frontend
+- [x] `/manage/queues` — master-detail, create modal, departman dropdown, üye yönetimi
+- [x] Sidebar → Talep Yönetimi → Hizmet Kuyrukları
+- [x] `/dashboard/tickets` — talep listesi sayfası
+
+### Taleplerim Sayfası (Talep Sahibi Görünümü)
+- [x] Kullanıcının kendi oluşturduğu talepleri listesi (`/dashboard/tickets` → "Taleplerim" sekmesi)
+- [x] Durum takibi, detay görüntüleme (`/dashboard/tickets/[id]`)
+- [x] Yorum bırakabilme (ticket detay sayfasında)
+
+### Organizasyon Yönetim Sayfası
+- [x] `/manage/organizations` — 3 panelli ağaç görünümü (org tree, departman listesi, departman detayı)
+- [x] Organizasyon ekleme (API bağlantılı)
+- [x] Departman ekleme/düzenleme (yönetici, üst departman, varsayılan kuyruk)
+
+### Onay Akışı Altyapısı
+- [x] `WaitForApprovalActivity` — configurable outcome'lu blocking activity
+- [x] Bookmark payload (`ApprovalBookmarkPayload`) — ticketId, label, outcomes, approverUserId
+- [x] Frontend aksiyonlar paneli — ticket detayında Onayla/Reddet butonları otomatik render
+- [x] "Bekleyen Onaylar" sayfası (`/dashboard/approvals`) — UI mevcut
+
+### Seed Data
+- [x] Demo şirket (EntApp Demo) + 2 şube + 6 IAM departman
+- [x] 5 demo kullanıcı (org+dept atanmış)
+- [x] 4 Request departmanı + 8 hizmet kuyruğu + 13 üyelik + 8 kategori
+
 ---
 
 ## 📋 Devam Edilecek Maddeler
 
-### 2. Taleplerim Sayfası (Talep Sahibi Görünümü) ✅
-- [x] Kullanıcının kendi oluşturduğu talepleri listesi (`/dashboard/tickets` → "Taleplerim" sekmesi)
-- [x] Durum takibi, detay görüntüleme (`/dashboard/tickets/[id]`)
-- [x] Yorum bırakabilme (ticket detay sayfasında)
-- [ ] ~Düzenleme imkanı~ — şimdilik gerekli değil, ihtiyaç olursa eklenebilir
-
-### 3. Organizasyon Yönetim Sayfası ✅
-- [x] `/manage/organizations` — 3 panelli ağaç görünümü (org tree, departman listesi, departman detayı)
-- [x] Organizasyon ekleme (API bağlantılı)
-- [x] Departman ekleme/düzenleme (yönetici, üst departman, varsayılan kuyruk)
-- [ ] Yönetici atama dropdown'u — Keycloak aktif olduğunda IAM users API üzerinden çalışacak
-
-### 4. Onay Akışları
+### Onay Akışları (Tamamlanması Gereken)
 > **Not:** Organizasyon Yönetim Sayfası'ndan sonra implemente edilecek — kullanıcı-yönetici ilişkisi onay akışının ön koşuludur.
 
-**Mevcut altyapı (hazır):**
-- [x] `WaitForApprovalActivity` — configurable outcome'lu blocking activity
-- [x] Bookmark payload (`ApprovalBookmarkPayload`) — ticketId, label, outcomes, approverUserId
-- [x] Frontend aksiyonlar paneli — ticket detayında Onayla/Reddet butonları otomatik render
-- [x] "Bekleyen Onaylar" sayfası (`/dashboard/approvals`) — UI mevcut, backend bağlantısı güncellenecek
-
-**Yapılacaklar:**
 - [ ] `RequestCategory.RequiresApproval: bool` — kategori bazlı onay zorunluluğu
 - [ ] `ResolveApproverActivity` — talebi açanın yöneticisini IAM User.ManagerUserId üzerinden çözen Elsa activity
 - [ ] Workflow akışı: `ResolveApprover → WaitForApproval → (Approved: RouteToQueue) / (Rejected: Cancel)`
 - [ ] "Bekleyen Onaylar" sayfasının Elsa bookmark API'sine bağlanması
 - [ ] Onaylayıcı çözümleme: `IAM.User.ManagerUserId` → talebi açanın yöneticisi dinamik olarak bulunur
 - [ ] Herhangi bir onaylayıcının onayı yeterli (tek onay mantığı)
+
+### Dinamik Form
+- [ ] Departman/kategori bazlı dinamik form (RequestCategory.FormSchema → Dynamic UI)
+
+### Workflow Görev Oluşturma
+- [ ] `CreateTaskForAssignee` activity ile workflow'dan otomatik görev oluşturma (activity mevcut, workflow akışına eklenmedi)
+
+### Talep Sahibi Portalı
+- [ ] Self-service UI — talep sahibinin kendi taleplerini takip edebileceği portal
+
+### Küçük Bekleyen Maddeler
+- [ ] ~Ticket düzenleme imkanı~ — şimdilik gerekli değil, ihtiyaç olursa eklenebilir
+- [ ] Yönetici atama dropdown'u — Keycloak aktif olduğunda IAM users API üzerinden çalışacak
 
 ---
 

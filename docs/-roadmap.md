@@ -723,21 +723,75 @@
 
 ## Faz 16 — Delivery Platform (ALM/ITSM Modülleri)
 
-> **Detaylı roadmap:** [_delivery-platform-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/_delivery-platform-roadmap.md)
+> **Kaynak:** [delivery-platform-modules.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-modules.md)
 
-| Alt Faz | Başlık | Durum |
-|---------|--------|-------|
-| 16a | Request Management (Talep Yönetimi) | ✅ Backend + Workflow tamamlandı, kalan: dinamik form, unclaim, portal |
-| 16b | Project & Portfolio Management | 📋 Planlandı |
-| 16c | Requirements & Analysis | 📋 Planlandı |
-| 16d | Test Management | 📋 Planlandı |
-| 16e | Release Management | 📋 Planlandı |
-| 16f | Scheduling Engine | 📋 Planlandı |
-| 16g | Knowledge Base / Wiki | 📋 Planlandı |
-| 16h | Ek Modüller (Change Req, Risk, Automation) | 📋 Planlandı |
-| 16i | Reporting & Analytics | 📋 Planlandı |
-| 16j | Cross-Module Entegrasyon | 📋 Planlandı |
-| 16k | **CMDB** ([cmdb-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/cmdb-roadmap.md)) | ✅ Temel (A-C) tamamlandı, ileri fazlar planlandı |
+> [!IMPORTANT]
+> **Ön Koşullar (Faz 10 tamamlanmalı):**
+> 1. ✅ `ApprovalCompletedIntegrationEvent` — Faz 16 modülleri bu event'i dinleyerek onay sonrası aksiyonları tetikler
+> 2. ✅ Frontend: Bekleyen onaylar listesi — tüm Faz 16 onay akışları bu generic UI'ı kullanır
+> 3. `Dinamik form desteği` — 16a (Request Mgmt) başlamadan önce Workflow stepDefinitionsJson + Dynamic UI form schema entegrasyonu yapılmalı
+>
+> **Mimari ilke:** Faz 16 modülleri Workflow modülünü **loosely coupled** olarak tüketir:
+> - Event tanımları → `Workflow.Application/IntegrationEvents/`
+> - Event handler'ları → her Faz 16 modülünün kendi `Infrastructure/Handlers/` klasöründe
+> - Workflow'u başlatma → `IWorkflowEngine.StartAsync()` ile (ISender üzerinden)
+
+---
+
+### 16a — Request Management (Talep Yönetimi)
+> **Detaylar:** [-request-management-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-request-management-roadmap.md)
+
+✅ Backend, workflow, kuyruk, claim, onay altyapısı tamamlandı. Devam eden: onay akışı tamamlama, dinamik form, self-service portal.
+
+### 16b — Project & Portfolio Management
+> **Detaylar:** [-project-management-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-project-management-roadmap.md)
+
+✅ Portfolio, proje, WorkItem hiyerarşisi, Sprint, Board, Velocity/Burndown tamamlandı. Devam eden: drag & drop, swimlane, Kanban metrikleri, proje template sistemi.
+
+### 16c — Requirements & Analysis
+> **Detaylar:** [-requirements-analysis-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-requirements-analysis-roadmap.md)
+
+📋 Henüz başlanmadı. Gereksinim, iş kuralı, mockup, traceability matrix, onay akışı.
+
+### 16d — Test Management
+> **Detaylar:** [-test-management-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-test-management-roadmap.md)
+
+📋 Henüz başlanmadı. Test senaryosu, plan, execution, coverage raporu, bug oluşturma.
+
+### 16e — Release Management
+> **Detaylar:** [-release-management-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-release-management-roadmap.md)
+
+📋 Henüz başlanmadı. Release lifecycle, Go/No-Go checklist, otomatik release note.
+
+### 16f — Scheduling Engine
+> **Detaylar:** [-scheduling-engine-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-scheduling-engine-roadmap.md)
+
+📋 Henüz başlanmadı. Otomatik takvim, bağımlılık, kapasite, kayma tespit.
+
+### 16g — Knowledge Base / Wiki
+> **Detaylar:** [-knowledge-base-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-knowledge-base-roadmap.md)
+
+📋 Henüz başlanmadı. Wiki sayfaları, hiyerarşi, versiyon geçmişi, full-text + AI search.
+
+### 16h — Ek Modüller
+> **Detaylar:** [-extra-modules-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-extra-modules-roadmap.md)
+
+📋 Henüz başlanmadı. Change Request, Risk Management, Automation Rules, Developer Tools.
+
+### 16i — Reporting & Analytics
+> **Detaylar:** [-reporting-analytics-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-reporting-analytics-roadmap.md)
+
+📋 Henüz başlanmadı. Dashboard'lar, SLA raporları, Scrum/Kanban metrikleri.
+
+### 16j — Cross-Module Entegrasyon
+> **Detaylar:** [-cross-module-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-cross-module-roadmap.md)
+
+📋 Henüz başlanmadı. Event haritası, cross-project dependency, entegrasyon testleri.
+
+### 16k — CMDB
+> **Detaylar:** [cmdb-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/cmdb-roadmap.md)
+
+✅ Temel (A-C) tamamlandı, ileri fazlar planlandı.
 
 **Çıktı:** Tam özellikli ALM/ITSM platformu — talep yönetimi, proje/portfolio, gereksinim, test, release, wiki, risk, otomasyon, CMDB.
 

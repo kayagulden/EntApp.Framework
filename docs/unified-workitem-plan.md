@@ -3,7 +3,7 @@
 > **Tarih:** 2026-04-21
 > **Modül:** TaskManagement (`pm` schema) + RequestManagement (`req` schema)
 > **Ön koşul:** Mevcut WorkItemBase, Ticket, ProjectBase entity'leri çalışır durumda
-> **İlgili Roadmap:** [delivery-platform-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/delivery-platform-roadmap.md)
+> **İlgili Roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
 
 ---
 
