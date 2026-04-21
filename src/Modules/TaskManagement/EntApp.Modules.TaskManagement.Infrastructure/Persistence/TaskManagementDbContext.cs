@@ -28,6 +28,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<SprintBase> Sprints => Set<SprintBase>();
     public DbSet<BoardColumn> BoardColumns => Set<BoardColumn>();
     public DbSet<BurndownSnapshot> BurndownSnapshots => Set<BurndownSnapshot>();
+    public DbSet<MilestoneBase> Milestones => Set<MilestoneBase>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -141,6 +142,10 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Goal).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+            e.Property(x => x.MilestoneId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new MilestoneId(v.Value) : null).IsRequired(false);
+            e.HasOne(x => x.Milestone).WithMany(m => m.Sprints).HasForeignKey(x => x.MilestoneId).IsRequired(false);
         });
 
         // ── BoardColumn ──────────────────────────────────────
@@ -208,6 +213,11 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.HasOne(x => x.Project).WithMany(p => p.WorkItems).HasForeignKey(x => x.ProjectId).IsRequired(false);
             e.HasOne(x => x.ParentTask).WithMany(t => t.SubTasks).HasForeignKey(x => x.ParentTaskId);
             e.HasOne(x => x.Sprint).WithMany(s => s.WorkItems).HasForeignKey(x => x.SprintId).IsRequired(false);
+            e.Property(x => x.MilestoneId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new MilestoneId(v.Value) : null).IsRequired(false);
+            e.HasIndex(x => x.MilestoneId).HasDatabaseName("ix_tasks_milestone");
+            e.HasOne(x => x.Milestone).WithMany(m => m.WorkItems).HasForeignKey(x => x.MilestoneId).IsRequired(false);
             e.Ignore(x => x.TotalLoggedHours);
         });
 
@@ -269,6 +279,21 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.HasIndex(x => x.TargetCIId).HasDatabaseName("ix_ci_relationships_target");
             e.HasOne(x => x.SourceCI).WithMany().HasForeignKey(x => x.SourceCIId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.TargetCI).WithMany().HasForeignKey(x => x.TargetCIId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Milestone ─────────────────────────────────────────
+        modelBuilder.Entity<MilestoneBase>(e =>
+        {
+            e.ToTable("milestones");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<MilestoneId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.DueDate);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
         });
     }
 }

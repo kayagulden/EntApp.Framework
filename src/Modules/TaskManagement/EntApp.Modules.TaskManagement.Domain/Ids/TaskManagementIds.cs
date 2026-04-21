@@ -13,3 +13,4 @@ public readonly record struct CIRelationshipId(Guid Value) : IEntityId;
 public readonly record struct SprintId(Guid Value) : IEntityId;
 public readonly record struct BoardColumnId(Guid Value) : IEntityId;
 public readonly record struct BurndownSnapshotId(Guid Value) : IEntityId;
+public readonly record struct MilestoneId(Guid Value) : IEntityId;

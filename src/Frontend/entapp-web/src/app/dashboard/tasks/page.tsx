@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 interface TaskData {
   id: { value: string } | string;
   taskNumber: string;
+  workItemNumber: string;
   title: string;
   status: string;
   priority: string;

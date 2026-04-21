@@ -6,7 +6,8 @@ import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
   Loader2, CheckCircle2, PauseCircle, RotateCcw, AlertCircle,
   Briefcase, Edit3, Save, X, ListTodo, Layout, Milestone, Archive,
-  ChevronRight, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
+  ChevronRight, ChevronDown, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
+  Table2, TreePine, Filter, Search, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -97,15 +98,57 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config — kategori bazlı filtreleme
-type TabKey = "overview" | "backlog" | "board" | "metrics" | "tasks" | "milestones";
+type TabKey = "overview" | "workitems" | "board" | "metrics" | "milestones";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
+  { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
   { key: "board", label: "Board", icon: Layout, categories: ["all"] },
   { key: "metrics", label: "Metrikler", icon: BarChart3, categories: ["all"] },
-  { key: "backlog", label: "Backlog", icon: ListTodo, categories: ["SoftwareDevelopment"], disabled: true },
-  { key: "tasks", label: "İş Kalemleri", icon: ListTodo, categories: ["all"], disabled: true },
-  { key: "milestones", label: "Milestones", icon: Milestone, categories: ["Infrastructure", "Procurement", "Business", "SoftwareDevelopment"], disabled: true },
+  { key: "milestones", label: "Milestones", icon: Milestone, categories: ["all"] },
 ];
+
+interface BacklogWorkItem {
+  id: { value: string } | string;
+  workItemNumber: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  type: string;
+  assigneeUserId?: string;
+  reporterUserId?: string;
+  parentTaskId?: string | null;
+  dueDate?: string;
+  estimatedHours?: number;
+  storyPoints?: number | null;
+  acceptanceCriteria?: string;
+  hierarchyLevel?: number;
+  sprintId?: string | null;
+  sortOrder?: number;
+  tags?: string;
+  createdAt: string;
+  children?: BacklogWorkItem[];
+}
+
+const WORK_ITEM_TYPES = [
+  { value: "Epic", label: "Epic", icon: "🎯" },
+  { value: "Feature", label: "Feature", icon: "🏗" },
+  { value: "UserStory", label: "User Story", icon: "📖" },
+  { value: "Task", label: "Task", icon: "📋" },
+  { value: "Bug", label: "Bug", icon: "🐛" },
+  { value: "TechDebt", label: "Tech Debt", icon: "🔧" },
+  { value: "Spike", label: "Spike", icon: "🔬" },
+  { value: "Improvement", label: "Improvement", icon: "⚡" },
+];
+
+const STATUS_LABELS: Record<string,{label:string;color:string}> = {
+  Backlog: { label: "Backlog", color: "bg-slate-500/20 text-slate-400" },
+  Todo: { label: "Yapılacak", color: "bg-blue-500/20 text-blue-400" },
+  InProgress: { label: "Devam Ediyor", color: "bg-amber-500/20 text-amber-400" },
+  InReview: { label: "İncelemede", color: "bg-purple-500/20 text-purple-400" },
+  Done: { label: "Tamamlandı", color: "bg-emerald-500/20 text-emerald-400" },
+  Cancelled: { label: "İptal", color: "bg-red-500/20 text-red-400" },
+};
 
 interface BoardColumnData { id: string; name: string; order: number; mappedStatus: string; wipLimit?: number | null; }
 interface BoardWorkItem { id: string; workItemNumber: string; title: string; type: string; status: string; priority: string; storyPoints?: number; assigneeUserId?: string; }
@@ -145,6 +188,27 @@ export default function ProjectDetailPage() {
   // Metrics state
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(false);
+
+  // WorkItems state
+  const [workItems, setWorkItems] = useState<BacklogWorkItem[]>([]);
+  const [workItemsLoading, setWorkItemsLoading] = useState(false);
+  const [workItemView, setWorkItemView] = useState<"table" | "tree">("table");
+  const [wiTypeFilter, setWiTypeFilter] = useState("");
+  const [wiStatusFilter, setWiStatusFilter] = useState("");
+  const [wiSearch, setWiSearch] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newItem, setNewItem] = useState({ title: "", type: "Task", priority: "Medium", description: "", storyPoints: "" });
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // Milestones state
+  interface MilestoneItem { id: string; name: string; description?: string; status: string; dueDate: string; completedDate?: string; sortOrder: number; workItemCount: number; sprintCount: number; createdAt: string; }
+  const [milestones, setMilestones] = useState<MilestoneItem[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<MilestoneItem | null>(null);
+  const [msForm, setMsForm] = useState({ name: "", description: "", dueDate: "", sortOrder: "0" });
+  const [msSaving, setMsSaving] = useState(false);
 
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
@@ -194,6 +258,66 @@ export default function ProjectDetailPage() {
       .catch(() => setVelocity([]))
       .finally(() => setMetricsLoading(false));
   }, [activeTab, projectId]);
+
+  // Fetch work items
+  const fetchWorkItems = useCallback(async () => {
+    if (!projectId) return;
+    setWorkItemsLoading(true);
+    try {
+      const params = new URLSearchParams({ view: workItemView });
+      if (wiTypeFilter) params.set("type", wiTypeFilter);
+      if (wiStatusFilter) params.set("status", wiStatusFilter);
+      const res = await fetch(`/api/pm/projects/${projectId}/backlog?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWorkItems(Array.isArray(data) ? data : []);
+      }
+    } catch { /* */ }
+    finally { setWorkItemsLoading(false); }
+  }, [projectId, workItemView, wiTypeFilter, wiStatusFilter]);
+
+  useEffect(() => {
+    if (activeTab === "workitems") fetchWorkItems();
+  }, [activeTab, fetchWorkItems]);
+
+  const createWorkItem = async () => {
+    if (!newItem.title.trim() || !projectId) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/pm/work-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          title: newItem.title,
+          type: newItem.type,
+          priority: newItem.priority,
+          description: newItem.description || null,
+          storyPoints: newItem.storyPoints ? parseInt(newItem.storyPoints) : undefined,
+        }),
+      });
+      if (res.ok) {
+        setNewItem({ title: "", type: "Task", priority: "Medium", description: "", storyPoints: "" });
+        setShowCreateForm(false);
+        fetchWorkItems();
+        fetchProject();
+      }
+    } catch { /* */ }
+    finally { setCreating(false); }
+  };
+
+  const getItemId = (item: BacklogWorkItem): string => {
+    if (typeof item.id === "string") return item.id;
+    return item.id?.value ?? "";
+  };
+
+  const toggleNode = (id: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   // Fetch apps for deliverable dropdown
   useEffect(() => {
@@ -549,8 +673,8 @@ export default function ProjectDetailPage() {
               <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Yakında</h3>
               <ul className="space-y-3">
                 {[
-                  { icon: ListTodo, label: "Backlog Yönetimi", desc: "Epic → Story → Task hiyerarşisi" },
-                  { icon: Layout, label: "Kanban Board", desc: "Drag & drop görev yönetimi" },
+                  { icon: ListTodo, label: "İş Kalemleri", desc: "Tablo & ağaç görünüm, hiyerarşi" },
+                  { icon: Layout, label: "Drag & Drop Board", desc: "Kanban kartlarını sürükle-bırak" },
                   { icon: Milestone, label: "Milestones", desc: "Proje kilometre taşları" },
                 ].map(item => (
                   <li key={item.label} className="flex items-start gap-3">
@@ -566,6 +690,196 @@ export default function ProjectDetailPage() {
               </ul>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* WorkItems Tab */}
+      {activeTab === "workitems" && (
+        <div className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* View toggle */}
+            <div className="flex items-center rounded-lg border border-[var(--color-border)] overflow-hidden">
+              <button onClick={() => setWorkItemView("table")}
+                className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors",
+                  workItemView === "table" ? "bg-indigo-500/20 text-indigo-400" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]")}>
+                <Table2 className="w-3.5 h-3.5" /> Tablo
+              </button>
+              <button onClick={() => setWorkItemView("tree")}
+                className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-l border-[var(--color-border)]",
+                  workItemView === "tree" ? "bg-indigo-500/20 text-indigo-400" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]")}>
+                <TreePine className="w-3.5 h-3.5" /> Ağaç
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              <input type="text" placeholder="Ara..." value={wiSearch} onChange={e => setWiSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+            </div>
+
+            {/* Filters */}
+            <select value={wiTypeFilter} onChange={e => setWiTypeFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+              <option value="">Tüm Tipler</option>
+              {WORK_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+            </select>
+
+            <select value={wiStatusFilter} onChange={e => setWiStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+              <option value="">Tüm Durumlar</option>
+              {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+
+            {/* Spacer + Actions */}
+            <div className="flex-1" />
+            <button onClick={() => fetchWorkItems()}
+              className="p-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]/50 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Yeni İş Kalemi
+            </button>
+          </div>
+
+          {/* Create Form */}
+          {showCreateForm && (
+            <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+                <Plus className="w-4 h-4 text-indigo-400" /> Yeni İş Kalemi Oluştur
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="lg:col-span-2">
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Başlık *</label>
+                  <input type="text" value={newItem.title} onChange={e => setNewItem(d => ({ ...d, title: e.target.value }))}
+                    placeholder="İş kalemi başlığı..." autoFocus
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Tip</label>
+                  <select value={newItem.type} onChange={e => setNewItem(d => ({ ...d, type: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                    {WORK_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Öncelik</label>
+                  <select value={newItem.priority} onChange={e => setNewItem(d => ({ ...d, priority: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                    <option value="Low">Düşük</option><option value="Medium">Orta</option>
+                    <option value="High">Yüksek</option><option value="Critical">Kritik</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Açıklama</label>
+                  <textarea rows={2} value={newItem.description} onChange={e => setNewItem(d => ({ ...d, description: e.target.value }))}
+                    placeholder="Detaylar..."
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none" />
+                </div>
+                <div className="flex items-end gap-3">
+                  <div className="w-24">
+                    <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Story Points</label>
+                    <input type="number" min="0" max="100" value={newItem.storyPoints} onChange={e => setNewItem(d => ({ ...d, storyPoints: e.target.value }))}
+                      placeholder="—"
+                      className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+                  </div>
+                  <div className="flex gap-2 pb-0.5">
+                    <button onClick={createWorkItem} disabled={creating || !newItem.title.trim()}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                      {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Oluştur
+                    </button>
+                    <button onClick={() => setShowCreateForm(false)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]/50 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          {workItemsLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
+          ) : workItems.length === 0 ? (
+            <div className="text-center py-16 text-[var(--color-text-muted)]">
+              <ListTodo className="w-12 h-12 mx-auto opacity-20 mb-3" />
+              <p className="text-sm font-medium">Henüz iş kalemi yok</p>
+              <p className="text-[11px] mt-1">"Yeni İş Kalemi" ile başlayın</p>
+            </div>
+          ) : workItemView === "table" ? (
+            /* ── Table View ─── */
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Numara</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Başlık</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tip</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Durum</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Öncelik</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workItems
+                    .filter(item => !wiSearch || item.title.toLowerCase().includes(wiSearch.toLowerCase()) || item.workItemNumber.toLowerCase().includes(wiSearch.toLowerCase()))
+                    .map(item => {
+                    const itemId = getItemId(item);
+                    const stl = STATUS_LABELS[item.status] || { label: item.status, color: "bg-gray-500/20 text-gray-400" };
+                    return (
+                      <tr key={itemId}
+                        onClick={() => router.push(`/dashboard/tasks/${itemId}`)}
+                        className="border-b border-[var(--color-border)] hover:bg-indigo-500/5 transition-colors cursor-pointer group">
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs font-mono text-[var(--color-text-muted)] group-hover:text-indigo-400 transition-colors">{item.workItemNumber}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-[var(--color-text)]">{item.title}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs">{TYPE_ICONS[item.type] ?? "📋"} {item.type}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium", stl.color)}>{stl.label}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("w-2 h-2 rounded-full", PRIORITY_COLORS[item.priority] ?? "bg-gray-500")} />
+                            <span className="text-xs text-[var(--color-text-muted)]">{item.priority}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {item.storyPoints != null && item.storyPoints > 0 ? (
+                            <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints}</span>
+                          ) : <span className="text-[10px] text-[var(--color-text-muted)]">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="px-4 py-2 border-t border-[var(--color-border)] bg-[var(--color-bg)]">
+                <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} iş kalemi</span>
+              </div>
+            </div>
+          ) : (
+            /* ── Tree View ─── */
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 space-y-1">
+              {workItems
+                .filter(item => !wiSearch || item.title.toLowerCase().includes(wiSearch.toLowerCase()) || item.workItemNumber.toLowerCase().includes(wiSearch.toLowerCase()))
+                .map(item => <TreeNode key={getItemId(item)} item={item} depth={0} getItemId={getItemId} expandedNodes={expandedNodes} toggleNode={toggleNode} router={router} />)}
+              {workItems.length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border)] mt-3">
+                  <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} kök iş kalemi</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -680,6 +994,281 @@ export default function ProjectDetailPage() {
           )}
         </div>
       )}
+
+      {/* Milestones Tab */}
+      {activeTab === "milestones" && (
+        <MilestonesTab
+          projectId={projectId as string}
+          milestones={milestones}
+          setMilestones={setMilestones}
+          loading={milestonesLoading}
+          setLoading={setMilestonesLoading}
+          showForm={showMilestoneForm}
+          setShowForm={setShowMilestoneForm}
+          editingMilestone={editingMilestone}
+          setEditingMilestone={setEditingMilestone}
+          msForm={msForm}
+          setMsForm={setMsForm}
+          msSaving={msSaving}
+          setMsSaving={setMsSaving}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Milestones Tab Component ────────────────────────────────
+
+const MS_STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+  Pending: { label: "Bekliyor", color: "bg-slate-500/15 text-slate-400 border-slate-500/30", icon: "⏳" },
+  InProgress: { label: "Devam Ediyor", color: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: "🔄" },
+  Reached: { label: "Ulaşıldı", color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", icon: "✅" },
+  Missed: { label: "Kaçırıldı", color: "bg-red-500/15 text-red-400 border-red-500/30", icon: "❌" },
+  Cancelled: { label: "İptal", color: "bg-gray-500/15 text-gray-400 border-gray-500/30", icon: "🚫" },
+};
+
+function MilestonesTab({ projectId, milestones, setMilestones, loading, setLoading, showForm, setShowForm, editingMilestone, setEditingMilestone, msForm, setMsForm, msSaving, setMsSaving }: {
+  projectId: string;
+  milestones: { id: string; name: string; description?: string; status: string; dueDate: string; completedDate?: string; sortOrder: number; workItemCount: number; sprintCount: number; createdAt: string }[];
+  setMilestones: (v: typeof milestones) => void;
+  loading: boolean; setLoading: (v: boolean) => void;
+  showForm: boolean; setShowForm: (v: boolean) => void;
+  editingMilestone: typeof milestones[0] | null; setEditingMilestone: (v: typeof milestones[0] | null) => void;
+  msForm: { name: string; description: string; dueDate: string; sortOrder: string };
+  setMsForm: (v: typeof msForm) => void;
+  msSaving: boolean; setMsSaving: (v: boolean) => void;
+}) {
+  const fetchMilestones = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/pm/projects/${projectId}/milestones`);
+      if (res.ok) setMilestones(await res.json());
+    } catch { /* */ }
+    finally { setLoading(false); }
+  }, [projectId, setLoading, setMilestones]);
+
+  useEffect(() => { fetchMilestones(); }, [fetchMilestones]);
+
+  const handleSave = async () => {
+    if (!msForm.name.trim() || !msForm.dueDate) return;
+    setMsSaving(true);
+    try {
+      if (editingMilestone) {
+        await fetch(`/api/pm/milestones/${editingMilestone.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: msForm.name, description: msForm.description || null, dueDate: msForm.dueDate, sortOrder: parseInt(msForm.sortOrder) || 0 }),
+        });
+      } else {
+        await fetch(`/api/pm/projects/${projectId}/milestones`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: msForm.name, description: msForm.description || null, dueDate: msForm.dueDate, sortOrder: parseInt(msForm.sortOrder) || 0 }),
+        });
+      }
+      setShowForm(false);
+      setEditingMilestone(null);
+      setMsForm({ name: "", description: "", dueDate: "", sortOrder: "0" });
+      await fetchMilestones();
+    } catch { /* */ }
+    finally { setMsSaving(false); }
+  };
+
+  const handleStatusChange = async (msId: string, status: string) => {
+    await fetch(`/api/pm/milestones/${msId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    await fetchMilestones();
+  };
+
+  const handleDelete = async (msId: string) => {
+    await fetch(`/api/pm/milestones/${msId}`, { method: "DELETE" });
+    await fetchMilestones();
+  };
+
+  const startEdit = (ms: typeof milestones[0]) => {
+    setEditingMilestone(ms);
+    setMsForm({ name: ms.name, description: ms.description || "", dueDate: ms.dueDate.split("T")[0], sortOrder: String(ms.sortOrder) });
+    setShowForm(true);
+  };
+
+  const isOverdue = (dueDate: string, status: string) => {
+    return new Date(dueDate).getTime() < Date.now() && status !== "Reached" && status !== "Cancelled";
+  };
+
+  const daysUntil = (dueDate: string) => {
+    const diff = Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return `${Math.abs(diff)} gün geçti`;
+    if (diff === 0) return "Bugün";
+    return `${diff} gün kaldı`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+          <Milestone className="w-4 h-4 text-violet-400" />
+          Milestones
+          <span className="text-xs font-normal text-[var(--color-text-muted)]">
+            ({milestones.length})
+          </span>
+        </h3>
+        <button
+          onClick={() => { setEditingMilestone(null); setMsForm({ name: "", description: "", dueDate: "", sortOrder: String(milestones.length) }); setShowForm(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-lg shadow-violet-500/20"
+        >
+          <Plus className="w-3.5 h-3.5" /> Yeni Milestone
+        </button>
+      </div>
+
+      {/* Create/Edit Form */}
+      {showForm && (
+        <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-[var(--color-text)]">
+            {editingMilestone ? "Milestone Düzenle" : "Yeni Milestone"}
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Ad *</label>
+              <input type="text" value={msForm.name} onChange={e => setMsForm({ ...msForm, name: e.target.value })}
+                placeholder="MVP Ready, Go-Live..."
+                className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Hedef Tarih *</label>
+              <input type="date" value={msForm.dueDate} onChange={e => setMsForm({ ...msForm, dueDate: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Açıklama</label>
+            <textarea value={msForm.description} onChange={e => setMsForm({ ...msForm, description: e.target.value })}
+              rows={2} placeholder="Milestone açıklaması..."
+              className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none" />
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSave} disabled={msSaving || !msForm.name.trim() || !msForm.dueDate}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
+              {msSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+              {editingMilestone ? "Güncelle" : "Oluştur"}
+            </button>
+            <button onClick={() => { setShowForm(false); setEditingMilestone(null); }}
+              className="px-4 py-2 rounded-lg text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-border)] transition-colors">İptal</button>
+          </div>
+        </div>
+      )}
+
+      {/* Timeline */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-violet-400 animate-spin" /></div>
+      ) : milestones.length === 0 ? (
+        <div className="text-center py-16 text-[var(--color-text-muted)]">
+          <Milestone className="w-12 h-12 mx-auto opacity-20 mb-3" />
+          <p className="text-sm">Henüz milestone oluşturulmadı</p>
+          <p className="text-xs mt-1">Proje kontrol noktaları ekleyerek ilerlemeyi takip edin</p>
+        </div>
+      ) : (
+        <div className="relative">
+          {/* Timeline line */}
+          <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-violet-500/40 via-violet-500/20 to-transparent" />
+
+          <div className="space-y-4">
+            {milestones.map((ms, idx) => {
+              const cfg = MS_STATUS_CONFIG[ms.status] || MS_STATUS_CONFIG.Pending;
+              const overdue = isOverdue(ms.dueDate, ms.status);
+              return (
+                <div key={ms.id} className="relative pl-14">
+                  {/* Timeline dot */}
+                  <div className={cn(
+                    "absolute left-4 top-4 w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] z-10",
+                    ms.status === "Reached" ? "border-emerald-500 bg-emerald-500/20" :
+                    ms.status === "Missed" || overdue ? "border-red-500 bg-red-500/20" :
+                    ms.status === "InProgress" ? "border-blue-500 bg-blue-500/20" :
+                    ms.status === "Cancelled" ? "border-gray-500 bg-gray-500/20" :
+                    "border-violet-500 bg-violet-500/20"
+                  )}>
+                    <span>{cfg.icon}</span>
+                  </div>
+
+                  {/* Card */}
+                  <div className={cn(
+                    "rounded-xl border p-4 transition-all hover:shadow-lg",
+                    overdue && ms.status !== "Missed" ? "border-red-500/30 bg-red-500/5" : "border-[var(--color-border)] bg-[var(--color-card-bg)]"
+                  )}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-sm font-semibold text-[var(--color-text)] truncate">{ms.name}</h4>
+                          <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[9px] font-medium border shrink-0", cfg.color)}>
+                            {cfg.label}
+                          </span>
+                        </div>
+                        {ms.description && (
+                          <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 mb-2">{ms.description}</p>
+                        )}
+                        <div className="flex items-center gap-4 text-[10px] text-[var(--color-text-muted)]">
+                          <span className={cn("flex items-center gap-1", overdue && "text-red-400 font-medium")}>
+                            <Calendar className="w-3 h-3" />
+                            {new Date(ms.dueDate).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" })}
+                          </span>
+                          <span className={cn(overdue && ms.status !== "Reached" && ms.status !== "Cancelled" ? "text-red-400" : "text-[var(--color-text-muted)]")}
+                          >
+                            {daysUntil(ms.dueDate)}
+                          </span>
+                          {ms.workItemCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <ListTodo className="w-3 h-3" /> {ms.workItemCount} iş kalemi
+                            </span>
+                          )}
+                          {ms.sprintCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Archive className="w-3 h-3" /> {ms.sprintCount} sprint
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <select
+                          value={ms.status}
+                          onChange={e => handleStatusChange(ms.id, e.target.value)}
+                          className="px-2 py-1 rounded text-[10px] bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] cursor-pointer"
+                        >
+                          {Object.entries(MS_STATUS_CONFIG).map(([key, val]) => (
+                            <option key={key} value={key}>{val.label}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => startEdit(ms)}
+                          className="p-1.5 rounded-lg hover:bg-[var(--color-border)] transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(ms.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors text-[var(--color-text-muted)] hover:text-red-400">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Progress bar (if has work items) */}
+                    {ms.workItemCount > 0 && ms.status !== "Cancelled" && (
+                      <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                        <div className="flex items-center justify-between text-[10px] text-[var(--color-text-muted)] mb-1">
+                          <span>İlerleme</span>
+                          <span>{ms.workItemCount} iş kalemi bağlı</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -719,3 +1308,82 @@ function StatBox({ icon: Icon, label, value, color }: {
     </div>
   );
 }
+
+function TreeNode({ item, depth, getItemId, expandedNodes, toggleNode, router }: {
+  item: BacklogWorkItem; depth: number;
+  getItemId: (item: BacklogWorkItem) => string;
+  expandedNodes: Set<string>;
+  toggleNode: (id: string) => void;
+  router: ReturnType<typeof import("next/navigation").useRouter>;
+}) {
+  const itemId = getItemId(item);
+  const hasChildren = item.children && item.children.length > 0;
+  const isExpanded = expandedNodes.has(itemId);
+  const stl = STATUS_LABELS[item.status] || { label: item.status, color: "bg-gray-500/20 text-gray-400" };
+
+  const DEPTH_COLORS = [
+    "border-l-violet-500/40",    // Epic
+    "border-l-blue-500/40",      // Feature
+    "border-l-emerald-500/40",   // Story
+    "border-l-amber-500/40",     // Task
+  ];
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-500/5 transition-colors group",
+          depth > 0 && "ml-5 border-l-2",
+          depth > 0 && (DEPTH_COLORS[depth] || "border-l-gray-500/30")
+        )}
+      >
+        {/* Expand/Collapse */}
+        <button
+          onClick={() => hasChildren && toggleNode(itemId)}
+          className={cn("w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors",
+            hasChildren ? "hover:bg-[var(--color-border)] text-[var(--color-text-muted)]" : "opacity-0")}
+        >
+          {hasChildren && (isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />)}
+        </button>
+
+        {/* Type icon */}
+        <span className="text-sm shrink-0">{TYPE_ICONS[item.type] ?? "📋"}</span>
+
+        {/* Number */}
+        <span className="text-[10px] font-mono text-[var(--color-text-muted)] shrink-0">{item.workItemNumber}</span>
+
+        {/* Title — clickable */}
+        <button
+          onClick={() => router.push(`/dashboard/tasks/${itemId}`)}
+          className="text-xs text-[var(--color-text)] hover:text-indigo-400 transition-colors truncate text-left flex-1 min-w-0"
+        >
+          {item.title}
+        </button>
+
+        {/* Status badge */}
+        <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[9px] font-medium shrink-0", stl.color)}>
+          {stl.label}
+        </span>
+
+        {/* Priority dot */}
+        <span className={cn("w-2 h-2 rounded-full shrink-0", PRIORITY_COLORS[item.priority] ?? "bg-gray-500")} title={item.priority} />
+
+        {/* SP */}
+        {item.storyPoints != null && item.storyPoints > 0 ? (
+          <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full shrink-0">{item.storyPoints} SP</span>
+        ) : null}
+      </div>
+
+      {/* Children */}
+      {hasChildren && isExpanded && (
+        <div className="space-y-0.5">
+          {item.children!.map(child => (
+            <TreeNode key={getItemId(child)} item={child} depth={depth + 1}
+              getItemId={getItemId} expandedNodes={expandedNodes} toggleNode={toggleNode} router={router} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

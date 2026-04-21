@@ -231,3 +231,18 @@ public sealed record CIRelationshipDto(
     string RelationType, string? Notes,
     string Direction); // "outgoing" or "incoming" relative to the queried CI
 
+// ── Milestone ───────────────────────────────────────────────
+public sealed record ListMilestonesQuery(Guid ProjectId, string? Status = null) : IRequest<List<MilestoneListDto>>;
+public sealed record GetMilestoneQuery(Guid MilestoneId) : IRequest<MilestoneDetailDto?>;
+
+public sealed record MilestoneListDto(
+    Guid Id, string Name, string? Description, string Status,
+    DateTime DueDate, DateTime? CompletedDate,
+    int SortOrder, int WorkItemCount, int SprintCount,
+    DateTime CreatedAt);
+
+public sealed record MilestoneDetailDto(
+    Guid Id, string Name, string? Description, string Status,
+    DateTime DueDate, DateTime? CompletedDate,
+    int SortOrder, int WorkItemCount, int SprintCount,
+    DateTime CreatedAt, DateTime? UpdatedAt);

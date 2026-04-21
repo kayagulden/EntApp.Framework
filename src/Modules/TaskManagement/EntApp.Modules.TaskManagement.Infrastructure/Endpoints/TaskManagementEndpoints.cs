@@ -222,6 +222,33 @@ public static class TaskManagementEndpoints
             return Results.NoContent();
         }).WithName("RemoveCIRelationship");
 
+        // ── Milestone ──────────────────────────────────────────────────────
+        var milestones = app.MapGroup("/api/pm/projects/{projectId:guid}/milestones").WithTags("PM - Milestones");
+        milestones.MapGet("/", async (Guid projectId, ISender mediator, string? status) =>
+            Results.Ok(await mediator.Send(new ListMilestonesQuery(projectId, status)))).WithName("ListMilestones");
+        milestones.MapPost("/", async (Guid projectId, CreateMilestoneRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateMilestoneCommand(projectId, req.Name, req.DueDate, req.Description, req.SortOrder));
+            return Results.Created($"/api/pm/projects/{projectId}/milestones", new { id });
+        }).WithName("CreateMilestone");
+
+        var milestoneById = app.MapGroup("/api/pm/milestones").WithTags("PM - Milestones");
+        milestoneById.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            var m = await mediator.Send(new GetMilestoneQuery(id));
+            return m is not null ? Results.Ok(m) : Results.NotFound();
+        }).WithName("GetMilestone");
+        milestoneById.MapPut("/{id:guid}", async (Guid id, UpdateMilestoneRequest req, ISender mediator) =>
+        {
+            var result = await mediator.Send(new UpdateMilestoneCommand(id, req.Name, req.Description, req.DueDate, req.SortOrder, req.Status));
+            return Results.Ok(new { id = result });
+        }).WithName("UpdateMilestone");
+        milestoneById.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteMilestoneCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteMilestone");
+
         var tasks = app.MapGroup("/api/pm/work-items").WithTags("PM - Work Items");
         tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
             int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
@@ -441,3 +468,7 @@ public sealed record UpdateLicenceRequest(string? Name = null, string? Descripti
 
 // CI Relationship
 public sealed record AddCIRelationshipRequest(Guid TargetCIId, string RelationType, string? Notes = null);
+
+// Milestone
+public sealed record CreateMilestoneRequest(string Name, DateTime DueDate, string? Description = null, int SortOrder = 0);
+public sealed record UpdateMilestoneRequest(string? Name = null, string? Description = null, DateTime? DueDate = null, int? SortOrder = null, string? Status = null);

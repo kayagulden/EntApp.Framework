@@ -67,6 +67,9 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     /// <summary>Sprint bağlantısı (nullable — sprintsiz çalışma mümkün).</summary>
     public SprintId? SprintId { get; private set; }
 
+    /// <summary>Milestone bağlantısı (nullable). Bu iş kalemi hangi milestone'a katkı sağlıyor?</summary>
+    public MilestoneId? MilestoneId { get; private set; }
+
     /// <summary>Hiyerarşi derinliği cache'i — 0:Epic, 1:Feature, 2:Story, 3:Task.</summary>
     public int HierarchyLevel { get; private set; }
 
@@ -76,6 +79,7 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     public ProjectBase? Project { get; private set; }
     public WorkItemBase? ParentTask { get; private set; }
     public SprintBase? Sprint { get; private set; }
+    public MilestoneBase? Milestone { get; private set; }
     public ICollection<WorkItemBase> SubTasks { get; private set; } = [];
     public ICollection<CommentBase> Comments { get; private set; } = [];
     public ICollection<TimeEntryBase> TimeEntries { get; private set; } = [];

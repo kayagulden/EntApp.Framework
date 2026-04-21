@@ -1392,3 +1392,82 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
         return items;
     }
 }
+
+// ── Milestone Handlers ──────────────────────────────────────
+public sealed class CreateMilestoneCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateMilestoneCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateMilestoneCommand request, CancellationToken ct)
+    {
+        var milestone = MilestoneBase.Create(
+            new ProjectId(request.ProjectId),
+            request.Name,
+            request.DueDate,
+            request.Description,
+            request.SortOrder);
+        db.Milestones.Add(milestone);
+        await db.SaveChangesAsync(ct);
+        return milestone.Id.Value;
+    }
+}
+
+public sealed class UpdateMilestoneCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateMilestoneCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateMilestoneCommand request, CancellationToken ct)
+    {
+        var milestone = await db.Milestones.FindAsync([new MilestoneId(request.MilestoneId)], ct)
+            ?? throw new InvalidOperationException($"Milestone bulunamadı: {request.MilestoneId}");
+
+        milestone.Update(request.Name, request.Description, request.DueDate, request.SortOrder);
+
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<MilestoneStatus>(request.Status, out var status))
+            milestone.SetStatus(status);
+
+        await db.SaveChangesAsync(ct);
+        return milestone.Id.Value;
+    }
+}
+
+public sealed class DeleteMilestoneCommandHandler(TaskManagementDbContext db) : IRequestHandler<DeleteMilestoneCommand>
+{
+    public async Task Handle(DeleteMilestoneCommand request, CancellationToken ct)
+    {
+        var milestone = await db.Milestones.FindAsync([new MilestoneId(request.MilestoneId)], ct)
+            ?? throw new InvalidOperationException($"Milestone bulunamadı: {request.MilestoneId}");
+        db.Milestones.Remove(milestone);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListMilestonesQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListMilestonesQuery, List<MilestoneListDto>>
+{
+    public async Task<List<MilestoneListDto>> Handle(ListMilestonesQuery request, CancellationToken ct)
+    {
+        var query = db.Milestones.Where(m => m.ProjectId == new ProjectId(request.ProjectId));
+
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<MilestoneStatus>(request.Status, out var status))
+            query = query.Where(m => m.Status == status);
+
+        return await query.OrderBy(m => m.DueDate).ThenBy(m => m.SortOrder)
+            .Select(m => new MilestoneListDto(
+                m.Id.Value, m.Name, m.Description, m.Status.ToString(),
+                m.DueDate, m.CompletedDate,
+                m.SortOrder, m.WorkItems.Count, m.Sprints.Count,
+                m.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetMilestoneQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetMilestoneQuery, MilestoneDetailDto?>
+{
+    public async Task<MilestoneDetailDto?> Handle(GetMilestoneQuery request, CancellationToken ct)
+    {
+        return await db.Milestones
+            .Where(m => m.Id == new MilestoneId(request.MilestoneId))
+            .Select(m => new MilestoneDetailDto(
+                m.Id.Value, m.Name, m.Description, m.Status.ToString(),
+                m.DueDate, m.CompletedDate,
+                m.SortOrder, m.WorkItems.Count, m.Sprints.Count,
+                m.CreatedAt, m.UpdatedAt))
+            .FirstOrDefaultAsync(ct);
+    }
+}

@@ -29,10 +29,14 @@ public sealed class SprintBase : AuditableEntity<SprintId>, ITenantEntity
     /// <summary>Sprint tamamlandığında tamamlanan SP.</summary>
     public int CompletedPoints { get; private set; }
 
+    /// <summary>Sprint'in bağlı olduğu milestone (opsiyonel).</summary>
+    public MilestoneId? MilestoneId { get; private set; }
+
     public Guid TenantId { get; set; }
 
     // Navigation
     public ProjectBase? Project { get; private set; }
+    public MilestoneBase? Milestone { get; private set; }
     public ICollection<WorkItemBase> WorkItems { get; private set; } = [];
 
     private SprintBase() { }

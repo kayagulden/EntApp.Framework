@@ -87,6 +87,21 @@ public enum SprintStatus
     Cancelled = 3
 }
 
+/// <summary>Milestone durumu.</summary>
+public enum MilestoneStatus
+{
+    /// <summary>Henüz başlanmadı.</summary>
+    Pending = 0,
+    /// <summary>Üzerinde çalışılıyor.</summary>
+    InProgress = 1,
+    /// <summary>Hedefe ulaşıldı.</summary>
+    Reached = 2,
+    /// <summary>Hedef tarih geçti, ulaşılamadı.</summary>
+    Missed = 3,
+    /// <summary>İptal edildi.</summary>
+    Cancelled = 4
+}
+
 /// <summary>Portfolyo durumu.</summary>
 public enum PortfolioStatus
 {

@@ -159,3 +159,13 @@ public sealed record AddCIRelationshipCommand(
 
 public sealed record RemoveCIRelationshipCommand(Guid RelationshipId) : IRequest;
 
+// ── Milestone ───────────────────────────────────────────────
+public sealed record CreateMilestoneCommand(Guid ProjectId, string Name,
+    DateTime DueDate, string? Description = null, int SortOrder = 0) : IRequest<Guid>;
+
+public sealed record UpdateMilestoneCommand(Guid MilestoneId, string? Name = null,
+    string? Description = null, DateTime? DueDate = null,
+    int? SortOrder = null, string? Status = null) : IRequest<Guid>;
+
+public sealed record DeleteMilestoneCommand(Guid MilestoneId) : IRequest;
+
