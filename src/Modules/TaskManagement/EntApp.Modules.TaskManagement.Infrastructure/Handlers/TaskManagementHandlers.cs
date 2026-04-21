@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Application.Commands;
+﻿using EntApp.Modules.TaskManagement.Application.Commands;
 using EntApp.Modules.TaskManagement.Application.IntegrationEvents;
 using EntApp.Modules.TaskManagement.Application.Queries;
 using EntApp.Modules.TaskManagement.Domain.Entities;
@@ -10,7 +10,7 @@ using EntApp.Shared.Contracts.Common;
 using EntApp.Shared.Contracts.Messaging;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
+using WorkItemStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.WorkItemStatus;
 
 namespace EntApp.Modules.TaskManagement.Infrastructure.Handlers;
 
@@ -48,7 +48,7 @@ public sealed class GetPortfolioQueryHandler(TaskManagementDbContext db) : IRequ
                 pr.StartDate, pr.EndDate, pr.TargetEndDate,
                 pr.ManagerUserId, pr.OwnerUserId,
                 pr.PortfolioId.HasValue ? pr.PortfolioId.Value.Value : null, p.Name,
-                pr.Tasks.Count, pr.CreatedAt)).ToList());
+                pr.WorkItems.Count, pr.CreatedAt)).ToList());
     }
 }
 
@@ -155,7 +155,7 @@ public sealed class ListProjectsQueryHandler(TaskManagementDbContext db) : IRequ
                 p.ManagerUserId, p.OwnerUserId,
                 p.PortfolioId.HasValue ? p.PortfolioId.Value.Value : null,
                 p.Portfolio != null ? p.Portfolio.Name : null,
-                p.Tasks.Count, p.CreatedAt))
+                p.WorkItems.Count, p.CreatedAt))
             .ToListAsync(ct);
     }
 }
@@ -167,7 +167,7 @@ public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IReques
         var projectId = new ProjectId(request.Id);
         var p = await db.Projects
             .Include(x => x.Portfolio)
-            .Include(x => x.Tasks)
+            .Include(x => x.WorkItems)
             .FirstOrDefaultAsync(x => x.Id == projectId, ct);
         if (p is null) return null;
 
@@ -189,7 +189,7 @@ public sealed class GetProjectQueryHandler(TaskManagementDbContext db) : IReques
             p.ManagerUserId, p.OwnerUserId,
             p.PortfolioId.HasValue ? p.PortfolioId.Value.Value : null,
             p.Portfolio?.Name, p.Portfolio?.Code,
-            p.Tasks.Count, p.TaskSequence,
+            p.WorkItems.Count, p.WorkItemSequence,
             p.CreatedAt, p.UpdatedAt, deliverables);
     }
 }
@@ -260,17 +260,17 @@ public sealed class UpdateProjectCommandHandler(TaskManagementDbContext db) : IR
     }
 }
 
-public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListTasksQuery, PagedResult<object>>
+public sealed class ListWorkItemsQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListWorkItemsQuery, PagedResult<object>>
 {
-    public async Task<PagedResult<object>> Handle(ListTasksQuery request, CancellationToken ct)
+    public async Task<PagedResult<object>> Handle(ListWorkItemsQuery request, CancellationToken ct)
     {
-        var query = db.Tasks.Include(t => t.Project).AsQueryable();
+        var query = db.WorkItems.Include(t => t.Project).AsQueryable();
         if (request.ProjectId.HasValue) query = query.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId.Value);
-        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<TaskStatusEnum>(request.Status, out var s))
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<WorkItemStatusEnum>(request.Status, out var s))
             query = query.Where(t => t.Status == s);
-        if (!string.IsNullOrEmpty(request.Priority) && Enum.TryParse<TaskPriority>(request.Priority, out var p))
+        if (!string.IsNullOrEmpty(request.Priority) && Enum.TryParse<WorkItemPriority>(request.Priority, out var p))
             query = query.Where(t => t.Priority == p);
-        if (!string.IsNullOrEmpty(request.Type) && Enum.TryParse<TaskType>(request.Type, out var tp))
+        if (!string.IsNullOrEmpty(request.Type) && Enum.TryParse<WorkItemType>(request.Type, out var tp))
             query = query.Where(t => t.Type == tp);
         if (Guid.TryParse(request.Assignee, out var uid))
             query = query.Where(t => t.AssigneeUserId == uid);
@@ -302,7 +302,7 @@ public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequest
         var total = await query.CountAsync(ct);
         var items = await query.OrderBy(t => t.SortOrder).ThenByDescending(t => t.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize).Take(request.PageSize)
-            .Select(t => (object)new { t.Id, t.TaskNumber, t.Title, ProjectKey = t.Project != null ? t.Project.Key : null,
+            .Select(t => (object)new { t.Id, t.WorkItemNumber, t.Title, ProjectKey = t.Project != null ? t.Project.Key : null,
                 Status = t.Status.ToString(), Priority = t.Priority.ToString(),
                 Type = t.Type.ToString(), t.AssigneeUserId, t.ReporterUserId, t.DueDate, t.EstimatedHours, t.SortOrder, t.ParentTaskId,
                 t.SourceModule, t.SourceType, t.SourceId, t.CreatedAt })
@@ -311,15 +311,15 @@ public sealed class ListTasksQueryHandler(TaskManagementDbContext db) : IRequest
     }
 }
 
-public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetTaskQuery, TaskDetailDto?>
+public sealed class GetWorkItemQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetWorkItemQuery, WorkItemDetailDto?>
 {
-    public async Task<TaskDetailDto?> Handle(GetTaskQuery request, CancellationToken ct)
+    public async Task<WorkItemDetailDto?> Handle(GetWorkItemQuery request, CancellationToken ct)
     {
-        var t = await db.Tasks.Include(x => x.SubTasks).Include(x => x.Project).Include(x => x.Sprint)
+        var t = await db.WorkItems.Include(x => x.SubTasks).Include(x => x.Project).Include(x => x.Sprint)
             .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
         if (t is null) return null;
-        return new TaskDetailDto(
-            t.Id.Value, t.TaskNumber, t.Title, t.Description,
+        return new WorkItemDetailDto(
+            t.Id.Value, t.WorkItemNumber, t.Title, t.Description,
             t.Status.ToString(), t.Priority.ToString(), t.Type.ToString(),
             t.AssigneeUserId, t.ReporterUserId,
             t.ParentTaskId.HasValue ? t.ParentTaskId.Value.Value : null,
@@ -328,8 +328,8 @@ public sealed class GetTaskQueryHandler(TaskManagementDbContext db) : IRequestHa
             t.ProjectId.HasValue ? t.ProjectId.Value.Value : null,
             t.Project?.Key, t.Project?.Name,
             t.CreatedAt, t.UpdatedAt,
-            t.SubTasks.Select(st => new TaskBySourceDto(
-                st.Id.Value, st.TaskNumber, st.Title, st.Status.ToString(),
+            t.SubTasks.Select(st => new WorkItemBySourceDto(
+                st.Id.Value, st.WorkItemNumber, st.Title, st.Status.ToString(),
                 st.Priority.ToString(), st.Type.ToString(), st.AssigneeUserId,
                 st.DueDate, st.EstimatedHours, st.CreatedAt,
                 st.StoryPoints, st.HierarchyLevel)).ToList(),
@@ -343,9 +343,9 @@ public sealed class GetKanbanBoardQueryHandler(TaskManagementDbContext db) : IRe
 {
     public async Task<object> Handle(GetKanbanBoardQuery request, CancellationToken ct)
     {
-        var tasks = await db.Tasks.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId)
+        var tasks = await db.WorkItems.Where(t => t.ProjectId.HasValue && t.ProjectId.Value.Value == request.ProjectId)
             .OrderBy(t => t.SortOrder)
-            .Select(t => new { t.Id, t.TaskNumber, t.Title, Status = t.Status.ToString(),
+            .Select(t => new { t.Id, t.WorkItemNumber, t.Title, Status = t.Status.ToString(),
                 Priority = t.Priority.ToString(), Type = t.Type.ToString(),
                 t.AssigneeUserId, t.SortOrder, t.DueDate })
             .ToListAsync(ct);
@@ -379,18 +379,18 @@ public sealed class ListTimeEntriesQueryHandler(TaskManagementDbContext db) : IR
 }
 
 /// <summary>Kaynağa bağlı görevleri listeler (Ticket detay sayfası için).</summary>
-public sealed class ListTasksBySourceQueryHandler(TaskManagementDbContext db)
-    : IRequestHandler<ListTasksBySourceQuery, List<TaskBySourceDto>>
+public sealed class ListWorkItemsBySourceQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListWorkItemsBySourceQuery, List<WorkItemBySourceDto>>
 {
-    public async Task<List<TaskBySourceDto>> Handle(ListTasksBySourceQuery request, CancellationToken ct)
+    public async Task<List<WorkItemBySourceDto>> Handle(ListWorkItemsBySourceQuery request, CancellationToken ct)
     {
-        return await db.Tasks
+        return await db.WorkItems
             .Where(t => t.SourceModule == request.SourceModule
                 && t.SourceType == request.SourceType
                 && t.SourceId == request.SourceId)
             .OrderBy(t => t.SortOrder).ThenBy(t => t.CreatedAt)
-            .Select(t => new TaskBySourceDto(
-                t.Id.Value, t.TaskNumber, t.Title, t.Status.ToString(),
+            .Select(t => new WorkItemBySourceDto(
+                t.Id.Value, t.WorkItemNumber, t.Title, t.Status.ToString(),
                 t.Priority.ToString(), t.Type.ToString(), t.AssigneeUserId,
                 t.DueDate, t.EstimatedHours, t.CreatedAt,
                 t.StoryPoints, t.HierarchyLevel))
@@ -399,49 +399,49 @@ public sealed class ListTasksBySourceQueryHandler(TaskManagementDbContext db)
 }
 
 // ── Task Commands ───────────────────────────────────────────
-public sealed class CreateTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateTaskCommand, CreateTaskResult>
+public sealed class CreateWorkItemCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateWorkItemCommand, CreateWorkItemResult>
 {
-    public async Task<CreateTaskResult> Handle(CreateTaskCommand request, CancellationToken ct)
+    public async Task<CreateWorkItemResult> Handle(CreateWorkItemCommand request, CancellationToken ct)
     {
-        Enum.TryParse<TaskType>(request.Type, out var type);
-        Enum.TryParse<TaskPriority>(request.Priority, out var priority);
+        Enum.TryParse<WorkItemType>(request.Type, out var type);
+        Enum.TryParse<WorkItemPriority>(request.Priority, out var priority);
 
-        TaskItemBase task;
+        WorkItemBase task;
         if (request.ProjectId.HasValue)
         {
             var project = await db.Projects.FindAsync([new ProjectId(request.ProjectId.Value)], ct)
                 ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
-            var taskNumber = project.NextTaskNumber();
-            task = TaskItemBase.Create(project.Id, taskNumber, request.Title, type, priority,
+            var taskNumber = project.NextWorkItemNumber();
+            task = WorkItemBase.Create(project.Id, taskNumber, request.Title, type, priority,
                 request.Description, request.AssigneeUserId, request.ReporterUserId,
-                request.ParentTaskId.HasValue ? new TaskItemId(request.ParentTaskId.Value) : null,
+                request.ParentTaskId.HasValue ? new WorkItemId(request.ParentTaskId.Value) : null,
                 request.DueDate, request.EstimatedHours, request.Tags);
         }
         else
         {
             // Projesiz görev
-            var taskNumber = await TaskNumberGenerator.NextAsync(db, ct);
-            task = TaskItemBase.CreateStandalone(taskNumber, request.Title, type, priority,
+            var taskNumber = await WorkItemNumberGenerator.NextAsync(db, ct);
+            task = WorkItemBase.CreateStandalone(taskNumber, request.Title, type, priority,
                 request.Description, request.AssigneeUserId, request.ReporterUserId,
                 request.DueDate, request.EstimatedHours, request.Tags);
         }
 
-        db.Tasks.Add(task);
+        db.WorkItems.Add(task);
         await db.SaveChangesAsync(ct);
-        return new CreateTaskResult(task.Id.Value, task.TaskNumber);
+        return new CreateWorkItemResult(task.Id.Value, task.WorkItemNumber);
     }
 }
 
 /// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur ve integration event publish eder.</summary>
-public sealed class CreateTaskFromSourceCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
-    : IRequestHandler<CreateTaskFromSourceCommand, CreateTaskResult>
+public sealed class CreateWorkItemFromSourceCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
+    : IRequestHandler<CreateWorkItemFromSourceCommand, CreateWorkItemResult>
 {
-    public async Task<CreateTaskResult> Handle(CreateTaskFromSourceCommand request, CancellationToken ct)
+    public async Task<CreateWorkItemResult> Handle(CreateWorkItemFromSourceCommand request, CancellationToken ct)
     {
-        Enum.TryParse<TaskPriority>(request.Priority, out var priority);
-        var taskNumber = await TaskNumberGenerator.NextAsync(db, ct);
+        Enum.TryParse<WorkItemPriority>(request.Priority, out var priority);
+        var taskNumber = await WorkItemNumberGenerator.NextAsync(db, ct);
 
-        var task = TaskItemBase.CreateFromSource(
+        var task = WorkItemBase.CreateFromSource(
             request.SourceModule, request.SourceType, request.SourceId,
             taskNumber, request.Title,
             priority: priority,
@@ -451,27 +451,27 @@ public sealed class CreateTaskFromSourceCommandHandler(TaskManagementDbContext d
             dueDate: request.DueDate,
             projectId: request.ProjectId.HasValue ? new ProjectId(request.ProjectId.Value) : null);
 
-        db.Tasks.Add(task);
+        db.WorkItems.Add(task);
         await db.SaveChangesAsync(ct);
 
         // Integration event — RequestManagement bu event'i dinleyerek LinkedTaskCount'u artıracak
-        await eventBus.PublishAsync(new TaskCreatedForSourceEvent(
-            task.Id.Value, task.TaskNumber,
+        await eventBus.PublishAsync(new WorkItemCreatedForSourceEvent(
+            task.Id.Value, task.WorkItemNumber,
             request.SourceModule, request.SourceType, request.SourceId,
             request.AssigneeUserId), ct);
 
-        return new CreateTaskResult(task.Id.Value, task.TaskNumber);
+        return new CreateWorkItemResult(task.Id.Value, task.WorkItemNumber);
     }
 }
 
-public sealed class MoveTaskCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
-    : IRequestHandler<MoveTaskCommand, MoveTaskResult>
+public sealed class MoveWorkItemCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
+    : IRequestHandler<MoveWorkItemCommand, MoveWorkItemResult>
 {
-    public async Task<MoveTaskResult> Handle(MoveTaskCommand request, CancellationToken ct)
+    public async Task<MoveWorkItemResult> Handle(MoveWorkItemCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+        var task = await db.WorkItems.FindAsync([new WorkItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
-        if (!Enum.TryParse<TaskStatusEnum>(request.Status, out var status))
+        if (!Enum.TryParse<WorkItemStatusEnum>(request.Status, out var status))
             throw new ArgumentException($"Invalid status: {request.Status}");
 
         var oldStatus = task.Status;
@@ -482,48 +482,48 @@ public sealed class MoveTaskCommandHandler(TaskManagementDbContext db, IEventBus
         // Integration event — durum değişikliği
         if (task.HasSource)
         {
-            await eventBus.PublishAsync(new TaskStatusChangedEvent(
-                task.Id.Value, task.TaskNumber,
+            await eventBus.PublishAsync(new WorkItemStatusChangedEvent(
+                task.Id.Value, task.WorkItemNumber,
                 oldStatus.ToString(), status.ToString(),
                 task.SourceModule, task.SourceType, task.SourceId), ct);
 
             // Görev Done veya Cancelled'a geçtiyse — aynı kaynağa bağlı tüm görevleri kontrol et
-            if (status is TaskStatusEnum.Done or TaskStatusEnum.Cancelled)
+            if (status is WorkItemStatusEnum.Done or WorkItemStatusEnum.Cancelled)
             {
-                await CheckAllSourceTasksCompleted(task, ct);
+                await CheckAllSourceWorkItemsCompleted(task, ct);
             }
         }
 
-        return new MoveTaskResult(task.Id.Value, task.Status.ToString(), task.SortOrder);
+        return new MoveWorkItemResult(task.Id.Value, task.Status.ToString(), task.SortOrder);
     }
 
-    private async Task CheckAllSourceTasksCompleted(TaskItemBase completedTask, CancellationToken ct)
+    private async Task CheckAllSourceWorkItemsCompleted(WorkItemBase completedTask, CancellationToken ct)
     {
         if (completedTask.SourceModule is null || completedTask.SourceType is null || !completedTask.SourceId.HasValue)
             return;
 
-        var sourceTasks = await db.Tasks
+        var sourceTasks = await db.WorkItems
             .Where(t => t.SourceModule == completedTask.SourceModule
                 && t.SourceType == completedTask.SourceType
                 && t.SourceId == completedTask.SourceId)
             .Select(t => t.Status)
             .ToListAsync(ct);
 
-        var allDone = sourceTasks.All(s => s is TaskStatusEnum.Done or TaskStatusEnum.Cancelled);
+        var allDone = sourceTasks.All(s => s is WorkItemStatusEnum.Done or WorkItemStatusEnum.Cancelled);
         if (allDone && sourceTasks.Count > 0)
         {
-            await eventBus.PublishAsync(new AllSourceTasksCompletedEvent(
+            await eventBus.PublishAsync(new AllSourceWorkItemsCompletedEvent(
                 completedTask.SourceModule, completedTask.SourceType, completedTask.SourceId.Value,
                 sourceTasks.Count), ct);
         }
     }
 }
 
-public sealed class AssignTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<AssignTaskCommand, Guid?>
+public sealed class AssignWorkItemCommandHandler(TaskManagementDbContext db) : IRequestHandler<AssignWorkItemCommand, Guid?>
 {
-    public async Task<Guid?> Handle(AssignTaskCommand request, CancellationToken ct)
+    public async Task<Guid?> Handle(AssignWorkItemCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+        var task = await db.WorkItems.FindAsync([new WorkItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
         if (request.UserId.HasValue)
             task.AssignTo(request.UserId.Value);
@@ -538,7 +538,7 @@ public sealed class CreateCommentCommandHandler(TaskManagementDbContext db) : IR
 {
     public async Task<Guid> Handle(CreateCommentCommand request, CancellationToken ct)
     {
-        var comment = CommentBase.Create(new TaskItemId(request.TaskId), request.AuthorUserId, request.Content);
+        var comment = CommentBase.Create(new WorkItemId(request.TaskId), request.AuthorUserId, request.Content);
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
         return comment.Id.Value;
@@ -549,7 +549,7 @@ public sealed class CreateTimeEntryCommandHandler(TaskManagementDbContext db) : 
 {
     public async Task<Guid> Handle(CreateTimeEntryCommand request, CancellationToken ct)
     {
-        var entry = TimeEntryBase.Create(new TaskItemId(request.TaskId), request.UserId, request.Hours,
+        var entry = TimeEntryBase.Create(new WorkItemId(request.TaskId), request.UserId, request.Hours,
             request.WorkDate, request.Description);
         db.TimeEntries.Add(entry);
         await db.SaveChangesAsync(ct);
@@ -557,15 +557,15 @@ public sealed class CreateTimeEntryCommandHandler(TaskManagementDbContext db) : 
     }
 }
 
-public sealed class UpdateTaskCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateTaskCommand, Guid>
+public sealed class UpdateWorkItemCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateWorkItemCommand, Guid>
 {
-    public async Task<Guid> Handle(UpdateTaskCommand request, CancellationToken ct)
+    public async Task<Guid> Handle(UpdateWorkItemCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+        var task = await db.WorkItems.FindAsync([new WorkItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
 
-        Enum.TryParse<TaskPriority>(request.Priority, out var priority);
-        Enum.TryParse<TaskType>(request.Type, out var type);
+        Enum.TryParse<WorkItemPriority>(request.Priority, out var priority);
+        Enum.TryParse<WorkItemType>(request.Type, out var type);
 
         task.Update(
             title: request.Title,
@@ -1025,8 +1025,8 @@ public sealed class GetSprintQueryHandler(TaskManagementDbContext db) : IRequest
             s.WorkItems.Count,
             s.WorkItems.Where(w => w.StoryPoints.HasValue).Sum(w => w.StoryPoints),
             s.CreatedAt, s.UpdatedAt,
-            s.WorkItems.OrderBy(w => w.SortOrder).Select(w => new TaskBySourceDto(
-                w.Id.Value, w.TaskNumber, w.Title, w.Status.ToString(),
+            s.WorkItems.OrderBy(w => w.SortOrder).Select(w => new WorkItemBySourceDto(
+                w.Id.Value, w.WorkItemNumber, w.Title, w.Status.ToString(),
                 w.Priority.ToString(), w.Type.ToString(), w.AssigneeUserId,
                 w.DueDate, w.EstimatedHours, w.CreatedAt,
                 w.StoryPoints, w.HierarchyLevel)).ToList());
@@ -1093,7 +1093,7 @@ public sealed class AssignToSprintCommandHandler(TaskManagementDbContext db) : I
 {
     public async Task<Guid> Handle(AssignToSprintCommand request, CancellationToken ct)
     {
-        var task = await db.Tasks.FindAsync([new TaskItemId(request.TaskId)], ct)
+        var task = await db.WorkItems.FindAsync([new WorkItemId(request.TaskId)], ct)
             ?? throw new KeyNotFoundException($"Task {request.TaskId} not found");
         task.AssignToSprint(request.SprintId.HasValue ? new SprintId(request.SprintId.Value) : null);
         await db.SaveChangesAsync(ct);
@@ -1110,13 +1110,13 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
     public async Task<object> Handle(GetBacklogQuery request, CancellationToken ct)
     {
         var projectId = new ProjectId(request.ProjectId);
-        var query = db.Tasks.Where(t => t.ProjectId.HasValue && t.ProjectId == projectId);
+        var query = db.WorkItems.Where(t => t.ProjectId.HasValue && t.ProjectId == projectId);
 
         // Tip filtresi
         if (!string.IsNullOrEmpty(request.Type))
         {
             var types = request.Type.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => Enum.TryParse<TaskType>(x.Trim(), out var tp) ? tp : (TaskType?)null)
+                .Select(x => Enum.TryParse<WorkItemType>(x.Trim(), out var tp) ? tp : (WorkItemType?)null)
                 .Where(x => x.HasValue).Select(x => x!.Value).ToList();
             if (types.Count > 0)
                 query = query.Where(t => types.Contains(t.Type));
@@ -1147,7 +1147,7 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
         if (!string.IsNullOrEmpty(request.Status))
         {
             var statuses = request.Status.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => Enum.TryParse<TaskStatusEnum>(x.Trim(), out var st) ? st : (TaskStatusEnum?)null)
+                .Select(x => Enum.TryParse<WorkItemStatusEnum>(x.Trim(), out var st) ? st : (WorkItemStatusEnum?)null)
                 .Where(x => x.HasValue).Select(x => x!.Value).ToList();
             if (statuses.Count > 0)
                 query = query.Where(t => statuses.Contains(t.Status));
@@ -1156,7 +1156,7 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
         var items = await query.OrderBy(t => t.SortOrder).ThenByDescending(t => t.CreatedAt)
             .Select(t => new
             {
-                t.Id, t.TaskNumber, t.Title, t.Description,
+                t.Id, t.WorkItemNumber, t.Title, t.Description,
                 Status = t.Status.ToString(), Priority = t.Priority.ToString(),
                 Type = t.Type.ToString(), t.AssigneeUserId, t.ReporterUserId,
                 ParentTaskId = t.ParentTaskId.HasValue ? t.ParentTaskId.Value.Value : (Guid?)null,
@@ -1172,7 +1172,7 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
             var lookup = items.ToLookup(i => i.ParentTaskId);
             object BuildTree(Guid? parentId) => lookup[parentId].Select(item => new
             {
-                item.Id, item.TaskNumber, item.Title, item.Status, item.Priority, item.Type,
+                item.Id, item.WorkItemNumber, item.Title, item.Status, item.Priority, item.Type,
                 item.AssigneeUserId, item.DueDate, item.StoryPoints, item.HierarchyLevel,
                 item.SortOrder, item.SprintId,
                 Children = BuildTree(item.Id.Value)

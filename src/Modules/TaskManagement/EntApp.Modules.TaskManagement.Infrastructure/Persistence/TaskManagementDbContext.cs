@@ -1,10 +1,10 @@
-using EntApp.Modules.TaskManagement.Domain.Entities;
+﻿using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Shared.Infrastructure.Persistence;
 using EntApp.Shared.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
-using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
+using WorkItemStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.WorkItemStatus;
 
 namespace EntApp.Modules.TaskManagement.Infrastructure.Persistence;
 
@@ -17,7 +17,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<PortfolioBase> Portfolios => Set<PortfolioBase>();
     public DbSet<ProjectBase> Projects => Set<ProjectBase>();
     public DbSet<ApplicationBase> Applications => Set<ApplicationBase>();
-    public DbSet<TaskItemBase> Tasks => Set<TaskItemBase>();
+    public DbSet<WorkItemBase> WorkItems => Set<WorkItemBase>();
     public DbSet<CommentBase> Comments => Set<CommentBase>();
     public DbSet<TimeEntryBase> TimeEntries => Set<TimeEntryBase>();
     public DbSet<ProjectDeliverable> ProjectDeliverables => Set<ProjectDeliverable>();
@@ -142,20 +142,20 @@ public sealed class TaskManagementDbContext : BaseDbContext
         });
 
         // ── Task ───────────────────────────────────────────
-        modelBuilder.Entity<TaskItemBase>(e =>
+        modelBuilder.Entity<WorkItemBase>(e =>
         {
-            e.ToTable("tasks");
+            e.ToTable("work_items");
             e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<WorkItemId>());
             e.Property(x => x.ProjectId).HasConversion(
                 v => v.HasValue ? v.Value.Value : (Guid?)null,
                 v => v.HasValue ? new ProjectId(v.Value) : null).IsRequired(false);
-            e.Property(x => x.ParentTaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
-            e.HasIndex(x => x.TaskNumber).IsUnique();
+            e.Property(x => x.ParentTaskId).HasConversion(new StronglyTypedIdValueConverter<WorkItemId>());
+            e.HasIndex(x => x.WorkItemNumber).IsUnique();
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.AssigneeUserId);
-            e.Property(x => x.TaskNumber).HasMaxLength(20).IsRequired();
+            e.Property(x => x.WorkItemNumber).HasMaxLength(20).IsRequired();
             e.Property(x => x.Title).HasMaxLength(500).IsRequired();
             e.Property(x => x.Description).HasMaxLength(5000);
             e.Property(x => x.Tags).HasMaxLength(500);
@@ -179,7 +179,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
                 .HasFilter("source_id IS NOT NULL")
                 .HasDatabaseName("ix_tasks_source");
 
-            e.HasOne(x => x.Project).WithMany(p => p.Tasks).HasForeignKey(x => x.ProjectId).IsRequired(false);
+            e.HasOne(x => x.Project).WithMany(p => p.WorkItems).HasForeignKey(x => x.ProjectId).IsRequired(false);
             e.HasOne(x => x.ParentTask).WithMany(t => t.SubTasks).HasForeignKey(x => x.ParentTaskId);
             e.HasOne(x => x.Sprint).WithMany(s => s.WorkItems).HasForeignKey(x => x.SprintId).IsRequired(false);
             e.Ignore(x => x.TotalLoggedHours);
@@ -191,7 +191,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.ToTable("comments");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<CommentId>());
-            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
+            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<WorkItemId>());
             e.HasIndex(x => x.TaskId);
             e.Property(x => x.Content).HasMaxLength(5000).IsRequired();
             e.HasOne(x => x.Task).WithMany(t => t.Comments).HasForeignKey(x => x.TaskId);
@@ -203,7 +203,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.ToTable("time_entries");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TimeEntryId>());
-            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<TaskItemId>());
+            e.Property(x => x.TaskId).HasConversion(new StronglyTypedIdValueConverter<WorkItemId>());
             e.HasIndex(x => x.TaskId);
             e.HasIndex(x => x.UserId);
             e.Property(x => x.Hours).HasPrecision(8, 2);

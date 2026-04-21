@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Commands;
 
@@ -39,29 +39,29 @@ public sealed record UpdateProjectCommand(Guid ProjectId, string? Name = null,
     string? Category = null) : IRequest<Guid>;
 
 // ── Task ────────────────────────────────────────────────────
-public sealed record CreateTaskCommand(Guid? ProjectId, string Title, string Type = "Task",
+public sealed record CreateWorkItemCommand(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,
-    decimal EstimatedHours = 0, string? Tags = null) : IRequest<CreateTaskResult>;
-public sealed record CreateTaskResult(Guid Id, string TaskNumber);
+    decimal EstimatedHours = 0, string? Tags = null) : IRequest<CreateWorkItemResult>;
+public sealed record CreateWorkItemResult(Guid Id, string WorkItemNumber);
 
 /// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur.</summary>
-public sealed record CreateTaskFromSourceCommand(
+public sealed record CreateWorkItemFromSourceCommand(
     string SourceModule, string SourceType, Guid SourceId,
     string Title, string? Description = null,
     Guid? AssigneeUserId = null, Guid? ReporterUserId = null,
     string Priority = "Medium", DateTime? DueDate = null,
-    Guid? ProjectId = null) : IRequest<CreateTaskResult>;
+    Guid? ProjectId = null) : IRequest<CreateWorkItemResult>;
 
-public sealed record MoveTaskCommand(Guid TaskId, string Status, int? SortOrder = null) : IRequest<MoveTaskResult>;
-public sealed record MoveTaskResult(Guid Id, string Status, int SortOrder);
+public sealed record MoveWorkItemCommand(Guid TaskId, string Status, int? SortOrder = null) : IRequest<MoveWorkItemResult>;
+public sealed record MoveWorkItemResult(Guid Id, string Status, int SortOrder);
 
-public sealed record AssignTaskCommand(Guid TaskId, Guid? UserId) : IRequest<Guid?>;
+public sealed record AssignWorkItemCommand(Guid TaskId, Guid? UserId) : IRequest<Guid?>;
 public sealed record CreateCommentCommand(Guid TaskId, Guid AuthorUserId, string Content) : IRequest<Guid>;
 public sealed record CreateTimeEntryCommand(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null) : IRequest<Guid>;
 
-public sealed record UpdateTaskCommand(Guid TaskId, string? Title = null, string? Description = null,
+public sealed record UpdateWorkItemCommand(Guid TaskId, string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
     int? StoryPoints = null, string? AcceptanceCriteria = null,

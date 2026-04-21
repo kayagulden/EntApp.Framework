@@ -47,7 +47,7 @@ public sealed class CreateTaskForAssigneeActivity : CodeActivity
     public Output<Guid> CreatedTaskId { get; set; } = default!;
 
     [Output(Description = "The created task number (e.g. TSK-00001).")]
-    public Output<string> CreatedTaskNumber { get; set; } = default!;
+    public Output<string> CreatedWorkItemNumber { get; set; } = default!;
 
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
@@ -64,7 +64,7 @@ public sealed class CreateTaskForAssigneeActivity : CodeActivity
 
         var mediator = context.GetRequiredService<ISender>();
 
-        var result = await mediator.Send(new CreateTaskFromSourceCommand(
+        var result = await mediator.Send(new CreateWorkItemFromSourceCommand(
             SourceModule: "RequestManagement",
             SourceType: "Ticket",
             SourceId: ticketId,
@@ -75,7 +75,7 @@ public sealed class CreateTaskForAssigneeActivity : CodeActivity
             DueDate: dueDate));
 
         context.Set(CreatedTaskId, result.Id);
-        context.Set(CreatedTaskNumber, result.TaskNumber);
+        context.Set(CreatedWorkItemNumber, result.WorkItemNumber);
 
         await context.CompleteActivityAsync();
     }

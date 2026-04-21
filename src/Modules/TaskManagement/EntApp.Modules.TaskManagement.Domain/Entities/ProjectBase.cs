@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Domain.Enums;
+﻿using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
@@ -36,13 +36,13 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
     public PortfolioId? PortfolioId { get; private set; }
 
     /// <summary>Otomatik görev numaralandırma sayacı</summary>
-    public int TaskSequence { get; private set; }
+    public int WorkItemSequence { get; private set; }
 
     public Guid TenantId { get; set; }
 
     // Navigation
     public PortfolioBase? Portfolio { get; private set; }
-    public ICollection<TaskItemBase> Tasks { get; private set; } = [];
+    public ICollection<WorkItemBase> WorkItems { get; private set; } = [];
     public ICollection<ProjectDeliverable> Deliverables { get; private set; } = [];
 
     private ProjectBase() { }
@@ -93,9 +93,9 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
     public void Complete() => Status = ProjectStatus.Completed;
 
     /// <summary>Yeni görev numarası üretir: KEY-1, KEY-2, ...</summary>
-    public string NextTaskNumber()
+    public string NextWorkItemNumber()
     {
-        TaskSequence++;
-        return $"{Key}-{TaskSequence}";
+        WorkItemSequence++;
+        return $"{Key}-{WorkItemSequence}";
     }
 }

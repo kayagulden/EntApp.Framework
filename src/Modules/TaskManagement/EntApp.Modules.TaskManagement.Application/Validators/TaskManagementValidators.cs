@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Application.Commands;
+﻿using EntApp.Modules.TaskManagement.Application.Commands;
 using FluentValidation;
 
 namespace EntApp.Modules.TaskManagement.Application.Validators;
@@ -12,9 +12,9 @@ public sealed class CreateProjectCommandValidator : AbstractValidator<CreateProj
     }
 }
 
-public sealed class CreateTaskCommandValidator : AbstractValidator<CreateTaskCommand>
+public sealed class CreateWorkItemCommandValidator : AbstractValidator<CreateWorkItemCommand>
 {
-    public CreateTaskCommandValidator()
+    public CreateWorkItemCommandValidator()
     {
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);

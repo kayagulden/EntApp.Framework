@@ -42,8 +42,8 @@ public enum ProjectStatus
     Cancelled = 4
 }
 
-/// <summary>Görev durumu (Kanban).</summary>
-public enum TaskStatus
+/// <summary>İş kalemi durumu (Kanban).</summary>
+public enum WorkItemStatus
 {
     Backlog = 0,
     Todo = 1,
@@ -54,7 +54,7 @@ public enum TaskStatus
 }
 
 /// <summary>Görev önceliği.</summary>
-public enum TaskPriority
+public enum WorkItemPriority
 {
     Low = 0,
     Medium = 1,
@@ -63,7 +63,7 @@ public enum TaskPriority
 }
 
 /// <summary>Görev / iş kalemi tipi.</summary>
-public enum TaskType
+public enum WorkItemType
 {
     Task = 0,
     Bug = 1,

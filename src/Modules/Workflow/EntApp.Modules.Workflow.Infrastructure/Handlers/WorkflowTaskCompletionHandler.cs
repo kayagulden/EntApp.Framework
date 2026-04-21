@@ -1,4 +1,4 @@
-using Elsa.Workflows.Runtime;
+﻿using Elsa.Workflows.Runtime;
 using Elsa.Workflows.Runtime.Stimuli;
 using EntApp.Modules.TaskManagement.Application.IntegrationEvents;
 using EntApp.Modules.Workflow.Infrastructure.Activities;
@@ -9,16 +9,16 @@ namespace EntApp.Modules.Workflow.Infrastructure.Handlers;
 
 /// <summary>
 /// Cross-module event handler: TaskManagement → Workflow (Elsa).
-/// AllSourceTasksCompletedEvent geldiğinde, ilgili ticket'ın
+/// AllSourceWorkItemsCompletedEvent geldiğinde, ilgili ticket'ın
 /// WaitForAllTasksDoneActivity bookmark'ını resume eder.
 /// Bu sayede workflow otomatik olarak bir sonraki adıma geçer.
 /// </summary>
 public sealed class WorkflowTaskCompletionHandler(
     IStimulusSender stimulusSender,
     ILogger<WorkflowTaskCompletionHandler> logger)
-    : INotificationHandler<AllSourceTasksCompletedEvent>
+    : INotificationHandler<AllSourceWorkItemsCompletedEvent>
 {
-    public async Task Handle(AllSourceTasksCompletedEvent notification, CancellationToken ct)
+    public async Task Handle(AllSourceWorkItemsCompletedEvent notification, CancellationToken ct)
     {
         // Sadece RequestManagement.Ticket kaynağından gelen event'leri işle
         if (notification.SourceModule != "RequestManagement" || notification.SourceType != "Ticket")
@@ -27,7 +27,7 @@ public sealed class WorkflowTaskCompletionHandler(
         logger.LogInformation(
             "WorkflowTaskCompletionHandler: Ticket {SourceId} tüm görevler tamamlandı ({Count}). " +
             "Elsa bookmark resume ediliyor...",
-            notification.SourceId, notification.CompletedTaskCount);
+            notification.SourceId, notification.CompletedWorkItemCount);
 
         try
         {
@@ -38,7 +38,7 @@ public sealed class WorkflowTaskCompletionHandler(
             {
                 Input = new Dictionary<string, object>
                 {
-                    ["CompletedTaskCount"] = notification.CompletedTaskCount
+                    ["CompletedWorkItemCount"] = notification.CompletedWorkItemCount
                 }
             };
 

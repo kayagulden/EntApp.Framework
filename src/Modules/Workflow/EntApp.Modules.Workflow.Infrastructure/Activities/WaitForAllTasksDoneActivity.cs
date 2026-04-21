@@ -9,7 +9,7 @@ namespace EntApp.Modules.Workflow.Infrastructure.Activities;
 
 /// <summary>
 /// Blocking activity — workflow duraklar ve tüm görevler tamamlanana kadar bekler.
-/// AllSourceTasksCompletedEvent tetiklendiğinde WorkflowTaskCompletionHandler
+/// AllSourceWorkItemsCompletedEvent tetiklendiğinde WorkflowTaskCompletionHandler
 /// bu aktivitenin bookmark'ını resume eder.
 /// Elsa Designer'da "Ticket Management" kategorisinde görünür.
 ///
@@ -30,7 +30,7 @@ public sealed class WaitForAllTasksDoneActivity : Activity
     public Input<int> TimeoutHours { get; set; } = default!;
 
     [Output(Description = "Number of completed tasks when all tasks are done.")]
-    public Output<int> CompletedTaskCount { get; set; } = default!;
+    public Output<int> CompletedWorkItemCount { get; set; } = default!;
 
     private static readonly HashSet<string> DoneStatuses = ["Done", "Cancelled"];
 
@@ -41,12 +41,12 @@ public sealed class WaitForAllTasksDoneActivity : Activity
         // Mevcut görev durumunu kontrol et
         var mediator = context.GetRequiredService<ISender>();
         var tasks = await mediator.Send(
-            new ListTasksBySourceQuery("RequestManagement", "Ticket", ticketId));
+            new ListWorkItemsBySourceQuery("RequestManagement", "Ticket", ticketId));
 
         if (tasks.Count == 0)
         {
             // Hiç görev yoksa beklemeye gerek yok
-            context.Set(CompletedTaskCount, 0);
+            context.Set(CompletedWorkItemCount, 0);
             await context.CompleteActivityWithOutcomesAsync("NoTasks");
             return;
         }
@@ -55,7 +55,7 @@ public sealed class WaitForAllTasksDoneActivity : Activity
         if (allDone)
         {
             // Tüm görevler zaten tamamlanmış
-            context.Set(CompletedTaskCount, tasks.Count);
+            context.Set(CompletedWorkItemCount, tasks.Count);
             await context.CompleteActivityWithOutcomesAsync("AllDone");
             return;
         }
@@ -71,11 +71,11 @@ public sealed class WaitForAllTasksDoneActivity : Activity
         // Bookmark resume edildiğinde çalışır (tüm görevler tamamlandığında)
         var input = context.WorkflowInput;
 
-        var completedCount = input.TryGetValue("CompletedTaskCount", out var c)
+        var completedCount = input.TryGetValue("CompletedWorkItemCount", out var c)
             ? Convert.ToInt32(c)
             : 0;
 
-        context.Set(CompletedTaskCount, completedCount);
+        context.Set(CompletedWorkItemCount, completedCount);
 
         // Aktiviteyi "AllDone" outcome ile tamamla
         await context.CompleteActivityWithOutcomesAsync("AllDone");

@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Application.Commands;
+﻿using EntApp.Modules.TaskManagement.Application.Commands;
 using EntApp.Modules.TaskManagement.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -222,30 +222,30 @@ public static class TaskManagementEndpoints
             return Results.NoContent();
         }).WithName("RemoveCIRelationship");
 
-        var tasks = app.MapGroup("/api/pm/tasks").WithTags("PM - Tasks");
+        var tasks = app.MapGroup("/api/pm/work-items").WithTags("PM - Work Items");
         tasks.MapGet("/", async (ISender mediator, Guid? projectId, string? status, string? assignee, string? priority,
             int page = 1, int pageSize = 20, Guid? reporterUserId = null, string? assigneeUserIds = null,
             string? type = null, string? sourceFilter = null)
-            => Results.Ok(await mediator.Send(new ListTasksQuery(projectId, status, assignee, priority, page, pageSize,
+            => Results.Ok(await mediator.Send(new ListWorkItemsQuery(projectId, status, assignee, priority, page, pageSize,
                 reporterUserId, assigneeUserIds, type, sourceFilter)))).WithName("ListTasks");
         tasks.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
-        { var r = await mediator.Send(new GetTaskQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetTask");
-        tasks.MapPost("/", async (CreateTaskRequest req, ISender mediator) =>
+        { var r = await mediator.Send(new GetWorkItemQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); }).WithName("GetTask");
+        tasks.MapPost("/", async (CreateWorkItemRequest req, ISender mediator) =>
         {
-            var result = await mediator.Send(new CreateTaskCommand(req.ProjectId, req.Title, req.Type, req.Priority,
+            var result = await mediator.Send(new CreateWorkItemCommand(req.ProjectId, req.Title, req.Type, req.Priority,
                 req.Description, req.AssigneeUserId, req.ReporterUserId, req.ParentTaskId, req.DueDate, req.EstimatedHours, req.Tags));
-            return Results.Created($"/api/pm/tasks/{result.Id}", result);
+            return Results.Created($"/api/pm/work-items/{result.Id}", result);
         }).WithName("CreateTask");
         tasks.MapPost("/{id:guid}/move", async (Guid id, MoveTaskRequest req, ISender mediator) =>
-            Results.Ok(await mediator.Send(new MoveTaskCommand(id, req.Status, req.SortOrder)))).WithName("MoveTask").WithSummary("Kanban sürükle-bırak");
+            Results.Ok(await mediator.Send(new MoveWorkItemCommand(id, req.Status, req.SortOrder)))).WithName("MoveTask").WithSummary("Kanban sürükle-bırak");
         tasks.MapPost("/{id:guid}/assign", async (Guid id, AssignTaskRequest req, ISender mediator) =>
         {
-            var userId = await mediator.Send(new AssignTaskCommand(id, req.UserId));
+            var userId = await mediator.Send(new AssignWorkItemCommand(id, req.UserId));
             return Results.Ok(new { id, assigneeUserId = userId });
         }).WithName("AssignTask");
-        tasks.MapPut("/{id:guid}", async (Guid id, UpdateTaskRequest req, ISender mediator) =>
+        tasks.MapPut("/{id:guid}", async (Guid id, UpdateWorkItemRequest req, ISender mediator) =>
         {
-            var taskId = await mediator.Send(new UpdateTaskCommand(id, req.Title, req.Description,
+            var taskId = await mediator.Send(new UpdateWorkItemCommand(id, req.Title, req.Description,
                 req.Priority, req.Type, req.DueDate, req.EstimatedHours, req.Tags, req.AssigneeUserId,
                 req.StoryPoints, req.AcceptanceCriteria, req.SprintId));
             return Results.Ok(new { id = taskId });
@@ -258,16 +258,16 @@ public static class TaskManagementEndpoints
 
         // ── Cross-Module Source Endpoints ────────────────────────
         tasks.MapGet("/by-source", async (ISender mediator, string module, string type, Guid sourceId)
-            => Results.Ok(await mediator.Send(new ListTasksBySourceQuery(module, type, sourceId))))
+            => Results.Ok(await mediator.Send(new ListWorkItemsBySourceQuery(module, type, sourceId))))
             .WithName("ListTasksBySource").WithSummary("Kaynağa bağlı görevleri listeler (Ticket vb.)");
 
         tasks.MapPost("/from-source", async (CreateTaskFromSourceRequest req, ISender mediator) =>
         {
-            var result = await mediator.Send(new CreateTaskFromSourceCommand(
+            var result = await mediator.Send(new CreateWorkItemFromSourceCommand(
                 req.SourceModule, req.SourceType, req.SourceId,
                 req.Title, req.Description, req.AssigneeUserId, req.ReporterUserId,
                 req.Priority, req.DueDate, req.ProjectId));
-            return Results.Created($"/api/pm/tasks/{result.Id}", result);
+            return Results.Created($"/api/pm/work-items/{result.Id}", result);
         }).WithName("CreateTaskFromSource").WithSummary("Dış kaynaktan görev oluşturur (Ticket → Task)");
 
         var comments = app.MapGroup("/api/pm/comments").WithTags("PM - Comments");
@@ -318,7 +318,7 @@ public sealed record UpdateProjectRequest(string? Name = null, string? Descripti
     Guid? ManagerUserId = null, Guid? OwnerUserId = null,
     Guid? PortfolioId = null, string? Status = null, string? Methodology = null,
     string? Category = null);
-public sealed record CreateTaskRequest(Guid? ProjectId, string Title, string Type = "Task",
+public sealed record CreateWorkItemRequest(Guid? ProjectId, string Title, string Type = "Task",
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,
     decimal EstimatedHours = 0, string? Tags = null);
@@ -332,7 +332,7 @@ public sealed record AssignTaskRequest(Guid? UserId);
 public sealed record CreateCommentRequest(Guid TaskId, Guid AuthorUserId, string Content);
 public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Hours,
     DateTime WorkDate, string? Description = null);
-public sealed record UpdateTaskRequest(string? Title = null, string? Description = null,
+public sealed record UpdateWorkItemRequest(string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
     int? StoryPoints = null, string? AcceptanceCriteria = null, Guid? SprintId = null);

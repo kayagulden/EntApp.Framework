@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Domain.Enums;
+﻿using EntApp.Modules.TaskManagement.Domain.Enums;
 
 namespace EntApp.Modules.TaskManagement.Domain.Entities;
 
@@ -8,33 +8,33 @@ namespace EntApp.Modules.TaskManagement.Domain.Entities;
 /// </summary>
 public static class WorkItemHierarchyRules
 {
-    private static readonly Dictionary<TaskType, TaskType[]> AllowedChildren = new()
+    private static readonly Dictionary<WorkItemType, WorkItemType[]> AllowedChildren = new()
     {
-        [TaskType.Epic]        = [TaskType.Feature, TaskType.UserStory],
-        [TaskType.Feature]     = [TaskType.UserStory, TaskType.Task, TaskType.Bug],
-        [TaskType.UserStory]   = [TaskType.Task, TaskType.Bug],
-        [TaskType.Task]        = [],  // leaf node
-        [TaskType.Bug]         = [TaskType.Task],
-        [TaskType.Improvement] = [TaskType.Task],
-        [TaskType.TechDebt]    = [TaskType.Task],
-        [TaskType.Spike]       = [TaskType.Task],
+        [WorkItemType.Epic]        = [WorkItemType.Feature, WorkItemType.UserStory],
+        [WorkItemType.Feature]     = [WorkItemType.UserStory, WorkItemType.Task, WorkItemType.Bug],
+        [WorkItemType.UserStory]   = [WorkItemType.Task, WorkItemType.Bug],
+        [WorkItemType.Task]        = [],  // leaf node
+        [WorkItemType.Bug]         = [WorkItemType.Task],
+        [WorkItemType.Improvement] = [WorkItemType.Task],
+        [WorkItemType.TechDebt]    = [WorkItemType.Task],
+        [WorkItemType.Spike]       = [WorkItemType.Task],
     };
 
     /// <summary>Çocuk tipin, ebeveyn tipin altına girip giremeyeceğini kontrol eder.</summary>
-    public static bool CanBeChildOf(TaskType childType, TaskType parentType)
+    public static bool CanBeChildOf(WorkItemType childType, WorkItemType parentType)
         => AllowedChildren.GetValueOrDefault(parentType, []).Contains(childType);
 
     /// <summary>Varsayılan hiyerarşi seviyesini döner (bağımsız item için).</summary>
-    public static int GetDefaultHierarchyLevel(TaskType type) => type switch
+    public static int GetDefaultHierarchyLevel(WorkItemType type) => type switch
     {
-        TaskType.Epic => 0,
-        TaskType.Feature => 1,
-        TaskType.UserStory => 2,
-        TaskType.Task => 3,
-        TaskType.Bug => 3,
-        TaskType.Improvement => 2,
-        TaskType.TechDebt => 2,
-        TaskType.Spike => 2,
+        WorkItemType.Epic => 0,
+        WorkItemType.Feature => 1,
+        WorkItemType.UserStory => 2,
+        WorkItemType.Task => 3,
+        WorkItemType.Bug => 3,
+        WorkItemType.Improvement => 2,
+        WorkItemType.TechDebt => 2,
+        WorkItemType.Spike => 2,
         _ => 3
     };
 }

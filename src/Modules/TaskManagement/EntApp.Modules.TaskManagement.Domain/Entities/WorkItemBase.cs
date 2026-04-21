@@ -1,20 +1,20 @@
-using EntApp.Modules.TaskManagement.Domain.Enums;
+﻿using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
-using TaskStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.TaskStatus;
+using WorkItemStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.WorkItemStatus;
 
 namespace EntApp.Modules.TaskManagement.Domain.Entities;
 
 /// <summary>Görev / iş kalemi.</summary>
 [DynamicEntity("TaskItem", MenuGroup = "Proje Yönetimi")]
-public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
+public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
 {
     /// <summary>Opsiyonel proje bağlantısı. null ise proje dışı görev (talep görevi, bağımsız görev).</summary>
     public ProjectId? ProjectId { get; private set; }
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 20, Searchable = true)]
-    public string TaskNumber { get; private set; } = string.Empty;
+    public string WorkItemNumber { get; private set; } = string.Empty;
 
     [DynamicField(FieldType = FieldType.String, Required = true, MaxLength = 500, Searchable = true)]
     public string Title { get; private set; } = string.Empty;
@@ -22,9 +22,9 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     [DynamicField(FieldType = FieldType.Text, MaxLength = 5000)]
     public string? Description { get; private set; }
 
-    public TaskStatusEnum Status { get; private set; } = TaskStatusEnum.Backlog;
-    public TaskPriority Priority { get; private set; } = TaskPriority.Medium;
-    public TaskType Type { get; private set; } = TaskType.Task;
+    public WorkItemStatusEnum Status { get; private set; } = WorkItemStatusEnum.Backlog;
+    public WorkItemPriority Priority { get; private set; } = WorkItemPriority.Medium;
+    public WorkItemType Type { get; private set; } = WorkItemType.Task;
 
     /// <summary>Atanan kişi</summary>
     public Guid? AssigneeUserId { get; private set; }
@@ -33,7 +33,7 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     public Guid? ReporterUserId { get; private set; }
 
     /// <summary>Üst görev (alt görev desteği)</summary>
-    public TaskItemId? ParentTaskId { get; private set; }
+    public WorkItemId? ParentTaskId { get; private set; }
 
     public DateTime? DueDate { get; private set; }
 
@@ -74,24 +74,24 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
 
     // Navigation
     public ProjectBase? Project { get; private set; }
-    public TaskItemBase? ParentTask { get; private set; }
+    public WorkItemBase? ParentTask { get; private set; }
     public SprintBase? Sprint { get; private set; }
-    public ICollection<TaskItemBase> SubTasks { get; private set; } = [];
+    public ICollection<WorkItemBase> SubTasks { get; private set; } = [];
     public ICollection<CommentBase> Comments { get; private set; } = [];
     public ICollection<TimeEntryBase> TimeEntries { get; private set; } = [];
 
-    private TaskItemBase() { }
+    private WorkItemBase() { }
 
     /// <summary>Proje kapsamında görev oluşturur.</summary>
-    public static TaskItemBase Create(ProjectId projectId, string taskNumber, string title,
-        TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
+    public static WorkItemBase Create(ProjectId projectId, string taskNumber, string title,
+        WorkItemType type = WorkItemType.Task, WorkItemPriority priority = WorkItemPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
-        Guid? reporterUserId = null, TaskItemId? parentTaskId = null,
+        Guid? reporterUserId = null, WorkItemId? parentTaskId = null,
         DateTime? dueDate = null, decimal estimatedHours = 0, string? tags = null)
     {
-        return new TaskItemBase
+        return new WorkItemBase
         {
-            Id = EntityId.New<TaskItemId>(), ProjectId = projectId, TaskNumber = taskNumber,
+            Id = EntityId.New<WorkItemId>(), ProjectId = projectId, WorkItemNumber = taskNumber,
             Title = title, Type = type, Priority = priority,
             Description = description, AssigneeUserId = assigneeUserId,
             ReporterUserId = reporterUserId, ParentTaskId = parentTaskId,
@@ -100,19 +100,19 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     }
 
     /// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur. Proje opsiyonel.</summary>
-    public static TaskItemBase CreateFromSource(
+    public static WorkItemBase CreateFromSource(
         string sourceModule, string sourceType, Guid sourceId,
         string taskNumber, string title,
-        TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
+        WorkItemType type = WorkItemType.Task, WorkItemPriority priority = WorkItemPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
         Guid? reporterUserId = null, DateTime? dueDate = null,
         decimal estimatedHours = 0, ProjectId? projectId = null)
     {
-        return new TaskItemBase
+        return new WorkItemBase
         {
-            Id = EntityId.New<TaskItemId>(),
+            Id = EntityId.New<WorkItemId>(),
             ProjectId = projectId,
-            TaskNumber = taskNumber,
+            WorkItemNumber = taskNumber,
             Title = title,
             Type = type,
             Priority = priority,
@@ -128,17 +128,17 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
     }
 
     /// <summary>Bağımsız (projesiz, kaynaksız) görev oluşturur.</summary>
-    public static TaskItemBase CreateStandalone(
+    public static WorkItemBase CreateStandalone(
         string taskNumber, string title,
-        TaskType type = TaskType.Task, TaskPriority priority = TaskPriority.Medium,
+        WorkItemType type = WorkItemType.Task, WorkItemPriority priority = WorkItemPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
         Guid? reporterUserId = null, DateTime? dueDate = null,
         decimal estimatedHours = 0, string? tags = null)
     {
-        return new TaskItemBase
+        return new WorkItemBase
         {
-            Id = EntityId.New<TaskItemId>(),
-            TaskNumber = taskNumber,
+            Id = EntityId.New<WorkItemId>(),
+            WorkItemNumber = taskNumber,
             Title = title,
             Type = type,
             Priority = priority,
@@ -151,7 +151,7 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
         };
     }
 
-    public void MoveTo(TaskStatusEnum status) => Status = status;
+    public void MoveTo(WorkItemStatusEnum status) => Status = status;
     public void AssignTo(Guid userId) => AssigneeUserId = userId;
     public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;
@@ -162,7 +162,7 @@ public sealed class TaskItemBase : AuditableEntity<TaskItemId>, ITenantEntity
 
     /// <summary>Görev bilgilerini günceller.</summary>
     public void Update(string? title = null, string? description = null,
-        TaskPriority? priority = null, TaskType? type = null,
+        WorkItemPriority? priority = null, WorkItemType? type = null,
         DateTime? dueDate = null, decimal? estimatedHours = null, string? tags = null,
         int? storyPoints = null, string? acceptanceCriteria = null)
     {

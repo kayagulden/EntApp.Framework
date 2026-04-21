@@ -1,4 +1,4 @@
-using EntApp.Shared.Contracts.Common;
+﻿using EntApp.Shared.Contracts.Common;
 using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Queries;
@@ -56,7 +56,7 @@ public sealed record ProjectDetailDto(
     DateTime? StartDate, DateTime? EndDate, DateTime? TargetEndDate,
     Guid? ManagerUserId, Guid? OwnerUserId,
     Guid? PortfolioId, string? PortfolioName, string? PortfolioCode,
-    int TaskCount, int TaskSequence,
+    int TaskCount, int WorkItemSequence,
     DateTime CreatedAt, DateTime? UpdatedAt,
     List<ProjectDeliverableDto>? Deliverables = null);
 
@@ -76,27 +76,27 @@ public sealed record ListCIProjectsQuery(Guid ConfigurationItemId)
     : IRequest<List<CIProjectDto>>;
 
 // ── Task ────────────────────────────────────────────────────
-public sealed record ListTasksQuery(Guid? ProjectId, string? Status, string? Assignee, string? Priority,
+public sealed record ListWorkItemsQuery(Guid? ProjectId, string? Status, string? Assignee, string? Priority,
     int Page = 1, int PageSize = 20, Guid? ReporterUserId = null, string? AssigneeUserIds = null,
     string? Type = null, string? SourceFilter = null) : IRequest<PagedResult<object>>;
-public sealed record GetTaskQuery(Guid Id) : IRequest<TaskDetailDto?>;
+public sealed record GetWorkItemQuery(Guid Id) : IRequest<WorkItemDetailDto?>;
 public sealed record GetKanbanBoardQuery(Guid ProjectId) : IRequest<object>;
 public sealed record ListCommentsQuery(Guid TaskId) : IRequest<List<object>>;
 public sealed record ListTimeEntriesQuery(Guid? TaskId, Guid? UserId, int Page = 1, int PageSize = 20) : IRequest<PagedResult<object>>;
 
 /// <summary>Belirli bir kaynağa (Ticket vb.) bağlı görevleri listeler.</summary>
-public sealed record ListTasksBySourceQuery(
+public sealed record ListWorkItemsBySourceQuery(
     string SourceModule, string SourceType, Guid SourceId
-) : IRequest<List<TaskBySourceDto>>;
+) : IRequest<List<WorkItemBySourceDto>>;
 
-public sealed record TaskBySourceDto(
-    Guid Id, string TaskNumber, string Title, string Status,
+public sealed record WorkItemBySourceDto(
+    Guid Id, string WorkItemNumber, string Title, string Status,
     string Priority, string Type, Guid? AssigneeUserId,
     DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt,
     int? StoryPoints = null, int HierarchyLevel = 0);
 
-public sealed record TaskDetailDto(
-    Guid Id, string TaskNumber, string Title, string? Description,
+public sealed record WorkItemDetailDto(
+    Guid Id, string WorkItemNumber, string Title, string? Description,
     string Status, string Priority, string Type,
     Guid? AssigneeUserId, Guid? ReporterUserId,
     Guid? ParentTaskId, DateTime? DueDate, decimal EstimatedHours,
@@ -104,7 +104,7 @@ public sealed record TaskDetailDto(
     string? SourceModule, string? SourceType, Guid? SourceId,
     Guid? ProjectId, string? ProjectKey, string? ProjectName,
     DateTime CreatedAt, DateTime? UpdatedAt,
-    List<TaskBySourceDto> SubTasks,
+    List<WorkItemBySourceDto> SubTasks,
     int? StoryPoints = null, string? AcceptanceCriteria = null,
     Guid? SprintId = null, string? SprintName = null,
     int HierarchyLevel = 0);
@@ -126,13 +126,13 @@ public sealed record SprintDetailDto(
     Guid ProjectId, string ProjectKey, string ProjectName,
     int WorkItemCount, int? TotalStoryPoints,
     DateTime CreatedAt, DateTime? UpdatedAt,
-    List<TaskBySourceDto> WorkItems);
+    List<WorkItemBySourceDto> WorkItems);
 
 // ── Backlog ─────────────────────────────────────────────────
 /// <summary>Proje backlog'unu flat veya tree olarak getirir.</summary>
 public sealed record GetBacklogQuery(Guid ProjectId,
     string View = "flat",      // flat | tree
-    string? Type = null,        // virgülle ayrılmış TaskType listesi
+    string? Type = null,        // virgülle ayrılmış WorkItemType listesi
     string? Sprint = null,      // "current" | sprint guid
     Guid? Assignee = null,
     string? Status = null       // virgülle ayrılmış TaskStatus listesi

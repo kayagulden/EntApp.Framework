@@ -1,11 +1,11 @@
-using EntApp.Shared.Kernel.Domain;
+﻿using EntApp.Shared.Kernel.Domain;
 
 namespace EntApp.Modules.TaskManagement.Domain.Ids;
 
 public readonly record struct PortfolioId(Guid Value) : IEntityId;
 public readonly record struct ProjectId(Guid Value) : IEntityId;
 public readonly record struct ConfigurationItemId(Guid Value) : IEntityId;
-public readonly record struct TaskItemId(Guid Value) : IEntityId;
+public readonly record struct WorkItemId(Guid Value) : IEntityId;
 public readonly record struct CommentId(Guid Value) : IEntityId;
 public readonly record struct TimeEntryId(Guid Value) : IEntityId;
 public readonly record struct ProjectDeliverableId(Guid Value) : IEntityId;

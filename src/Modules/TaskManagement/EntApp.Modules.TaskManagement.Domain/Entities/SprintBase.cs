@@ -1,4 +1,4 @@
-using EntApp.Modules.TaskManagement.Domain.Enums;
+﻿using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 
@@ -27,7 +27,7 @@ public sealed class SprintBase : AuditableEntity<SprintId>, ITenantEntity
 
     // Navigation
     public ProjectBase? Project { get; private set; }
-    public ICollection<TaskItemBase> WorkItems { get; private set; } = [];
+    public ICollection<WorkItemBase> WorkItems { get; private set; } = [];
 
     private SprintBase() { }
 

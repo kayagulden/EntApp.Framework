@@ -1,4 +1,4 @@
-using EntApp.Modules.RequestManagement.Domain.Ids;
+﻿using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Modules.RequestManagement.Infrastructure.Persistence;
 using EntApp.Modules.TaskManagement.Application.IntegrationEvents;
 using MediatR;
@@ -15,9 +15,9 @@ namespace EntApp.Modules.RequestManagement.Infrastructure.Handlers;
 public sealed class TicketTaskCreatedEventHandler(
     RequestManagementDbContext db,
     ILogger<TicketTaskCreatedEventHandler> logger)
-    : INotificationHandler<TaskCreatedForSourceEvent>
+    : INotificationHandler<WorkItemCreatedForSourceEvent>
 {
-    public async Task Handle(TaskCreatedForSourceEvent notification, CancellationToken ct)
+    public async Task Handle(WorkItemCreatedForSourceEvent notification, CancellationToken ct)
     {
         // Sadece RequestManagement.Ticket kaynağından gelen event'leri işle
         if (notification.SourceModule != "RequestManagement" || notification.SourceType != "Ticket")
@@ -36,20 +36,20 @@ public sealed class TicketTaskCreatedEventHandler(
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
-            "Ticket {TicketNumber}: Yeni görev {TaskNumber} oluşturuldu. Toplam görev: {Count}",
-            ticket.Number, notification.TaskNumber, ticket.LinkedTaskCount);
+            "Ticket {TicketNumber}: Yeni görev {WorkItemNumber} oluşturuldu. Toplam görev: {Count}",
+            ticket.Number, notification.WorkItemNumber, ticket.LinkedTaskCount);
     }
 }
 
-public sealed class AllSourceTasksCompletedEventHandler(
+public sealed class AllSourceWorkItemsCompletedEventHandler(
     RequestManagementDbContext db,
-    ILogger<AllSourceTasksCompletedEventHandler> logger)
-    : INotificationHandler<AllSourceTasksCompletedEvent>
+    ILogger<AllSourceWorkItemsCompletedEventHandler> logger)
+    : INotificationHandler<AllSourceWorkItemsCompletedEvent>
 {
     // Sistem kullanıcı ID — event-driven otomatik durum değişikliği için
     private static readonly Guid SystemUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
-    public async Task Handle(AllSourceTasksCompletedEvent notification, CancellationToken ct)
+    public async Task Handle(AllSourceWorkItemsCompletedEvent notification, CancellationToken ct)
     {
         if (notification.SourceModule != "RequestManagement" || notification.SourceType != "Ticket")
             return;
@@ -60,16 +60,16 @@ public sealed class AllSourceTasksCompletedEventHandler(
 
         if (ticket is null)
         {
-            logger.LogWarning("AllSourceTasksCompletedEventHandler: Ticket {SourceId} not found.", notification.SourceId);
+            logger.LogWarning("AllSourceWorkItemsCompletedEventHandler: Ticket {SourceId} not found.", notification.SourceId);
             return;
         }
 
-        ticket.SetTaskCounts(notification.CompletedTaskCount, notification.CompletedTaskCount);
+        ticket.SetTaskCounts(notification.CompletedWorkItemCount, notification.CompletedWorkItemCount);
         ticket.MarkAllTasksDone(SystemUserId);
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
             "Ticket {TicketNumber}: Tüm görevler tamamlandı ({Count}). Durum: AllTasksDone",
-            ticket.Number, notification.CompletedTaskCount);
+            ticket.Number, notification.CompletedWorkItemCount);
     }
 }
