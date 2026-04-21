@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Application.Commands;
+using EntApp.Modules.TaskManagement.Application.Commands;
 using EntApp.Modules.TaskManagement.Application.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -261,14 +261,15 @@ public static class TaskManagementEndpoints
             => Results.Ok(await mediator.Send(new ListWorkItemsBySourceQuery(module, type, sourceId))))
             .WithName("ListTasksBySource").WithSummary("Kaynağa bağlı görevleri listeler (Ticket vb.)");
 
-        tasks.MapPost("/from-source", async (CreateTaskFromSourceRequest req, ISender mediator) =>
+        tasks.MapPost("/from-source", async (CreateWorkItemFromSourceRequest req, ISender mediator) =>
         {
             var result = await mediator.Send(new CreateWorkItemFromSourceCommand(
                 req.SourceModule, req.SourceType, req.SourceId,
                 req.Title, req.Description, req.AssigneeUserId, req.ReporterUserId,
-                req.Priority, req.DueDate, req.ProjectId));
+                req.Priority, req.DueDate, req.ProjectId,
+                req.WorkItemType ?? "Task", req.ParentWorkItemId));
             return Results.Created($"/api/pm/work-items/{result.Id}", result);
-        }).WithName("CreateTaskFromSource").WithSummary("Dış kaynaktan görev oluşturur (Ticket → Task)");
+        }).WithName("CreateWorkItemFromSource").WithSummary("Dış kaynaktan iş kalemi oluşturur (Ticket → WorkItem)");
 
         var comments = app.MapGroup("/api/pm/comments").WithTags("PM - Comments");
         comments.MapGet("/{taskId:guid}", async (Guid taskId, ISender mediator)
@@ -287,6 +288,51 @@ public static class TaskManagementEndpoints
             var id = await mediator.Send(new CreateTimeEntryCommand(req.TaskId, req.UserId, req.Hours, req.WorkDate, req.Description));
             return Results.Created($"/api/pm/time-entries/{id}", new { id });
         }).WithName("CreateTimeEntry");
+
+        // ── Board Columns ────────────────────────────────────────
+        var boardCols = app.MapGroup("/api/pm/projects/{projectId:guid}/board-columns").WithTags("PM - Board");
+        boardCols.MapGet("/", async (Guid projectId, ISender mediator) =>
+        {
+            var columns = await mediator.Send(new ListBoardColumnsQuery(projectId));
+            return Results.Ok(columns);
+        }).WithName("ListBoardColumns").WithSummary("Projenin board kolonlarını listeler");
+
+        boardCols.MapPost("/", async (Guid projectId, CreateBoardColumnRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateBoardColumnCommand(
+                projectId, req.Name, req.Order, req.MappedStatus, req.WipLimit));
+            return Results.Created($"/api/pm/board-columns/{id}", new { id });
+        }).WithName("CreateBoardColumn").WithSummary("Yeni board kolonu ekler");
+
+        boardCols.MapPut("/reorder", async (Guid projectId, ReorderBoardColumnsRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new ReorderBoardColumnsCommand(projectId, req.ColumnIds));
+            return Results.Ok();
+        }).WithName("ReorderBoardColumns").WithSummary("Board kolonlarını yeniden sıralar");
+
+        var boardCol = app.MapGroup("/api/pm/board-columns").WithTags("PM - Board");
+        boardCol.MapPut("/{id:guid}", async (Guid id, UpdateBoardColumnRequest req, ISender mediator) =>
+        {
+            var colId = await mediator.Send(new UpdateBoardColumnCommand(
+                id, req.Name, req.Order, req.WipLimit, req.MappedStatus));
+            return Results.Ok(new { id = colId });
+        }).WithName("UpdateBoardColumn").WithSummary("Board kolonu günceller");
+
+        boardCol.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteBoardColumnCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteBoardColumn").WithSummary("Board kolonu siler");
+
+        // ── Velocity & Burndown ──────────────────────────────────
+        var metrics = app.MapGroup("/api/pm").WithTags("PM - Metrics");
+        metrics.MapGet("/projects/{projectId:guid}/velocity", async (Guid projectId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new GetVelocityQuery(projectId))))
+            .WithName("GetVelocity").WithSummary("Sprint bazlı velocity (bar chart data)");
+
+        metrics.MapGet("/sprints/{sprintId:guid}/burndown", async (Guid sprintId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new GetBurndownQuery(sprintId))))
+            .WithName("GetBurndown").WithSummary("Sprint burndown (line chart data)");
 
         return app;
     }
@@ -322,11 +368,12 @@ public sealed record CreateWorkItemRequest(Guid? ProjectId, string Title, string
     string Priority = "Medium", string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, Guid? ParentTaskId = null, DateTime? DueDate = null,
     decimal EstimatedHours = 0, string? Tags = null);
-public sealed record CreateTaskFromSourceRequest(
+public sealed record CreateWorkItemFromSourceRequest(
     string SourceModule, string SourceType, Guid SourceId,
     string Title, string? Description = null, Guid? AssigneeUserId = null,
     Guid? ReporterUserId = null, string Priority = "Medium",
-    DateTime? DueDate = null, Guid? ProjectId = null);
+    DateTime? DueDate = null, Guid? ProjectId = null,
+    string? WorkItemType = "Task", Guid? ParentWorkItemId = null);
 public sealed record MoveTaskRequest(string Status, int? SortOrder = null);
 public sealed record AssignTaskRequest(Guid? UserId);
 public sealed record CreateCommentRequest(Guid TaskId, Guid AuthorUserId, string Content);
@@ -344,6 +391,13 @@ public sealed record CreateSprintRequest(string Name, DateTime StartDate, DateTi
     string? Goal = null, int? CapacityPoints = null);
 public sealed record UpdateSprintRequest(string? Name = null, string? Goal = null,
     DateTime? StartDate = null, DateTime? EndDate = null, int? CapacityPoints = null);
+
+// BoardColumn
+public sealed record CreateBoardColumnRequest(string Name, int Order,
+    string MappedStatus, int? WipLimit = null);
+public sealed record UpdateBoardColumnRequest(string? Name = null,
+    int? Order = null, int? WipLimit = null, string? MappedStatus = null);
+public sealed record ReorderBoardColumnsRequest(List<Guid> ColumnIds);
 
 // Server
 public sealed record CreateServerRequest(string Name, string Code,

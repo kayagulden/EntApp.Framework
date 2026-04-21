@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Domain.Entities;
+using EntApp.Modules.TaskManagement.Domain.Entities;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Shared.Infrastructure.Persistence;
@@ -26,6 +26,8 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<LicenceCI> Licences => Set<LicenceCI>();
     public DbSet<CIRelationship> CIRelationships => Set<CIRelationship>();
     public DbSet<SprintBase> Sprints => Set<SprintBase>();
+    public DbSet<BoardColumn> BoardColumns => Set<BoardColumn>();
+    public DbSet<BurndownSnapshot> BurndownSnapshots => Set<BurndownSnapshot>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -139,6 +141,30 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Goal).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+        });
+
+        // ── BoardColumn ──────────────────────────────────────
+        modelBuilder.Entity<BoardColumn>(e =>
+        {
+            e.ToTable("board_columns");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<BoardColumnId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.HasIndex(x => x.ProjectId);
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.MappedStatus).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+        });
+
+        // ── BurndownSnapshot ─────────────────────────────────
+        modelBuilder.Entity<BurndownSnapshot>(e =>
+        {
+            e.ToTable("burndown_snapshots");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<BurndownSnapshotId>());
+            e.Property(x => x.SprintId).HasConversion(new StronglyTypedIdValueConverter<SprintId>());
+            e.HasIndex(x => x.SprintId);
+            e.HasIndex(x => new { x.SprintId, x.Date }).IsUnique();
         });
 
         // ── Task ───────────────────────────────────────────

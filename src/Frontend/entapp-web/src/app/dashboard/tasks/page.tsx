@@ -129,7 +129,7 @@ const PRIORITY_CONFIG: Record<string, { color: string; dot: string; label: strin
 };
 
 const TYPE_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; label: string }> = {
-  Task: { icon: ListTodo, color: "text-blue-400", label: "Görev" },
+  Task: { icon: ListTodo, color: "text-blue-400", label: "Görev (Task)" },
   Bug: { icon: Bug, color: "text-red-400", label: "Hata" },
   Feature: { icon: Sparkles, color: "text-violet-400", label: "Özellik" },
   Improvement: { icon: TrendingUp, color: "text-teal-400", label: "İyileştirme" },
@@ -149,7 +149,7 @@ const SOURCE_FILTER_OPTIONS = [
 const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "my-tasks", label: "Üzerimdeki", icon: UserCheck },
   { key: "my-created", label: "Oluşturduklarım", icon: ListTodo },
-  { key: "queue-tasks", label: "Diğer Görevler", icon: Inbox },
+  { key: "queue-tasks", label: "Diğer İş Kalemleri", icon: Inbox },
 ];
 
 const DEV_USERS = [
@@ -268,7 +268,7 @@ export default function TasksPage() {
         }
       }
 
-      const res = await fetch(`/api/pm/tasks?${params}`);
+      const res = await fetch(`/api/pm/work-items?${params}`);
       if (res.ok) {
         const data: TaskListResult = await res.json();
         setTasks(data.items ?? []);
@@ -288,11 +288,11 @@ export default function TasksPage() {
   // Fetch tab counts
   useEffect(() => {
     if (!currentUserId) return;
-    fetch(`/api/pm/tasks?assignee=${currentUserId}&pageSize=1`)
+    fetch(`/api/pm/work-items?assignee=${currentUserId}&pageSize=1`)
       .then((r) => (r.ok ? r.json() : { totalCount: 0 }))
       .then((d) => setMyTasksCount(d.totalCount ?? 0))
       .catch(() => {});
-    fetch(`/api/pm/tasks?reporterUserId=${currentUserId}&pageSize=1`)
+    fetch(`/api/pm/work-items?reporterUserId=${currentUserId}&pageSize=1`)
       .then((r) => (r.ok ? r.json() : { totalCount: 0 }))
       .then((d) => setMyCreatedCount(d.totalCount ?? 0))
       .catch(() => {});
@@ -303,7 +303,7 @@ export default function TasksPage() {
         ? queueMembers.map((m) => m.userId).join(",")
         : currentUserId;
       const qParam = isLead ? `assigneeUserIds=${memberIds}` : `assignee=${memberIds}`;
-      fetch(`/api/pm/tasks?${qParam}&pageSize=1`)
+      fetch(`/api/pm/work-items?${qParam}&pageSize=1`)
         .then((r) => (r.ok ? r.json() : { totalCount: 0 }))
         .then((d) => setQueueTasksCount(d.totalCount ?? 0))
         .catch(() => {});
@@ -319,7 +319,7 @@ export default function TasksPage() {
     setFormSaving(true);
     setFormError("");
     try {
-      const res = await fetch("/api/pm/tasks", {
+      const res = await fetch("/api/pm/work-items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,7 +364,7 @@ export default function TasksPage() {
   // Quick status change
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     try {
-      await fetch(`/api/pm/tasks/${taskId}/move`, {
+      await fetch(`/api/pm/work-items/${taskId}/move`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -380,7 +380,7 @@ export default function TasksPage() {
     ? tasks.filter(
         (t) =>
           t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.taskNumber.toLowerCase().includes(searchTerm.toLowerCase())
+          t.workItemNumber.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : tasks;
 
@@ -429,7 +429,7 @@ export default function TasksPage() {
             <ListTodo className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-text)]">Görevler</h1>
+            <h1 className="text-2xl font-bold text-[var(--color-text)]">İş Kalemleri</h1>
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
               {totalCount} görev
             </p>
@@ -498,7 +498,7 @@ export default function TasksPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
           <input
             type="text"
-            placeholder="Görev ara (numara veya başlık)..."
+            placeholder="İş kalemi ara (numara veya başlık)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={cn(
@@ -560,15 +560,15 @@ export default function TasksPage() {
           <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-muted)]">
             <ListTodo className="w-12 h-12 opacity-30 mb-3" />
             <p className="text-sm">
-              {activeTab === "my-tasks" && "Üzerinize atanmış görev yok"}
-              {activeTab === "my-created" && "Henüz görev oluşturmadınız"}
-              {activeTab === "queue-tasks" && "Diğer görevler bulunamadı"}
+              {activeTab === "my-tasks" && "Üzerinize atanmış iş kalemi yok"}
+              {activeTab === "my-created" && "Henüz iş kalemi oluşturmadınız"}
+              {activeTab === "queue-tasks" && "Diğer iş kalemleri bulunamadı"}
             </p>
             <button
               onClick={() => setShowCreate(true)}
               className="mt-3 text-xs text-teal-400 hover:text-teal-300 transition-colors"
             >
-              + Yeni Görev Oluştur
+              + Yeni İş Kalemi Oluştur
             </button>
           </div>
         ) : (
@@ -603,7 +603,7 @@ export default function TasksPage() {
                   >
                     <td className="px-4 py-3">
                       <span className="text-sm font-mono font-medium text-teal-400 group-hover:text-teal-300 transition-colors">
-                        {task.taskNumber}
+                        {task.workItemNumber}
                       </span>
                     </td>
                     <td className="px-4 py-3 max-w-[280px]">
@@ -714,8 +714,8 @@ export default function TasksPage() {
                   <ListTodo className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--color-text)]">Yeni Görev</h2>
-                  <p className="text-xs text-[var(--color-text-muted)]">Görev bilgilerini girin</p>
+                  <h2 className="text-lg font-semibold text-[var(--color-text)]">Yeni İş Kalemi</h2>
+                  <p className="text-xs text-[var(--color-text-muted)]">İş kalemi bilgilerini girin</p>
                 </div>
               </div>
               <button
@@ -736,7 +736,7 @@ export default function TasksPage() {
                   type="text"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Görev başlığı..."
+                  placeholder="İş kalemi başlığı..."
                   className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                 />
               </div>

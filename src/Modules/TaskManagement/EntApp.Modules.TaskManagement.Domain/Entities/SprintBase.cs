@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 
@@ -22,6 +22,12 @@ public sealed class SprintBase : AuditableEntity<SprintId>, ITenantEntity
 
     /// <summary>Takım kapasitesi (Story Points).</summary>
     public int? CapacityPoints { get; private set; }
+
+    /// <summary>Sprint başladığında toplam planlanan SP.</summary>
+    public int PlannedPoints { get; private set; }
+
+    /// <summary>Sprint tamamlandığında tamamlanan SP.</summary>
+    public int CompletedPoints { get; private set; }
 
     public Guid TenantId { get; set; }
 
@@ -67,12 +73,15 @@ public sealed class SprintBase : AuditableEntity<SprintId>, ITenantEntity
     }
 
     /// <summary>Sprint'i tamamlar.</summary>
-    public void Complete()
+    public void Complete(int completedPoints = 0)
     {
         if (Status != SprintStatus.Active)
             throw new InvalidOperationException($"Sprint yalnızca Active durumundayken tamamlanabilir. Mevcut durum: {Status}");
+        CompletedPoints = completedPoints;
         Status = SprintStatus.Completed;
     }
+
+    public void SetPlannedPoints(int points) => PlannedPoints = points;
 
     /// <summary>Sprint'i iptal eder.</summary>
     public void Cancel()

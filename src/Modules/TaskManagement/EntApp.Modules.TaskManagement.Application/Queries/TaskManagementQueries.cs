@@ -1,4 +1,4 @@
-﻿using EntApp.Shared.Contracts.Common;
+using EntApp.Shared.Contracts.Common;
 using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Queries;
@@ -127,6 +127,24 @@ public sealed record SprintDetailDto(
     int WorkItemCount, int? TotalStoryPoints,
     DateTime CreatedAt, DateTime? UpdatedAt,
     List<WorkItemBySourceDto> WorkItems);
+
+// ── BoardColumn ─────────────────────────────────────────────
+public sealed record ListBoardColumnsQuery(Guid ProjectId) : IRequest<List<BoardColumnDto>>;
+
+public sealed record BoardColumnDto(Guid Id, string Name, int Order,
+    string MappedStatus, int? WipLimit);
+
+// ── Velocity & Burndown ─────────────────────────────────────
+public sealed record GetVelocityQuery(Guid ProjectId) : IRequest<List<VelocityDto>>;
+public sealed record VelocityDto(Guid SprintId, string SprintName,
+    int PlannedPoints, int CompletedPoints,
+    DateTime StartDate, DateTime EndDate);
+
+public sealed record GetBurndownQuery(Guid SprintId) : IRequest<BurndownChartDto>;
+public sealed record BurndownChartDto(int PlannedPoints, DateTime StartDate, DateTime EndDate,
+    List<BurndownPointDto> DataPoints);
+public sealed record BurndownPointDto(DateTime Date, int RemainingPoints, int CompletedPoints,
+    int TotalItems, int CompletedItems);
 
 // ── Backlog ─────────────────────────────────────────────────
 /// <summary>Proje backlog'unu flat veya tree olarak getirir.</summary>

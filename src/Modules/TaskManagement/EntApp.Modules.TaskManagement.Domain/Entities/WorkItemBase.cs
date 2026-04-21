@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
@@ -99,14 +99,15 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
         };
     }
 
-    /// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur. Proje opsiyonel.</summary>
+    /// <summary>Dış kaynaktan (Ticket vb.) iş kalemi oluşturur. Tip ve parent desteği ile.</summary>
     public static WorkItemBase CreateFromSource(
         string sourceModule, string sourceType, Guid sourceId,
         string taskNumber, string title,
         WorkItemType type = WorkItemType.Task, WorkItemPriority priority = WorkItemPriority.Medium,
         string? description = null, Guid? assigneeUserId = null,
         Guid? reporterUserId = null, DateTime? dueDate = null,
-        decimal estimatedHours = 0, ProjectId? projectId = null)
+        decimal estimatedHours = 0, ProjectId? projectId = null,
+        WorkItemId? parentTaskId = null, int hierarchyLevel = 0)
     {
         return new WorkItemBase
         {
@@ -123,7 +124,9 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
             EstimatedHours = estimatedHours,
             SourceModule = sourceModule,
             SourceType = sourceType,
-            SourceId = sourceId
+            SourceId = sourceId,
+            ParentTaskId = parentTaskId,
+            HierarchyLevel = hierarchyLevel
         };
     }
 

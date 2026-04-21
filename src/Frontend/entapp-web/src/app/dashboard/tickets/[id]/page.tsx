@@ -84,7 +84,7 @@ interface StatusHistoryData {
 
 interface TaskItem {
   id: string;
-  taskNumber: string;
+  workItemNumber: string;
   title: string;
   status: string;
   priority: string;
@@ -218,7 +218,7 @@ export default function TicketDetailPage() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskFormData, setTaskFormData] = useState({ title: "", priority: "Medium", assigneeUserId: "" });
+  const [taskFormData, setTaskFormData] = useState({ title: "", priority: "Medium", assigneeUserId: "", workItemType: "Task" });
   const [taskCreating, setTaskCreating] = useState(false);
   const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
   const [reassigning, setReassigning] = useState(false);
@@ -239,7 +239,7 @@ export default function TicketDetailPage() {
   useEffect(() => {
     if (!ticketId) return;
     setTasksLoading(true);
-    fetch(`/api/pm/tasks/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`)
+    fetch(`/api/pm/work-items/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setTasks(Array.isArray(data) ? data : []))
       .catch(() => setTasks([]))
@@ -280,7 +280,7 @@ export default function TicketDetailPage() {
   const refreshAll = async () => {
     const [ticketRes, tasksRes] = await Promise.all([
       fetch(`/api/req/tickets/${ticketId}`),
-      fetch(`/api/pm/tasks/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`),
+      fetch(`/api/pm/work-items/by-source?module=RequestManagement&type=Ticket&sourceId=${ticketId}`),
     ]);
     let ticketData = null;
     if (ticketRes.ok) { ticketData = await ticketRes.json(); setTicket(ticketData); setNewStatus(ticketData.status); }
@@ -404,7 +404,7 @@ export default function TicketDetailPage() {
     if (!taskFormData.title.trim()) return;
     setTaskCreating(true);
     try {
-      const res = await fetch("/api/pm/tasks/from-source", {
+      const res = await fetch("/api/pm/work-items/from-source", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -413,11 +413,12 @@ export default function TicketDetailPage() {
           sourceId: ticketId,
           title: taskFormData.title.trim(),
           priority: taskFormData.priority,
+          workItemType: taskFormData.workItemType || "Task",
           assigneeUserId: taskFormData.assigneeUserId || null,
         }),
       });
       if (res.ok) {
-        setTaskFormData({ title: "", priority: "Medium", assigneeUserId: "" });
+        setTaskFormData({ title: "", priority: "Medium", assigneeUserId: "", workItemType: "Task" });
         setShowTaskForm(false);
         await refreshAll();
       }
@@ -429,7 +430,7 @@ export default function TicketDetailPage() {
 
   const handleTaskStatusChange = async (taskId: string, newTaskStatus: string) => {
     try {
-      await fetch(`/api/pm/tasks/${taskId}/move`, {
+      await fetch(`/api/pm/work-items/${taskId}/move`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newTaskStatus }),
@@ -440,7 +441,7 @@ export default function TicketDetailPage() {
 
   const handleTaskAssign = async (taskId: string, userId: string) => {
     try {
-      await fetch(`/api/pm/tasks/${taskId}/assign`, {
+      await fetch(`/api/pm/work-items/${taskId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: userId || null }),
@@ -531,7 +532,7 @@ export default function TicketDetailPage() {
               <div className="flex items-center gap-3">
                 <ListTodo className="w-4 h-4 text-teal-400" />
                 <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                  Görevler {tasks.length > 0 && <span className="text-[var(--color-text-muted)] font-normal">({completedTaskCount}/{tasks.length})</span>}
+                  İş Kalemleri {tasks.length > 0 && <span className="text-[var(--color-text-muted)] font-normal">({completedTaskCount}/{tasks.length})</span>}
                 </h3>
                 {tasks.length > 0 && (
                   <div className="flex items-center gap-2">
@@ -553,7 +554,7 @@ export default function TicketDetailPage() {
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-all"
               >
                 <Plus className="w-3 h-3" />
-                Görev Ekle
+                İş Kalemi Ekle
               </button>
             </div>
 
@@ -565,10 +566,23 @@ export default function TicketDetailPage() {
                     type="text"
                     value={taskFormData.title}
                     onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                    placeholder="Görev başlığı..."
+                    placeholder="İş kalemi başlığı..."
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                   />
                   <div className="flex gap-2">
+                    <select
+                      value={taskFormData.workItemType}
+                      onChange={(e) => setTaskFormData({ ...taskFormData, workItemType: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      <option value="Task">📋 Görev</option>
+                      <option value="UserStory">📖 Kullanıcı Hikayesi</option>
+                      <option value="Feature">🏗 Özellik</option>
+                      <option value="Epic">🎯 Epic</option>
+                      <option value="Bug">🐛 Hata</option>
+                      <option value="TechDebt">🔧 Teknik Borç</option>
+                      <option value="Spike">🔬 Araştırma</option>
+                    </select>
                     <select
                       value={taskFormData.priority}
                       onChange={(e) => setTaskFormData({ ...taskFormData, priority: e.target.value })}
@@ -621,7 +635,7 @@ export default function TicketDetailPage() {
               ) : tasks.length === 0 ? (
                 <div className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">
                   <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                  Bu talebe henüz görev eklenmedi
+                  Bu talebe henüz iş kalemi eklenmedi
                 </div>
               ) : (
                 tasks.map((task) => {
@@ -633,7 +647,8 @@ export default function TicketDetailPage() {
                       <TsIcon className={cn("w-4 h-4 shrink-0", tsCfg.color)} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-[var(--color-text-muted)]">{task.taskNumber}</span>
+                          <span className="text-xs">{({"Task":"📋","Bug":"🐛","Feature":"🏗","Improvement":"⚡","Epic":"🎯","UserStory":"📖","TechDebt":"🔧","Spike":"🔬"} as Record<string,string>)[task.type] ?? "📋"}</span>
+                          <span className="text-xs font-mono text-[var(--color-text-muted)]">{task.workItemNumber}</span>
                           <span className="text-sm text-[var(--color-text)] truncate">{task.title}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-0.5">

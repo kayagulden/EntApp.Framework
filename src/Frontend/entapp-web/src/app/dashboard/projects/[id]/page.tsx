@@ -97,14 +97,22 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config — kategori bazlı filtreleme
-type TabKey = "overview" | "backlog" | "board" | "tasks" | "milestones";
+type TabKey = "overview" | "backlog" | "board" | "metrics" | "tasks" | "milestones";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
+  { key: "board", label: "Board", icon: Layout, categories: ["all"] },
+  { key: "metrics", label: "Metrikler", icon: BarChart3, categories: ["all"] },
   { key: "backlog", label: "Backlog", icon: ListTodo, categories: ["SoftwareDevelopment"], disabled: true },
-  { key: "board", label: "Board", icon: Layout, categories: ["SoftwareDevelopment", "General"], disabled: true },
-  { key: "tasks", label: "Görevler", icon: BarChart3, categories: ["all"], disabled: true },
+  { key: "tasks", label: "İş Kalemleri", icon: ListTodo, categories: ["all"], disabled: true },
   { key: "milestones", label: "Milestones", icon: Milestone, categories: ["Infrastructure", "Procurement", "Business", "SoftwareDevelopment"], disabled: true },
 ];
+
+interface BoardColumnData { id: string; name: string; order: number; mappedStatus: string; wipLimit?: number | null; }
+interface BoardWorkItem { id: string; workItemNumber: string; title: string; type: string; status: string; priority: string; storyPoints?: number; assigneeUserId?: string; }
+interface VelocityData { sprintId: string; sprintName: string; plannedPoints: number; completedPoints: number; startDate: string; endDate: string; }
+
+const TYPE_ICONS: Record<string,string> = { Task:"📋", Bug:"🐛", Feature:"🏗", Improvement:"⚡", Epic:"🎯", UserStory:"📖", TechDebt:"🔧", Spike:"🔬" };
+const PRIORITY_COLORS: Record<string,string> = { Critical:"bg-red-500", High:"bg-orange-500", Medium:"bg-yellow-500", Low:"bg-blue-500", None:"bg-gray-500" };
 
 // ── Component ───────────────────────────────────────────────
 
@@ -129,6 +137,15 @@ export default function ProjectDetailPage() {
   const [selectedAppId, setSelectedAppId] = useState("");
   const [selectedRole, setSelectedRole] = useState("Primary");
 
+  // Board state
+  const [boardColumns, setBoardColumns] = useState<BoardColumnData[]>([]);
+  const [boardItems, setBoardItems] = useState<BoardWorkItem[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
+
+  // Metrics state
+  const [velocity, setVelocity] = useState<VelocityData[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -147,6 +164,36 @@ export default function ProjectDetailPage() {
   }, []);
 
   useEffect(() => { fetchProject(); fetchPortfolios(); }, [fetchProject, fetchPortfolios]);
+
+  // Fetch board data
+  useEffect(() => {
+    if (activeTab !== "board" || !projectId) return;
+    setBoardLoading(true);
+    Promise.all([
+      fetch(`/api/pm/projects/${projectId}/board-columns`).then(r => r.ok ? r.json() : []),
+      fetch(`/api/pm/work-items/board/${projectId}`).then(r => r.ok ? r.json() : {}),
+    ]).then(([cols, boardData]) => {
+      setBoardColumns(Array.isArray(cols) ? cols : []);
+      const items: BoardWorkItem[] = [];
+      if (boardData && typeof boardData === "object") {
+        Object.values(boardData).forEach((arr: unknown) => {
+          if (Array.isArray(arr)) items.push(...arr);
+        });
+      }
+      setBoardItems(items);
+    }).catch(() => {}).finally(() => setBoardLoading(false));
+  }, [activeTab, projectId]);
+
+  // Fetch metrics data
+  useEffect(() => {
+    if (activeTab !== "metrics" || !projectId) return;
+    setMetricsLoading(true);
+    fetch(`/api/pm/projects/${projectId}/velocity`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setVelocity(Array.isArray(data) ? data : []))
+      .catch(() => setVelocity([]))
+      .finally(() => setMetricsLoading(false));
+  }, [activeTab, projectId]);
 
   // Fetch apps for deliverable dropdown
   useEffect(() => {
@@ -519,6 +566,118 @@ export default function ProjectDetailPage() {
               </ul>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Board Tab */}
+      {activeTab === "board" && (
+        <div className="space-y-4">
+          {boardLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
+          ) : boardColumns.length === 0 ? (
+            <div className="text-center py-12 text-[var(--color-text-muted)]">
+              <Layout className="w-10 h-10 mx-auto opacity-30 mb-2" />
+              <p className="text-sm">Board kolonları henüz oluşturulmadı</p>
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 400 }}>
+              {boardColumns.map(col => {
+                const colItems = boardItems.filter(item => item.status === col.mappedStatus);
+                const isOverWip = col.wipLimit != null && colItems.length > col.wipLimit;
+                return (
+                  <div key={col.id} className={cn(
+                    "flex-shrink-0 w-72 rounded-xl border bg-[var(--color-card-bg)] flex flex-col",
+                    isOverWip ? "border-red-500/50" : "border-[var(--color-border)]"
+                  )}>
+                    <div className={cn(
+                      "px-4 py-3 border-b flex items-center justify-between rounded-t-xl",
+                      isOverWip ? "border-red-500/30 bg-red-500/5" : "border-[var(--color-border)]"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--color-text)]">{col.name}</span>
+                        <span className={cn(
+                          "text-xs font-mono px-1.5 py-0.5 rounded-full",
+                          isOverWip ? "bg-red-500/20 text-red-400" : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
+                        )}>{colItems.length}{col.wipLimit != null ? `/${col.wipLimit}` : ""}</span>
+                      </div>
+                    </div>
+                    <div className="p-2 flex-1 space-y-2 overflow-y-auto" style={{ maxHeight: 500 }}>
+                      {colItems.map(item => (
+                        <div key={item.id}
+                          onClick={() => router.push(`/dashboard/tasks/${item.id}`)}
+                          className="p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-xs">{TYPE_ICONS[item.type] ?? "📋"}</span>
+                            <span className="text-[10px] font-mono text-[var(--color-text-muted)]">{item.workItemNumber}</span>
+                            {item.storyPoints != null && item.storyPoints > 0 && (
+                              <span className="ml-auto text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints} SP</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[var(--color-text)] line-clamp-2">{item.title}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <span className={cn("w-1.5 h-1.5 rounded-full", PRIORITY_COLORS[item.priority] ?? "bg-gray-500")} />
+                            <span className="text-[9px] text-[var(--color-text-muted)]">{item.priority}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {colItems.length === 0 && (
+                        <div className="text-center py-6 text-[10px] text-[var(--color-text-muted)] opacity-50">Boş</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Metrics Tab */}
+      {activeTab === "metrics" && (
+        <div className="space-y-6">
+          {metricsLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
+          ) : velocity.length === 0 ? (
+            <div className="text-center py-12 text-[var(--color-text-muted)]">
+              <BarChart3 className="w-10 h-10 mx-auto opacity-30 mb-2" />
+              <p className="text-sm">Tamamlanmış sprint bulunamadı</p>
+              <p className="text-[11px] mt-1">Sprint tamamlandığında velocity verileri burada görünecek</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
+              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-indigo-400" /> Velocity Chart
+              </h3>
+              <div className="flex items-end gap-3 h-48">
+                {velocity.map(v => {
+                  const maxPts = Math.max(...velocity.map(x => Math.max(x.plannedPoints, x.completedPoints)), 1);
+                  const pctPlanned = (v.plannedPoints / maxPts) * 100;
+                  const pctCompleted = (v.completedPoints / maxPts) * 100;
+                  return (
+                    <div key={v.sprintId} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="flex items-end gap-1 w-full h-40">
+                        <div className="flex-1 rounded-t-md bg-indigo-500/20 border border-indigo-500/30 transition-all" style={{ height: `${pctPlanned}%` }} title={`Planlanan: ${v.plannedPoints} SP`} />
+                        <div className="flex-1 rounded-t-md bg-emerald-500/40 border border-emerald-500/50 transition-all" style={{ height: `${pctCompleted}%` }} title={`Tamamlanan: ${v.completedPoints} SP`} />
+                      </div>
+                      <span className="text-[9px] text-[var(--color-text-muted)] text-center truncate w-full">{v.sprintName}</span>
+                      <span className="text-[10px] font-mono text-emerald-400">{v.completedPoints} SP</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[var(--color-border)]">
+                <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+                  <span className="w-3 h-3 rounded bg-indigo-500/20 border border-indigo-500/30" /> Planlanan
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
+                  <span className="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-500/50" /> Tamamlanan
+                </div>
+                <span className="ml-auto text-[10px] text-[var(--color-text-muted)]">
+                  Ort. Velocity: {Math.round(velocity.reduce((s,v) => s + v.completedPoints, 0) / velocity.length)} SP
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

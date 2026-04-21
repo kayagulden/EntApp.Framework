@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 namespace EntApp.Modules.TaskManagement.Application.Commands;
 
@@ -45,13 +45,14 @@ public sealed record CreateWorkItemCommand(Guid? ProjectId, string Title, string
     decimal EstimatedHours = 0, string? Tags = null) : IRequest<CreateWorkItemResult>;
 public sealed record CreateWorkItemResult(Guid Id, string WorkItemNumber);
 
-/// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur.</summary>
+/// <summary>Dış kaynaktan (Ticket vb.) iş kalemi oluşturur. Tip ve parent desteği ile.</summary>
 public sealed record CreateWorkItemFromSourceCommand(
     string SourceModule, string SourceType, Guid SourceId,
     string Title, string? Description = null,
     Guid? AssigneeUserId = null, Guid? ReporterUserId = null,
     string Priority = "Medium", DateTime? DueDate = null,
-    Guid? ProjectId = null) : IRequest<CreateWorkItemResult>;
+    Guid? ProjectId = null, string WorkItemType = "Task",
+    Guid? ParentWorkItemId = null) : IRequest<CreateWorkItemResult>;
 
 public sealed record MoveWorkItemCommand(Guid TaskId, string Status, int? SortOrder = null) : IRequest<MoveWorkItemResult>;
 public sealed record MoveWorkItemResult(Guid Id, string Status, int SortOrder);
@@ -81,6 +82,18 @@ public sealed record CompleteSprintCommand(Guid SprintId) : IRequest<Guid>;
 
 /// <summary>Work item'ı bir sprint'e atar veya sprint'ten çıkarır.</summary>
 public sealed record AssignToSprintCommand(Guid TaskId, Guid? SprintId) : IRequest<Guid>;
+
+// ── BoardColumn ─────────────────────────────────────────────
+public sealed record CreateBoardColumnCommand(Guid ProjectId, string Name,
+    int Order, string MappedStatus, int? WipLimit = null) : IRequest<Guid>;
+
+public sealed record UpdateBoardColumnCommand(Guid ColumnId, string? Name = null,
+    int? Order = null, int? WipLimit = null, string? MappedStatus = null) : IRequest<Guid>;
+
+public sealed record DeleteBoardColumnCommand(Guid ColumnId) : IRequest;
+
+public sealed record ReorderBoardColumnsCommand(Guid ProjectId,
+    List<Guid> ColumnIds) : IRequest;
 
 // ── ProjectDeliverable ─────────────────────────────────────
 public sealed record AddProjectDeliverableCommand(

@@ -40,7 +40,7 @@ import { useAuthStore } from "@/stores";
 
 interface TaskDetail {
   id: string;
-  taskNumber: string;
+  workItemNumber: string;
   title: string;
   description?: string;
   status: string;
@@ -66,7 +66,7 @@ interface TaskDetail {
 
 interface SubTaskData {
   id: string;
-  taskNumber: string;
+  workItemNumber: string;
   title: string;
   status: string;
   priority: string;
@@ -201,7 +201,7 @@ export default function TaskDetailPage() {
   useEffect(() => {
     if (!taskId) return;
     setLoading(true);
-    fetch(`/api/pm/tasks/${taskId}`)
+    fetch(`/api/pm/work-items/${taskId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         setTask(data);
@@ -231,7 +231,7 @@ export default function TaskDetailPage() {
 
   const refreshAll = async () => {
     const [taskRes, commentsRes, teRes] = await Promise.all([
-      fetch(`/api/pm/tasks/${taskId}`),
+      fetch(`/api/pm/work-items/${taskId}`),
       fetch(`/api/pm/comments/${taskId}`),
       fetch(`/api/pm/time-entries?taskId=${taskId}`),
     ]);
@@ -245,7 +245,7 @@ export default function TaskDetailPage() {
     if (!newStatus || newStatus === task?.status) return;
     setStatusChanging(true);
     try {
-      await fetch(`/api/pm/tasks/${taskId}/move`, {
+      await fetch(`/api/pm/work-items/${taskId}/move`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -286,7 +286,7 @@ export default function TaskDetailPage() {
   const handleSaveEdit = async () => {
     setEditSaving(true);
     try {
-      const res = await fetch(`/api/pm/tasks/${taskId}`, {
+      const res = await fetch(`/api/pm/work-items/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -333,7 +333,7 @@ export default function TaskDetailPage() {
   // Sub-task status change
   const handleSubTaskStatus = async (subTaskId: string, newSts: string) => {
     try {
-      await fetch(`/api/pm/tasks/${subTaskId}/move`, {
+      await fetch(`/api/pm/work-items/${subTaskId}/move`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newSts }),
@@ -354,7 +354,7 @@ export default function TaskDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-[var(--color-text-muted)]">
         <XCircle className="w-12 h-12 opacity-30 mb-3" />
-        <p>Görev bulunamadı</p>
+        <p>İş kalemi bulunamadı</p>
         <button onClick={() => router.back()} className="mt-4 text-sm text-teal-400 hover:text-teal-300">
           ← Geri Dön
         </button>
@@ -414,7 +414,7 @@ export default function TaskDetailPage() {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-mono font-bold text-teal-400">{task.taskNumber}</span>
+            <span className="text-sm font-mono font-bold text-teal-400">{task.workItemNumber}</span>
             <span className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
               statusCfg.bg, statusCfg.color
@@ -500,7 +500,7 @@ export default function TaskDetailPage() {
                 <div className="flex items-center gap-3">
                   <ListTodo className="w-4 h-4 text-teal-400" />
                   <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                    Alt Görevler {task.subTasks.length > 0 && <span className="text-[var(--color-text-muted)] font-normal">({completedSubTasks}/{task.subTasks.length})</span>}
+                    Alt İş Kalemleri {task.subTasks.length > 0 && <span className="text-[var(--color-text-muted)] font-normal">({completedSubTasks}/{task.subTasks.length})</span>}
                   </h3>
                   {task.subTasks.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -519,7 +519,7 @@ export default function TaskDetailPage() {
                 {task.subTasks.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-[var(--color-text-muted)]">
                     <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    Alt görev yok
+                    Alt iş kalemi yok
                   </div>
                 ) : (
                   task.subTasks.map((sub) => {
@@ -533,7 +533,7 @@ export default function TaskDetailPage() {
                         <SIcon className={cn("w-4 h-4 shrink-0", sCfg.color)} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-[var(--color-text-muted)]">{sub.taskNumber}</span>
+                            <span className="text-xs font-mono text-[var(--color-text-muted)]">{sub.workItemNumber}</span>
                             <span className="text-sm text-[var(--color-text)] truncate">{sub.title}</span>
                           </div>
                           <div className="flex items-center gap-3 mt-0.5">

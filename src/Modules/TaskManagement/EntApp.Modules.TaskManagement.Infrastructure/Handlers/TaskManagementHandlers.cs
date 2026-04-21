@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Application.Commands;
+using EntApp.Modules.TaskManagement.Application.Commands;
 using EntApp.Modules.TaskManagement.Application.IntegrationEvents;
 using EntApp.Modules.TaskManagement.Application.Queries;
 using EntApp.Modules.TaskManagement.Domain.Entities;
@@ -234,6 +234,11 @@ public sealed class CreateProjectCommandHandler(TaskManagementDbContext db) : IR
             request.PortfolioId.HasValue ? new PortfolioId(request.PortfolioId.Value) : null,
             methodology, category);
         db.Projects.Add(project);
+
+        // Varsayılan board kolonlarını oluştur
+        var defaultColumns = BoardColumn.CreateDefaults(project.Id);
+        db.BoardColumns.AddRange(defaultColumns);
+
         await db.SaveChangesAsync(ct);
         return project.Id.Value;
     }
@@ -432,24 +437,46 @@ public sealed class CreateWorkItemCommandHandler(TaskManagementDbContext db) : I
     }
 }
 
-/// <summary>Dış kaynaktan (Ticket vb.) görev oluşturur ve integration event publish eder.</summary>
+/// <summary>Dış kaynaktan (Ticket vb.) iş kalemi oluşturur. Tip ve parent desteği ile.</summary>
 public sealed class CreateWorkItemFromSourceCommandHandler(TaskManagementDbContext db, IEventBus eventBus)
     : IRequestHandler<CreateWorkItemFromSourceCommand, CreateWorkItemResult>
 {
     public async Task<CreateWorkItemResult> Handle(CreateWorkItemFromSourceCommand request, CancellationToken ct)
     {
         Enum.TryParse<WorkItemPriority>(request.Priority, out var priority);
+        if (!Enum.TryParse<WorkItemType>(request.WorkItemType, out var workItemType))
+            workItemType = WorkItemType.Task;
+
+        // Parent work item varsa — hiyerarşi validasyonu ve level hesaplama
+        WorkItemId? parentId = null;
+        int hierarchyLevel = 0;
+        if (request.ParentWorkItemId.HasValue)
+        {
+            var parent = await db.WorkItems.FindAsync([new WorkItemId(request.ParentWorkItemId.Value)], ct)
+                ?? throw new KeyNotFoundException($"Parent work item {request.ParentWorkItemId} not found");
+
+            if (!WorkItemHierarchyRules.CanBeChildOf(workItemType, parent.Type))
+                throw new InvalidOperationException(
+                    $"{workItemType} cannot be a child of {parent.Type}");
+
+            parentId = parent.Id;
+            hierarchyLevel = parent.HierarchyLevel + 1;
+        }
+
         var taskNumber = await WorkItemNumberGenerator.NextAsync(db, ct);
 
         var task = WorkItemBase.CreateFromSource(
             request.SourceModule, request.SourceType, request.SourceId,
             taskNumber, request.Title,
+            type: workItemType,
             priority: priority,
             description: request.Description,
             assigneeUserId: request.AssigneeUserId,
             reporterUserId: request.ReporterUserId,
             dueDate: request.DueDate,
-            projectId: request.ProjectId.HasValue ? new ProjectId(request.ProjectId.Value) : null);
+            projectId: request.ProjectId.HasValue ? new ProjectId(request.ProjectId.Value) : null,
+            parentTaskId: parentId,
+            hierarchyLevel: hierarchyLevel);
 
         db.WorkItems.Add(task);
         await db.SaveChangesAsync(ct);
@@ -494,7 +521,42 @@ public sealed class MoveWorkItemCommandHandler(TaskManagementDbContext db, IEven
             }
         }
 
+        // Burndown snapshot upsert — sprint'e atanmış work item'ın status'ı değiştiyse
+        if (task.SprintId.HasValue)
+        {
+            await UpsertBurndownSnapshot(task.SprintId, ct);
+        }
+
         return new MoveWorkItemResult(task.Id.Value, task.Status.ToString(), task.SortOrder);
+    }
+
+    private async Task UpsertBurndownSnapshot(SprintId? sprintId, CancellationToken ct)
+    {
+        if (!sprintId.HasValue) return;
+        var items = await db.WorkItems
+            .Where(w => w.SprintId.HasValue && w.SprintId == sprintId)
+            .ToListAsync(ct);
+
+        var totalItems = items.Count;
+        var completedItems = items.Count(w => w.Status is WorkItemStatusEnum.Done or WorkItemStatusEnum.Cancelled);
+        var totalSP = items.Sum(w => w.StoryPoints ?? 0);
+        var completedSP = items.Where(w => w.Status is WorkItemStatusEnum.Done).Sum(w => w.StoryPoints ?? 0);
+        var remainingSP = totalSP - completedSP;
+
+        var today = DateTime.UtcNow.Date;
+        var existing = await db.BurndownSnapshots
+            .FirstOrDefaultAsync(s => s.SprintId == sprintId && s.Date == today, ct);
+
+        if (existing is not null)
+        {
+            existing.Update(remainingSP, completedSP, totalItems, completedItems);
+        }
+        else
+        {
+            db.BurndownSnapshots.Add(BurndownSnapshot.Create(
+                sprintId.Value, remainingSP, completedSP, totalItems, completedItems));
+        }
+        await db.SaveChangesAsync(ct);
     }
 
     private async Task CheckAllSourceWorkItemsCompleted(WorkItemBase completedTask, CancellationToken ct)
@@ -1071,6 +1133,13 @@ public sealed class StartSprintCommandHandler(TaskManagementDbContext db) : IReq
             .AnyAsync(s => s.ProjectId == sprint.ProjectId && s.Status == SprintStatus.Active, ct);
         if (hasActiveSprint)
             throw new InvalidOperationException("Bu projede zaten aktif bir sprint var. Önce mevcut sprint'i tamamlayın.");
+
+        // PlannedPoints hesapla — sprint'e atanmış work item'ların SP toplamı
+        var plannedPoints = await db.WorkItems
+            .Where(w => w.SprintId.HasValue && w.SprintId == sprint.Id)
+            .SumAsync(w => w.StoryPoints ?? 0, ct);
+        sprint.SetPlannedPoints(plannedPoints);
+
         sprint.Start();
         await db.SaveChangesAsync(ct);
         return sprint.Id.Value;
@@ -1083,7 +1152,16 @@ public sealed class CompleteSprintCommandHandler(TaskManagementDbContext db) : I
     {
         var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
             ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
-        sprint.Complete();
+
+        // CompletedPoints hesapla — Done olan work item'ların SP toplamı
+        var sprintItems = await db.WorkItems
+            .Where(w => w.SprintId.HasValue && w.SprintId == sprint.Id)
+            .ToListAsync(ct);
+        var completedPoints = sprintItems
+            .Where(w => w.Status is WorkItemStatusEnum.Done)
+            .Sum(w => w.StoryPoints ?? 0);
+
+        sprint.Complete(completedPoints);
         await db.SaveChangesAsync(ct);
         return sprint.Id.Value;
     }
@@ -1098,6 +1176,137 @@ public sealed class AssignToSprintCommandHandler(TaskManagementDbContext db) : I
         task.AssignToSprint(request.SprintId.HasValue ? new SprintId(request.SprintId.Value) : null);
         await db.SaveChangesAsync(ct);
         return task.Id.Value;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BOARD COLUMN HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListBoardColumnsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListBoardColumnsQuery, List<BoardColumnDto>>
+{
+    public async Task<List<BoardColumnDto>> Handle(ListBoardColumnsQuery request, CancellationToken ct)
+    {
+        return await db.BoardColumns
+            .Where(c => c.ProjectId == new ProjectId(request.ProjectId))
+            .OrderBy(c => c.Order)
+            .Select(c => new BoardColumnDto(
+                c.Id.Value, c.Name, c.Order,
+                c.MappedStatus.ToString(), c.WipLimit))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class CreateBoardColumnCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateBoardColumnCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateBoardColumnCommand request, CancellationToken ct)
+    {
+        if (!Enum.TryParse<WorkItemStatusEnum>(request.MappedStatus, out var status))
+            throw new ArgumentException($"Invalid status: {request.MappedStatus}");
+
+        var column = BoardColumn.Create(
+            new ProjectId(request.ProjectId), request.Name,
+            request.Order, status, request.WipLimit);
+        db.BoardColumns.Add(column);
+        await db.SaveChangesAsync(ct);
+        return column.Id.Value;
+    }
+}
+
+public sealed class UpdateBoardColumnCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateBoardColumnCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateBoardColumnCommand request, CancellationToken ct)
+    {
+        var column = await db.BoardColumns.FindAsync([new BoardColumnId(request.ColumnId)], ct)
+            ?? throw new KeyNotFoundException($"BoardColumn {request.ColumnId} not found");
+
+        WorkItemStatusEnum? mappedStatus = null;
+        if (request.MappedStatus is not null)
+        {
+            if (!Enum.TryParse<WorkItemStatusEnum>(request.MappedStatus, out var s))
+                throw new ArgumentException($"Invalid status: {request.MappedStatus}");
+            mappedStatus = s;
+        }
+
+        column.Update(request.Name, request.Order, request.WipLimit, mappedStatus);
+        await db.SaveChangesAsync(ct);
+        return column.Id.Value;
+    }
+}
+
+public sealed class DeleteBoardColumnCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteBoardColumnCommand>
+{
+    public async Task Handle(DeleteBoardColumnCommand request, CancellationToken ct)
+    {
+        var column = await db.BoardColumns.FindAsync([new BoardColumnId(request.ColumnId)], ct)
+            ?? throw new KeyNotFoundException($"BoardColumn {request.ColumnId} not found");
+        db.BoardColumns.Remove(column);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ReorderBoardColumnsCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<ReorderBoardColumnsCommand>
+{
+    public async Task Handle(ReorderBoardColumnsCommand request, CancellationToken ct)
+    {
+        var columns = await db.BoardColumns
+            .Where(c => c.ProjectId == new ProjectId(request.ProjectId))
+            .ToListAsync(ct);
+
+        for (int i = 0; i < request.ColumnIds.Count; i++)
+        {
+            var col = columns.FirstOrDefault(c => c.Id.Value == request.ColumnIds[i]);
+            col?.SetOrder(i);
+        }
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// VELOCITY & BURNDOWN HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+public sealed class GetVelocityQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetVelocityQuery, List<VelocityDto>>
+{
+    public async Task<List<VelocityDto>> Handle(GetVelocityQuery request, CancellationToken ct)
+    {
+        return await db.Sprints
+            .Where(s => s.ProjectId == new ProjectId(request.ProjectId)
+                && s.Status == SprintStatus.Completed)
+            .OrderBy(s => s.StartDate)
+            .Select(s => new VelocityDto(
+                s.Id.Value, s.Name,
+                s.PlannedPoints, s.CompletedPoints,
+                s.StartDate, s.EndDate))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetBurndownQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetBurndownQuery, BurndownChartDto>
+{
+    public async Task<BurndownChartDto> Handle(GetBurndownQuery request, CancellationToken ct)
+    {
+        var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
+            ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
+
+        var dataPoints = await db.BurndownSnapshots
+            .Where(s => s.SprintId == sprint.Id)
+            .OrderBy(s => s.Date)
+            .Select(s => new BurndownPointDto(
+                s.Date, s.RemainingPoints, s.CompletedPoints,
+                s.TotalItems, s.CompletedItems))
+            .ToListAsync(ct);
+
+        return new BurndownChartDto(
+            sprint.PlannedPoints, sprint.StartDate, sprint.EndDate,
+            dataPoints);
     }
 }
 
