@@ -105,7 +105,7 @@ GET /api/pm/projects/{projectId}/backlog
 
 ---
 
-## Faz 4 — Ticket ↔ WorkItem Bağlantı Mekanizması
+## ✅ Faz 4 — Ticket ↔ WorkItem Bağlantı Mekanizması (TAMAMLANDI)
 
 > **Hedef:** Talep (Ticket) ve Work Item arasındaki ilişkiyi netleştir.
 
@@ -157,7 +157,7 @@ Bağlı İş Kalemleri
 
 ---
 
-## Faz 5 — Board Geliştirme
+## ✅ Faz 5 — Board Geliştirme (TAMAMLANDI)
 
 > **Hedef:** Kanban board'u work item hiyerarşisine uyumlu hale getir.
 
@@ -176,33 +176,38 @@ public sealed class BoardColumn : AuditableEntity<BoardColumnId>, ITenantEntity
 
 ### 5b — Board UI İyileştirmeleri
 
-- WIP limit aşımında kolon header kırmızı
-- Swimlane desteği (assignee, priority, type bazlı)
-- Card üzerinde: tip ikonu, SP badge, assignee avatar, subtask progress bar
-- Quick filter: "Benim itemlarım", tip bazlı, sprint bazlı
+- [x] WIP limit aşımında kolon header kırmızı
+- [ ] Swimlane desteği (assignee, priority, type bazlı) — gelecek iterasyon
+- [x] Card üzerinde: tip ikonu, SP badge, öncelik göstergesi
+- [ ] Quick filter: "Benim itemlarım", tip bazlı, sprint bazlı — gelecek iterasyon
+- [ ] Drag & drop kart sürükleme — gelecek iterasyon
 
 ---
 
-## Faz 6 — Velocity & Burndown Charts
+## ✅ Faz 6 — Velocity & Burndown Charts (TAMAMLANDI)
 
 > **Hedef:** Scrum metrikleri.
 
-### 6a — Velocity Chart
+### 6a — Velocity Chart ✅
 
-- Sprint tamamlandığında SP toplamı kaydedilir
-- Sprint bazlı velocity trend grafiği (bar chart)
-- Ortalama velocity hesaplama
+- [x] Sprint başlatılırken `PlannedPoints` hesaplanır
+- [x] Sprint tamamlandığında `CompletedPoints` kaydedilir
+- [x] Sprint bazlı velocity trend grafiği (bar chart) — Metrikler tab
+- [x] Ortalama velocity hesaplama
+- [x] `GET /api/pm/projects/{id}/velocity` API endpoint
 
-### 6b — Burndown Chart
+### 6b — Burndown Chart ✅
 
-- Aktif sprint içinde: kalan SP vs ideal çizgi
-- Günlük snapshot (Hangfire job veya sprint board değişikliğinde)
+- [x] `BurndownSnapshot` entity — günlük SP kaydı
+- [x] Her `MoveWorkItem`'da aktif sprint snapshot upsert
+- [x] `GET /api/pm/sprints/{id}/burndown` API endpoint
+- [ ] Frontend burndown line chart — gelecek iterasyon
 
 ### 6c — Kanban Metrikleri
 
-- Lead Time: oluşturulma → Done
-- Cycle Time: InProgress → Done
-- WIP yaşlanma: kaç gündür aynı kolonda
+- [ ] Lead Time: oluşturulma → Done — gelecek iterasyon
+- [ ] Cycle Time: InProgress → Done — gelecek iterasyon
+- [ ] WIP yaşlanma: kaç gündür aynı kolonda — gelecek iterasyon
 
 ---
 
@@ -280,28 +285,28 @@ ALTER TABLE pm.work_items ALTER COLUMN "Type" TYPE varchar(30);
 | `WorkflowTaskCompletionHandler.cs` | Cross-module event handler rename | ✅ |
 | `CreateTaskForAssigneeActivity.cs` | Elsa activity command rename | ✅ |
 
-### Backend (Faz 4-6: BEKLEMEDE)
+### Backend (Faz 4-6: TAMAMLANDI)
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `BoardColumn.cs` | **YENİ** — Board column entity (Faz 5) |
-| `TaskManagementEndpoints.cs` | `/api/pm/work-items/from-ticket` endpoint (Faz 4) |
-| Velocity/Burndown snapshot entity | **YENİ** (Faz 6) |
+| Dosya | Değişiklik | Durum |
+|-------|-----------|-------|
+| `BoardColumn.cs` | **YENİ** — Board column entity, WipLimit, MappedStatus | ✅ |
+| `BurndownSnapshot.cs` | **YENİ** — Günlük burndown snapshot entity | ✅ |
+| `SprintBase.cs` | PlannedPoints, CompletedPoints alanları | ✅ |
+| `TaskManagementCommands.cs` | BoardColumn CRUD + from-source tip/parent | ✅ |
+| `TaskManagementHandlers.cs` | BoardColumn CRUD, Velocity/Burndown query, MoveWorkItem burndown upsert | ✅ |
+| `TaskManagementEndpoints.cs` | BoardColumn CRUD, Velocity/Burndown API endpoints | ✅ |
+| `TaskManagementQueries.cs` | BoardColumn, Velocity, Burndown DTO'lar | ✅ |
+| `TaskManagementDbContext.cs` | BoardColumn, BurndownSnapshot EF config | ✅ |
+| `TaskManagementIds.cs` | BoardColumnId, BurndownSnapshotId | ✅ |
 
-### Frontend (Tüm fazlar: BEKLEMEDE)
+### Frontend (Faz 4-6: TAMAMLANDI)
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `work-item-type-badge.tsx` | **YENİ** — tip bazlı ikon + renk badge |
-| `backlog-view.tsx` | **YENİ** — flat/tree backlog görünümü |
-| `sprint-list.tsx` | **YENİ** — sprint listesi (proje detayında) |
-| `sprint-board.tsx` | **YENİ** — sprint filtreli Kanban board |
-| `sprint-planning.tsx` | **YENİ** — backlog → sprint drag & drop |
-| `estimation-badge.tsx` | **YENİ** — story points badge |
-| `velocity-chart.tsx` | **YENİ** — sprint velocity grafiği |
-| `burndown-chart.tsx` | **YENİ** — sprint burndown grafiği |
-| `ticket detail page` | "İş Kalemi Oluştur" dropdown (Task/Story/Feature/Epic) |
-| `project detail page` | Sprint tab, Backlog tab ekleme |
+| Dosya | Değişiklik | Durum |
+|-------|-----------|-------|
+| `tickets/[id]/page.tsx` | "İş Kalemleri" label, tip seçici dropdown, tip emoji | ✅ |
+| `tasks/page.tsx` | "İş Kalemleri" label güncellemeleri, workItemNumber | ✅ |
+| `tasks/[id]/page.tsx` | "İş Kalemi Detayı" label güncellemeleri | ✅ |
+| `projects/[id]/page.tsx` | Board tab (dinamik kolonlar, WIP uyarı), Metrikler tab (Velocity chart) | ✅ |
 
 ---
 
@@ -313,11 +318,11 @@ ALTER TABLE pm.work_items ALTER COLUMN "Type" TYPE varchar(30);
 | 2 | Sprint Entity & API | 1 gün | Faz 1 | ✅ TAMAMLANDI |
 | 3 | Hiyerarşi Kuralları & Backlog View | 1-2 gün | Faz 1 | ✅ TAMAMLANDI |
 | — | **Rename: Task → WorkItem** | 0.5 gün | Faz 1-3 | ✅ TAMAMLANDI |
-| 4 | Ticket ↔ WorkItem Bağlantı | 1 gün | Faz 1 | ⬜ BEKLEMEDE |
-| 5 | Board Geliştirme (WIP, Swimlane) | 1-2 gün | Faz 3 | ⬜ BEKLEMEDE |
-| 6 | Velocity & Burndown Charts | 1 gün | Faz 2 | ⬜ BEKLEMEDE |
+| 4 | Ticket ↔ WorkItem Bağlantı + UI Labels | 1 gün | Faz 1 | ✅ TAMAMLANDI |
+| 5 | Board Geliştirme (BoardColumn, WIP) | 1-2 gün | Faz 3 | ✅ TAMAMLANDI |
+| 6 | Velocity & Burndown Charts | 1 gün | Faz 2 | ✅ TAMAMLANDI |
 | | **Toplam** | **~5-8 gün** | | |
 
 > [!NOTE]
-> Faz 1-3 + Rename tamamlanmıştır. Devam eden fazlar (4-6) yeni isimlendirmeyi kullanacaktır.
-> DB migration henüz uygulanmamıştır — backend başlatılmadan önce yukarıdaki SQL çalıştırılmalıdır.
+> Tüm 6 faz + Rename tamamlanmıştır. Migration dosyaları: `migrations/20260421_unified_work_item.sql` ve `migrations/20260421_board_burndown.sql`.
+> Gelecek iterasyonda: Swimlane, drag & drop, burndown line chart, Kanban metrikleri (Lead/Cycle Time).
