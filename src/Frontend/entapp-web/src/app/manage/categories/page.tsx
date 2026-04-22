@@ -22,11 +22,6 @@ interface SlaDefinition {
   name: string;
 }
 
-interface ServiceQueue {
-  id: string;
-  name: string;
-  code: string;
-}
 
 
 interface Category {
@@ -53,8 +48,15 @@ interface CategoryForm {
   departmentId: string;
   slaDefinitionId: string;
   defaultQueueId: string;
+  workflowDefinitionId: string;
   autoProjectThreshold: string;
   isActive: boolean;
+}
+
+interface StateFlowOption {
+  id: string;
+  name: string;
+  status: string;
 }
 
 const emptyForm: CategoryForm = {
@@ -64,6 +66,7 @@ const emptyForm: CategoryForm = {
   departmentId: "",
   slaDefinitionId: "",
   defaultQueueId: "",
+  workflowDefinitionId: "",
   autoProjectThreshold: "",
   isActive: true,
 };
@@ -91,13 +94,16 @@ async function fetchSlaDefinitions(): Promise<SlaDefinition[]> {
 }
 
 
-async function fetchServiceQueues(): Promise<ServiceQueue[]> {
-  // Service queues are accessed through the request management module
-  // We'll use the org API for now
+async function fetchStateFlows(): Promise<StateFlowOption[]> {
   try {
-    const res = await fetch(`${REQ_API}/categories`);
-    // Just return empty for now — we'll populate from the categories' queues
-    return [];
+    const res = await fetch(`/api/sf/flows`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.value || data || []).map((f: { id: string; name: string; status: string }) => ({
+      id: f.id,
+      name: f.name,
+      status: f.status,
+    }));
   } catch {
     return [];
   }
@@ -162,6 +168,7 @@ export default function CategoriesPage() {
   // Lookup data
   const [departments, setDepartments] = useState<Department[]>([]);
   const [slaDefinitions, setSlaDefinitions] = useState<SlaDefinition[]>([]);
+  const [stateFlows, setStateFlows] = useState<StateFlowOption[]>([]);
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -174,14 +181,16 @@ export default function CategoriesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [cats, depts, slas] = await Promise.all([
+      const [cats, depts, slas, flows] = await Promise.all([
         fetchCategories(),
         fetchDepartments(),
         fetchSlaDefinitions(),
+        fetchStateFlows(),
       ]);
       setCategories(cats);
       setDepartments(depts);
       setSlaDefinitions(slas);
+      setStateFlows(flows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yükleme hatası");
     } finally {
@@ -209,6 +218,7 @@ export default function CategoriesPage() {
       departmentId: unwrapId(cat.departmentId),
       slaDefinitionId: unwrapId(cat.slaDefinitionId),
       defaultQueueId: unwrapId(cat.defaultQueueId),
+      workflowDefinitionId: cat.workflowDefinitionId || "",
       autoProjectThreshold: cat.autoProjectThreshold?.toString() || "",
       isActive: cat.isActive,
     });
@@ -238,10 +248,10 @@ export default function CategoriesPage() {
     }
   }
 
-  function getWorkflowName(defId: string | null): string {
+  function getFlowName(defId: string | null): string {
     if (!defId) return "—";
-    const wf = workflows.find((w) => w.definitionId === defId);
-    return wf?.name || defId.substring(0, 8) + "…";
+    const flow = stateFlows.find((f) => f.id === defId);
+    return flow?.name || defId.substring(0, 8) + "…";
   }
 
   function getDepartmentName(deptId: string): string {
@@ -329,7 +339,7 @@ export default function CategoriesPage() {
                   Departman
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider hidden lg:table-cell">
-                  Workflow
+                  Durum Akışı
                 </th>
                 <th className="text-center px-3 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                   Durum
@@ -371,7 +381,7 @@ export default function CategoriesPage() {
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                         </svg>
-                        {getWorkflowName(cat.workflowDefinitionId)}
+                        {getFlowName(cat.workflowDefinitionId)}
                       </span>
                     ) : (
                       <span className="text-[var(--color-text-muted)] text-xs">—</span>
@@ -512,14 +522,14 @@ export default function CategoriesPage() {
                   </select>
                 </div>
 
-                {/* Workflow */}
+                {/* Durum Akışı */}
                 <div>
                   <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1.5">
                     <span className="flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                       </svg>
-                      İş Akışı (Workflow)
+                      Durum Akışı
                     </span>
                   </label>
                   <select
@@ -529,16 +539,16 @@ export default function CategoriesPage() {
                     }
                     className="w-full px-3 py-2 rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border)] focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 text-sm text-[var(--color-text)] outline-none transition-all [&>option]:bg-[#1e293b] [&>option]:text-white"
                   >
-                    <option value="">Workflow seçin...</option>
-                    {workflows.map((w) => (
-                      <option key={w.definitionId} value={w.definitionId}>
-                        {w.name}
-                        {w.isPublished ? " ✓" : " (Taslak)"}
+                    <option value="">Akış seçin...</option>
+                    {stateFlows.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                        {f.status === "Published" ? " ✓" : " (Taslak)"}
                       </option>
                     ))}
                   </select>
                   <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
-                    Bu kategorideki talepler oluşturulduğunda otomatik başlatılacak workflow.
+                    Bu kategorideki talepler oluşturulduğunda kullanılacak durum akışı.
                   </p>
                 </div>
 
