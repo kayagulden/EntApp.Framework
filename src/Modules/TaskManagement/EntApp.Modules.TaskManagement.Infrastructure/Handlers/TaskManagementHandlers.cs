@@ -320,9 +320,23 @@ public sealed class GetWorkItemQueryHandler(TaskManagementDbContext db) : IReque
 {
     public async Task<WorkItemDetailDto?> Handle(GetWorkItemQuery request, CancellationToken ct)
     {
-        var t = await db.WorkItems.Include(x => x.SubTasks).Include(x => x.Project).Include(x => x.Sprint)
-            .FirstOrDefaultAsync(x => x.Id.Value == request.Id, ct);
+        var wid = new WorkItemId(request.Id);
+        var t = await db.WorkItems
+            .Include(x => x.SubTasks)
+            .Include(x => x.Project)
+            .FirstOrDefaultAsync(x => x.Id == wid, ct);
         if (t is null) return null;
+
+        // Load sprint name separately to avoid RowVersion join issue
+        string? sprintName = null;
+        if (t.SprintId.HasValue)
+        {
+            sprintName = await db.Sprints
+                .Where(s => s.Id == t.SprintId.Value)
+                .Select(s => s.Name)
+                .FirstOrDefaultAsync(ct);
+        }
+
         return new WorkItemDetailDto(
             t.Id.Value, t.WorkItemNumber, t.Title, t.Description,
             t.Status.ToString(), t.Priority.ToString(), t.Type.ToString(),
@@ -340,7 +354,7 @@ public sealed class GetWorkItemQueryHandler(TaskManagementDbContext db) : IReque
                 st.StoryPoints, st.HierarchyLevel)).ToList(),
             t.StoryPoints, t.AcceptanceCriteria,
             t.SprintId.HasValue ? t.SprintId.Value.Value : null,
-            t.Sprint?.Name, t.HierarchyLevel);
+            sprintName, t.HierarchyLevel);
     }
 }
 
