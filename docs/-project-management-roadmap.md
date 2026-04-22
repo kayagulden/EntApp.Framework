@@ -94,4 +94,12 @@
 - [ ] Kategori bazli varsayilan ayarlar: hangi sekmeler/ozellikler aktif, hangi WorkItemType'lar gecerli, varsayilan BoardColumn'lar
 - [ ] UI label eslemeleri (Epic->Asama, Story->Is Paketi)
 - [ ] Metodoloji kisitlamalari
-- [ ] Template DB veya JSON tabanli, runtime konfigurabl
+- [ ] Template DB veya JSON tabanlı, runtime konfigürabl
+
+### State Flow Engine Entegrasyonu
+> **Detaylar:** [-state-flow-engine-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-state-flow-engine-roadmap.md)
+
+- [ ] WorkItem state geçişlerini `StateFlowEngine` üzerinden yönetme (Elsa 3 yerine)
+- [ ] Proje bazlı özel state akışı tanımlama (varsayılan: Backlog → Todo → InProgress → InReview → Done)
+- [ ] Board/Kanban sürükleme → StateFlowEngine validasyonu
+- [ ] React Flow Designer'da WorkItem akışı tasarlama

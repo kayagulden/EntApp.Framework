@@ -420,6 +420,28 @@
 
 ---
 
+## Faz 10b — State Flow Engine (Elsa 3 Alternatifi)
+
+> **Detaylar:** [-state-flow-engine-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-state-flow-engine-roadmap.md)
+> **Karar:** 2026-04-22
+
+**Hedef:** Elsa 3'ün karmaşık BPM altyapısı yerine, hafif ve konfigüre edilebilir bir state machine engine oluştur.
+
+**Motivasyon:** Elsa 3 ile yaşanan bookmark/resume, serialization ve LINQ çeviri sorunları. Gerçek ihtiyaç basit FSM (state tanımlama, geçiş kuralları, terminal state) olduğundan tam teşekküllü BPM gereksiz.
+
+- [ ] **Backend:** `Stateless` kütüphanesi ile runtime engine, DB-driven state/transition tanımları
+- [ ] **Versiyonlama:** Akış versiyonlama (Draft → Published → Archived), entity bazlı versiyon sabitleme, uyumlu entity migrasyonu
+- [ ] **Designer:** React Flow + Dagre auto-layout ile görsel state flow editörü (Admin panel entegre)
+- [ ] **Entegrasyon:** Ticket ve WorkItem modüllerindeki hardcoded state geçişlerini engine'e yönlendirme
+- [ ] **Zamanlayıcı:** Background job ile otomatik state geçişleri (Elsa timer alternatifi)
+- [ ] **Elsa kademeli kaldırma:** Mevcut workflow instance'ları tamamlandıktan sonra Elsa dependency'lerini devre dışı bırakma
+
+**Teknoloji:** [Stateless](https://github.com/dotnet-state-machine/stateless) + [@xyflow/react](https://reactflow.dev) + [dagre](https://github.com/dagrejs/dagre)
+
+**Çıktı:** Admin UI'dan state akışları tasarlanır, versiyonlanır ve entity'lere uygulanır. Elsa 3'e olan bağımlılık kaldırılır.
+
+---
+
 ## Faz 11 — Business Framework: Tier 1 Modüller
 
 **Hedef:** En çok kullanılan iş modüllerinin generic core'unu oluştur.
@@ -811,6 +833,7 @@
 | 8 | Dynamic UI Engine | 2-3 hafta |
 | 9 | AI Module | 2-3 hafta |
 | 10 | Workflow Engine | 1-2 hafta |
+| 10b | State Flow Engine (Elsa 3 Alternatifi) | 2-3 hafta |
 | 11 | Business Framework Tier 1 (4 modül) | 3-4 hafta |
 | 12 | Business Framework Tier 2 (3 modül + entegrasyon) | 3-4 hafta |
 | 13 | Admin Panel | 1-2 hafta |
