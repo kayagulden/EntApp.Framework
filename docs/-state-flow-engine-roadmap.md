@@ -219,11 +219,11 @@ StateFlowDefinition (Akış Tanımı)
 
 ### Görevler
 
-- [ ] `StateFlow.Domain` — Entity'ler, strongly-typed ID'ler, FlowStatus enum
-- [ ] `StateFlow.Application` — Command/Query tanımları (CQRS)
-- [ ] `StateFlow.Infrastructure` — DbContext, Handler'lar, EF Configuration
-- [ ] Migration SQL dosyası (3 tablo + index'ler)
-- [ ] Seed data: Ticket akışı v1 (New → WaitForAssignment → InProgress → Done/Cancelled)
+- [x] `StateFlow.Domain` — Entity'ler, strongly-typed ID'ler, FlowStatus enum
+- [x] `StateFlow.Application` — Command/Query tanımları (CQRS)
+- [x] `StateFlow.Infrastructure` — DbContext, Handler'lar, EF Configuration
+- [x] Migration SQL dosyası (3 tablo + index'ler)
+- [x] Seed data: Ticket akışı v1 (New → WaitForAssignment → InProgress → Done/Cancelled)
 
 ---
 
@@ -248,12 +248,12 @@ Geçiş talebi geldiğinde:
 
 ### Görevler
 
-- [ ] NuGet: `Stateless` paketi ekleme
-- [ ] `IStateFlowEngine` interface
+- [x] NuGet: `Stateless` paketi ekleme
+- [x] `IStateFlowEngine` interface
   - `ValidateTransition(entityType, currentState, trigger, flowDefinitionId)` → bool
   - `GetAllowedTriggers(entityType, currentState, flowDefinitionId)` → List<TriggerInfo>
   - `FireTransition(entityType, currentState, trigger, flowDefinitionId)` → newState
-- [ ] `StateFlowEngine` implementasyonu — DB'den tanım yükle, Stateless machine kur
+- [x] `StateFlowEngine` implementasyonu — DB'den tanım yükle, Stateless machine kur
 - [ ] Guard desteği — role-based, expression-based
 - [ ] Side effect sistemi — OnEntry/OnExit action'ları MediatR event olarak tetikle
 - [ ] Ticket modülüne entegrasyon: mevcut hardcoded state geçişlerini StateFlowEngine'e yönlendir
@@ -290,8 +290,8 @@ Draft ──[Yayınla]──▶ Published ──[Yeni versiyon yayınlandı]─�
 
 ### Görevler
 
-- [ ] `PublishFlowCommand` — Draft → Published, önceki Published → Archived
-- [ ] `CreateNewVersionCommand` — Mevcut Published'dan Draft kopya oluştur
+- [x] `PublishFlowCommand` — Draft → Published, önceki Published → Archived
+- [x] `CreateNewVersionCommand` — Mevcut Published'dan Draft kopya oluştur
 - [ ] `MigrateEntitiesCommand` — Uyumlu entity'leri yeni versiyona taşı
 - [ ] Uyumluluk raporu API'si — taşınabilir/taşınamaz entity sayıları
 
@@ -356,16 +356,16 @@ function StateNode({ data }) {
 
 ### Görevler
 
-- [ ] NPM: `@xyflow/react`, `dagre` paketleri ekleme
-- [ ] `StateFlowDesigner` ana bileşen (React Flow canvas)
-- [ ] `StateNode` custom node bileşeni (renk, ikon, badge)
-- [ ] `TransitionEdge` custom edge bileşeni (etiket, silme butonu)
-- [ ] Sağ panel: seçili state/transition özellikleri düzenleme
-- [ ] Sol toolbar: state ekle, auto-layout, kaydet, yayınla
-- [ ] Dagre auto-layout entegrasyonu (tek tıkla otomatik düzenleme)
+- [x] NPM: `@xyflow/react`, `dagre` paketleri ekleme
+- [x] `StateFlowDesigner` ana bileşen (React Flow canvas + ReactFlowProvider)
+- [x] `StateNode` custom node bileşeni (renk, ikon, badge, inline styles)
+- [x] `TransitionEdge` custom edge bileşeni (etiket, label renderer)
+- [x] Sağ panel: seçili state/transition özellikleri düzenleme (PropertiesPanel)
+- [x] Sol toolbar: state ekle, auto-layout, kaydet, yayınla
+- [x] Dagre auto-layout entegrasyonu (tek tıkla otomatik düzenleme)
 - [ ] Versiyon listesi ve karşılaştırma UI
 - [ ] Migrasyon modalı (taşınabilir entity sayısı, onay)
-- [ ] Admin sayfası: `/dashboard/admin/state-flows`
+- [x] Admin sayfası: `/dashboard/admin/state-flows` (liste + designer)
 
 ---
 
@@ -373,10 +373,10 @@ function StateNode({ data }) {
 
 ### Ticket (Request Management) Entegrasyonu
 
-- [ ] `Ticket` entity'sine `FlowDefinitionId` (nullable FK) ekleme
-- [ ] Ticket oluşturulduğunda aktif Published flow'u otomatik atama
-- [ ] Mevcut hardcoded status geçişlerini `StateFlowEngine` üzerinden yönlendirme
-- [ ] Frontend ticket detay sayfasında: izin verilen geçişleri API'den alma
+- [x] `Ticket` entity'sine `FlowDefinitionId` (nullable FK) ekleme
+- [x] Ticket oluşturulduğunda aktif Published flow'u otomatik atama
+- [x] Mevcut hardcoded status geçişlerini `StateFlowEngine` üzerinden yönlendirme
+- [x] Frontend ticket detay sayfasında: izin verilen geçişleri API'den alma (endpoint hazır)
 - [ ] Elsa workflow activity'lerini kademeli olarak devre dışı bırakma
 
 ### WorkItem (Project Management) Entegrasyonu
@@ -422,8 +422,10 @@ Elsa'nın timer özelliği yerine basit background job:
 | Aşama | Durum | Açıklama |
 |-------|-------|----------|
 | **Mevcut** | Elsa 3 aktif | Ticket workflow Elsa üzerinden çalışıyor |
-| **Aşama A-B** | Paralel geliştirme | StateFlow modülü geliştirilir, Elsa'ya dokunulmaz |
-| **Aşama E** | Kademeli geçiş | Ticket state geçişleri StateFlowEngine'e yönlendirilir |
+| **Aşama A-B** | ✅ Tamamlandı | StateFlow modülü geliştirildi, Elsa'ya dokunulmadı |
+| **Aşama C** | ✅ Tamamlandı | Versiyonlama (Publish/Archive/NewVersion) hazır |
+| **Aşama D** | ✅ Tamamlandı | React Flow designer çalışıyor |
+| **Aşama E** | Kademeli geçiş | Ticket state geçişleri StateFlowEngine'e yönlendirilecek |
 | **Son** | Elsa devre dışı | Elsa dependency'leri kaldırılır, tabloları archived |
 
 > [!WARNING]

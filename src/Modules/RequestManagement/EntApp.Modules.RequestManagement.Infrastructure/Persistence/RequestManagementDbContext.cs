@@ -139,6 +139,11 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 .HasFilter("\"ConfigurationItemId\" IS NOT NULL")
                 .HasDatabaseName("ix_tickets_ci");
 
+            // StateFlow tanımı (cross-module, raw Guid — FK yok)
+            e.HasIndex(x => x.FlowDefinitionId)
+                .HasFilter("\"FlowDefinitionId\" IS NOT NULL")
+                .HasDatabaseName("ix_tickets_flow_definition");
+
             e.HasOne(x => x.Category).WithMany(c => c.Tickets).HasForeignKey(x => x.CategoryId);
             e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId);
             e.HasOne(x => x.ServiceQueue)

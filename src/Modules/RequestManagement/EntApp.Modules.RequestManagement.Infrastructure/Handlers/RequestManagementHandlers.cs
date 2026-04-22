@@ -6,6 +6,8 @@ using EntApp.Modules.RequestManagement.Domain.Enums;
 using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Modules.RequestManagement.Infrastructure.Persistence;
 using EntApp.Modules.RequestManagement.Infrastructure.Services;
+using EntApp.Modules.StateFlow.Application.Interfaces;
+using EntApp.Modules.StateFlow.Application.Queries;
 using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Contracts.Messaging;
 using EntApp.Shared.Kernel.Domain.Entities;
@@ -97,7 +99,7 @@ public sealed class UpdateSlaHandler(RequestManagementDbContext db)
 
 public sealed class CreateTicketHandler(
     RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus,
-    IWorkflowStarter workflowStarter, ILogger<CreateTicketHandler> logger)
+    IWorkflowStarter workflowStarter, ISender mediator, ILogger<CreateTicketHandler> logger)
     : IRequestHandler<CreateTicketCommand, Guid>
 {
     public async Task<Guid> Handle(CreateTicketCommand request, CancellationToken ct)
@@ -119,7 +121,28 @@ public sealed class CreateTicketHandler(
             request.FormDataJson,
             configurationItemId: request.ConfigurationItemId);
 
-        // SLA hesapla
+        // ── StateFlow: Published akışı ata ──────────────────
+        try
+        {
+            var publishedFlow = await mediator.Send(
+                new GetPublishedFlowQuery("Ticket"), ct);
+            if (publishedFlow is not null)
+            {
+                ticket.SetFlowDefinition(publishedFlow.Id);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "No published StateFlow found for Ticket — ticket {Number} has no flow definition.",
+                    number);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to lookup StateFlow for ticket {Number}", number);
+        }
+
+        // ── SLA hesapla ──────────────────────────────────────
         if (category?.SlaDefinitionEntity is not null)
         {
             var sla = category.SlaDefinitionEntity;
@@ -128,10 +151,26 @@ public sealed class CreateTicketHandler(
                 SlaCalculator.CalculateResolutionDeadline(sla.ResolutionTimeJson, request.Priority));
         }
 
+        // ── Queue Routing: Kategori bazlı otomatik yönlendirme ──
+        // StateFlow geçişiyle birlikte routing artık doğrudan kategori default queue'sundan yapılır.
+        // Elsa workflow varsa ikincil olarak başlatılır (eski akışlar için backward compat).
+        if (category?.DefaultQueueId is not null)
+        {
+            ticket.RouteToQueue(category.DefaultQueueId.Value, TicketRoutingSource.CategoryDefault);
+            logger.LogInformation(
+                "Ticket {Number} routed to default queue {QueueId} via category {CategoryCode}",
+                number, category.DefaultQueueId.Value.Value, category.Code);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Ticket {Number} has no default queue — remains Unrouted.", number);
+        }
+
         db.Tickets.Add(ticket);
         await db.SaveChangesAsync(ct);
 
-        // ── Workflow başlat ──────────────────────────────────
+        // ── Elsa Workflow (backward compat — kademeli devre dışı) ──
         if (category?.WorkflowDefinitionId is not null)
         {
             try
@@ -160,31 +199,11 @@ public sealed class CreateTicketHandler(
                         "Workflow started for ticket {TicketNumber} (instance: {WorkflowInstanceId})",
                         number, response.WorkflowInstanceId);
                 }
-                else
-                {
-                    logger.LogWarning(
-                        "Workflow could not be started for ticket {TicketNumber} (DefinitionId: {DefId})",
-                        number, category.WorkflowDefinitionId);
-                }
             }
             catch (Exception ex)
             {
                 // Workflow başlatma hatası ticket oluşturmayı engellememeli
                 logger.LogError(ex, "Failed to start workflow for ticket {TicketNumber}", number);
-            }
-        }
-        else
-        {
-            // Migrasyon dönemi fallback — workflow'suz kategori için DefaultQueueId kullan
-            if (category?.DefaultQueueId is not null)
-            {
-                ticket.RouteToQueue(category.DefaultQueueId.Value, TicketRoutingSource.CategoryDefault);
-                await db.SaveChangesAsync(ct);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "Ticket {TicketNumber} has no workflow and no default queue — remains Unrouted.", number);
             }
         }
 
@@ -232,7 +251,8 @@ public sealed class AssignTicketHandler(
 }
 
 public sealed class ChangeTicketStatusHandler(
-    RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus)
+    RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus,
+    IStateFlowEngine stateFlowEngine, ILogger<ChangeTicketStatusHandler> logger)
     : IRequestHandler<ChangeTicketStatusCommand>
 {
     public async Task Handle(ChangeTicketStatusCommand request, CancellationToken ct)
@@ -241,6 +261,32 @@ public sealed class ChangeTicketStatusHandler(
             .Include(t => t.StatusHistory)
             .FirstOrDefaultAsync(t => t.Id == new TicketId(request.TicketId), ct)
             ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
+
+        // ── StateFlow validasyonu ────────────────────────────
+        if (ticket.FlowDefinitionId.HasValue)
+        {
+            var currentState = ticket.Status.ToString();
+            var targetState = request.NewStatus.ToString();
+
+            // Trigger'ı bul: currentState → targetState geçişinin trigger adı
+            var allowedTriggers = await stateFlowEngine.GetAllowedTriggersAsync(
+                "Ticket", currentState, ticket.FlowDefinitionId.Value, ct);
+
+            var matchingTrigger = allowedTriggers
+                .FirstOrDefault(t => t.ToStateName == targetState);
+
+            if (matchingTrigger is null)
+            {
+                var allowed = string.Join(", ", allowedTriggers.Select(t => $"{t.TriggerName}→{t.ToStateName}"));
+                throw new InvalidOperationException(
+                    $"'{currentState}' → '{targetState}' geçişi izin verilmiyor. " +
+                    $"İzin verilen geçişler: [{allowed}]");
+            }
+
+            logger.LogInformation(
+                "StateFlow validated: Ticket {TicketId} transition {From} → {To} via trigger {Trigger}",
+                request.TicketId, currentState, targetState, matchingTrigger.TriggerName);
+        }
 
         ticket.ChangeStatus(request.NewStatus, currentUser.UserId, request.Reason);
         await db.SaveChangesAsync(ct);

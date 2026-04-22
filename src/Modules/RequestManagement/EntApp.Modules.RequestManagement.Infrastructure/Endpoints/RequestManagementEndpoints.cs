@@ -1,6 +1,8 @@
 using EntApp.Modules.RequestManagement.Application.Commands;
 using EntApp.Modules.RequestManagement.Application.Queries;
 using EntApp.Modules.RequestManagement.Domain.Enums;
+using EntApp.Modules.RequestManagement.Domain.Ids;
+using EntApp.Modules.StateFlow.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -141,6 +143,29 @@ public static class RequestManagementEndpoints
             await mediator.Send(new ClaimTicketCommand(id, req.ClaimerUserId));
             return Results.NoContent();
         }).WithName("ClaimTicket");
+
+        tickets.MapPost("/{id:guid}/unclaim", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new UnclaimTicketCommand(id));
+            return Results.NoContent();
+        }).WithName("UnclaimTicket");
+
+        // ═══════════ State Flow — Allowed Transitions ═══════════
+        tickets.MapGet("/{id:guid}/allowed-transitions", async (
+            Guid id, ISender mediator, IStateFlowEngine stateFlowEngine) =>
+        {
+            var ticket = await mediator.Send(new GetTicketQuery(id));
+            if (ticket is null) return Results.NotFound();
+
+            if (!ticket.FlowDefinitionId.HasValue)
+                return Results.Ok(Array.Empty<object>());
+
+            var triggers = await stateFlowEngine.GetAllowedTriggersAsync(
+                "Ticket", ticket.Status.ToString(),
+                ticket.FlowDefinitionId.Value);
+
+            return Results.Ok(triggers);
+        }).WithName("GetTicketAllowedTransitions");
 
         // ═══════════ Form Schema ═══════════
         cats.MapGet("/{id:guid}/form-schema", async (Guid id, ISender mediator) =>

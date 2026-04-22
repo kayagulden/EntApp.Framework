@@ -36,6 +36,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public string? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
+    /// <summary>Bu ticket'ın bağlı olduğu StateFlow tanımının ID'si.</summary>
+    public Guid? FlowDefinitionId { get; private set; }
+
     /// <summary>İlgili Configuration Item (uygulama, sunucu vb.) — cross-module, raw Guid.</summary>
     public Guid? ConfigurationItemId { get; private set; }
 
@@ -138,6 +141,9 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
 
     public void LinkWorkflow(string workflowInstanceId) => WorkflowInstanceId = workflowInstanceId;
     public void LinkProject(Guid projectId) => ProjectId = projectId;
+
+    /// <summary>Ticket'ı belirtilen StateFlow tanımına bağlar.</summary>
+    public void SetFlowDefinition(Guid flowDefinitionId) => FlowDefinitionId = flowDefinitionId;
 
     /// <summary>Ticket'ı belirtilen queue'ya yönlendirir.</summary>
     public void RouteToQueue(ServiceQueueId queueId, TicketRoutingSource source)
