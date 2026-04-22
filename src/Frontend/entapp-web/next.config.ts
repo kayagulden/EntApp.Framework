@@ -44,11 +44,6 @@ const nextConfig: NextConfig = {
         source: "/api/v:version/:path*",
         destination: "http://localhost:5212/api/v:version/:path*",
       },
-      // Elsa Workflows API — proxied to backend
-      {
-        source: "/elsa/api/:path*",
-        destination: "http://localhost:5212/elsa/api/:path*",
-      },
     ];
   },
 };

@@ -12,9 +12,6 @@ using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Contracts.Messaging;
 using EntApp.Shared.Kernel.Domain.Entities;
 using EntApp.Shared.Kernel.Domain.Ids;
-using Elsa.Common.Models;
-using Elsa.Workflows.Models;
-using Elsa.Workflows.Runtime;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -99,7 +96,7 @@ public sealed class UpdateSlaHandler(RequestManagementDbContext db)
 
 public sealed class CreateTicketHandler(
     RequestManagementDbContext db, ICurrentUser currentUser, IEventBus eventBus,
-    IWorkflowStarter workflowStarter, ISender mediator, ILogger<CreateTicketHandler> logger)
+    ISender mediator, ILogger<CreateTicketHandler> logger)
     : IRequestHandler<CreateTicketCommand, Guid>
 {
     public async Task<Guid> Handle(CreateTicketCommand request, CancellationToken ct)
@@ -170,42 +167,7 @@ public sealed class CreateTicketHandler(
         db.Tickets.Add(ticket);
         await db.SaveChangesAsync(ct);
 
-        // ── Elsa Workflow (backward compat — kademeli devre dışı) ──
-        if (category?.WorkflowDefinitionId is not null)
-        {
-            try
-            {
-                var response = await workflowStarter.StartWorkflowAsync(new StartWorkflowRequest
-                {
-                    WorkflowDefinitionHandle = WorkflowDefinitionHandle.ByDefinitionId(
-                        category.WorkflowDefinitionId,
-                        VersionOptions.Published),
-                    Input = new Dictionary<string, object>
-                    {
-                        ["TicketId"] = ticket.Id.Value,
-                        ["CategoryId"] = request.CategoryId,
-                        ["DepartmentId"] = request.DepartmentId,
-                        ["Priority"] = request.Priority.ToString(),
-                        ["Channel"] = request.Channel.ToString()
-                    },
-                    CorrelationId = ticket.Id.Value.ToString()
-                }, ct);
 
-                if (response.WorkflowInstanceId is not null)
-                {
-                    ticket.LinkWorkflow(response.WorkflowInstanceId);
-                    await db.SaveChangesAsync(ct);
-                    logger.LogInformation(
-                        "Workflow started for ticket {TicketNumber} (instance: {WorkflowInstanceId})",
-                        number, response.WorkflowInstanceId);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Workflow başlatma hatası ticket oluşturmayı engellememeli
-                logger.LogError(ex, "Failed to start workflow for ticket {TicketNumber}", number);
-            }
-        }
 
         // Integration event
         await eventBus.PublishAsync(new TicketCreatedEvent(

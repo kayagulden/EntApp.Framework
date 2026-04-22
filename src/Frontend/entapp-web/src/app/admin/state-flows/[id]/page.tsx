@@ -75,7 +75,7 @@ export default function FlowDesignerPage() {
       <div style={{ padding: 48, textAlign: "center", color: "#ef4444" }}>
         <h2>Hata</h2>
         <p>{error}</p>
-        <button onClick={() => router.push("/dashboard/admin/state-flows")} style={{ marginTop: 16, color: "#8b5cf6", background: "none", border: "none", cursor: "pointer" }}>
+        <button onClick={() => router.push("/admin/state-flows")} style={{ marginTop: 16, color: "#8b5cf6", background: "none", border: "none", cursor: "pointer" }}>
           ← Listeye Dön
         </button>
       </div>
@@ -87,7 +87,7 @@ export default function FlowDesignerPage() {
       <div className="designer-page__header">
         <button
           className="designer-page__back"
-          onClick={() => router.push("/dashboard/admin/state-flows")}
+          onClick={() => router.push("/admin/state-flows")}
         >
           ← Geri
         </button>

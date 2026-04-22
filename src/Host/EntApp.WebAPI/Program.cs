@@ -11,7 +11,7 @@ using EntApp.Shared.Infrastructure.RealTime;
 using EntApp.Shared.Contracts.Messaging;
 using EntApp.Shared.Infrastructure.Messaging;
 using EntApp.Modules.AI.Infrastructure.Endpoints;
-using EntApp.Modules.Workflow.Infrastructure.Endpoints;
+
 using EntApp.Modules.CRM.Infrastructure.Endpoints;
 using EntApp.Modules.HR.Infrastructure.Endpoints;
 using EntApp.Modules.Finance.Infrastructure.Endpoints;
@@ -31,10 +31,7 @@ using Serilog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using Elsa.EntityFrameworkCore.Extensions;
-using Elsa.EntityFrameworkCore.Modules.Management;
-using Elsa.EntityFrameworkCore.Modules.Runtime;
-using Elsa.Extensions;
+
 
 // ═══════════════════════════════════════════════════════════════
 //  EntApp.Framework — Composition Root
@@ -130,8 +127,7 @@ try
             Description = "EntApp Modular Monolith Framework API"
         });
 
-        // Elsa endpoint'leri aynı isimde (Request) sınıflar kullandığı için
-        // tam nitelikli tip adı kullanarak çakışmayı önle
+        // Tam nitelikli tip adı kullanarak şema adı çakışmalarını önle
         options.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
 
         // JWT Auth in Swagger
@@ -190,48 +186,8 @@ try
     // ── Event Bus ────────────────────────────────────────────
     builder.Services.AddScoped<IEventBus, InMemoryEventBus>();
 
-    // ── Elsa Workflows v3 ────────────────────────────────────
-    var elsaSigningKey = builder.Configuration["Elsa:SigningKey"]
-        ?? "entapp-elsa-workflow-engine-jwt-signing-key-change-in-production-minimum-256-bits";
-
-    builder.Services.AddElsa(elsa =>
-    {
-        // Management layer — workflow definitions, EF Core + PostgreSQL
-        elsa.UseWorkflowManagement(management =>
-            management.UseEntityFrameworkCore(ef =>
-                ef.UsePostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")!)));
-
-        // Runtime layer — workflow instances, bookmarks, EF Core + PostgreSQL
-        elsa.UseWorkflowRuntime(runtime =>
-            runtime.UseEntityFrameworkCore(ef =>
-                ef.UsePostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")!)));
-
-        // Identity — API key auth for Elsa Studio connection
-        elsa.UseIdentity(identity =>
-        {
-            identity.TokenOptions = options => options.SigningKey = elsaSigningKey;
-            identity.UseAdminUserProvider();
-        });
-
-        // ASP.NET auth for Elsa API endpoints (Bearer + ApiKey multi-scheme)
-        elsa.UseDefaultAuthentication(auth => auth.UseAdminApiKey());
-
-        // Expose Elsa REST API endpoints
-        elsa.UseWorkflowsApi();
-
-        // HTTP activities (webhook triggers, HTTP endpoints)
-        elsa.UseHttp();
-
-        // Timer / scheduling activities
-        elsa.UseScheduling();
-
-        // Auto-discover custom activities from Workflow module
-        elsa.AddActivitiesFrom<EntApp.Modules.Workflow.Infrastructure.WorkflowModuleInstaller>();
-    });
-
-    // ── Elsa Workflow Validators ──────────────────────────────
-    // Publish-time graph validasyonu — RouteToQueue'nun blocking activity'den önce gelmesini zorunlu kılar
-    builder.Services.AddNotificationHandler<EntApp.Modules.Workflow.Infrastructure.Validators.WorkflowRouteValidator>();
+    // ── In-Memory Cache (StateFlow engine vb. için) ─────────
+    builder.Services.AddMemoryCache();
 
     // ── Organization DbContext (Shared — org schema) ────────
     builder.Services.AddDbContext<EntApp.Shared.Infrastructure.Persistence.OrganizationDbContext>(options =>
@@ -252,7 +208,6 @@ try
         typeof(EntApp.Modules.AI.Infrastructure.AiModuleInstaller).Assembly,
         typeof(EntApp.Modules.MultiTenancy.Infrastructure.TenantModuleInstaller).Assembly,
         typeof(EntApp.Modules.Audit.Infrastructure.AuditModuleInstaller).Assembly,
-        typeof(EntApp.Modules.Workflow.Infrastructure.WorkflowModuleInstaller).Assembly,
         typeof(EntApp.Modules.CRM.Infrastructure.CrmModuleInstaller).Assembly,
         typeof(EntApp.Modules.HR.Infrastructure.HrModuleInstaller).Assembly,
         typeof(EntApp.Modules.Finance.Infrastructure.FinanceModuleInstaller).Assembly,
@@ -358,7 +313,6 @@ try
         await EnsureModuleTables<EntApp.Modules.MultiTenancy.Infrastructure.Persistence.TenantDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Audit.Infrastructure.Persistence.AuditDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.AI.Infrastructure.Persistence.AiDbContext>(sp);
-        await EnsureModuleTables<EntApp.Modules.Workflow.Infrastructure.Persistence.WorkflowDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.CRM.Infrastructure.Persistence.CrmDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.HR.Infrastructure.Persistence.HrDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.Finance.Infrastructure.Persistence.FinanceDbContext>(sp);
@@ -375,43 +329,7 @@ try
         await EnsureModuleTables<EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.StateFlow.Infrastructure.Persistence.StateFlowDbContext>(sp);
 
-        // Elsa Workflows — eksik kolonları ekle (versiyon güncellemesi sonrası)
-        try
-        {
-            var connStr = builder.Configuration.GetConnectionString("DefaultConnection")!;
-            using var conn = new Npgsql.NpgsqlConnection(connStr);
-            await conn.OpenAsync();
 
-            // Elsa tablolarında eksik olabilecek kolonları ekle (idempotent)
-            var alterStatements = new[]
-            {
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""OriginalSource"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Options"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Variables"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Inputs"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Outputs"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""Outcomes"" text",
-                @"ALTER TABLE ""Elsa"".""WorkflowDefinitions"" ADD COLUMN IF NOT EXISTS ""CustomProperties"" text",
-            };
-
-            foreach (var sql in alterStatements)
-            {
-                try
-                {
-                    using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
-                    await cmd.ExecuteNonQueryAsync();
-                }
-                catch (Npgsql.PostgresException ex) when (ex.SqlState is "42P01" or "42701")
-                {
-                    // Tablo yok veya kolon zaten var — atla
-                }
-            }
-            Log.Information("[DB] Elsa schema patches applied.");
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[DB] Elsa schema patches — partial or skipped.");
-        }
 
         Log.Information("[DB] All module schemas ensured.");
     }
@@ -463,11 +381,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    // ── Elsa Workflows ───────────────────────────────────────
-    // Elsa API endpointlerini anonim erişime aç (Keycloak Bearer ile çakışmayı önlemek için)
-    // Production'da bu endpointler gateway veya admin-role ile korunmalıdır.
-    app.UseWorkflowsApi();  // Elsa REST API endpoints
-    app.UseWorkflows();     // HTTP endpoint activity middleware
+
 
     // ── SignalR Hub ──────────────────────────────────────────
     app.MapHub<EntAppHub>("/hubs/entapp");
@@ -492,8 +406,6 @@ try
     app.MapAiEndpoints();
     app.MapPromptEndpoints();
     app.MapUsageEndpoints();
-    app.MapWorkflowEndpoints();
-    app.MapGenerateWorkflowEndpoints();
     app.MapCrmEndpoints();
     app.MapHrEndpoints();
     app.MapFinanceEndpoints();

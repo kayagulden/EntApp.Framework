@@ -256,7 +256,7 @@ Geçiş talebi geldiğinde:
 - [x] `StateFlowEngine` implementasyonu — DB'den tanım yükle, Stateless machine kur
 - [ ] Guard desteği — role-based, expression-based
 - [ ] Side effect sistemi — OnEntry/OnExit action'ları MediatR event olarak tetikle
-- [ ] Ticket modülüne entegrasyon: mevcut hardcoded state geçişlerini StateFlowEngine'e yönlendir
+- [x] Ticket modülüne entegrasyon: mevcut hardcoded state geçişlerini StateFlowEngine'e yönlendir
 - [ ] WorkItem modülüne entegrasyon
 
 ---
@@ -377,7 +377,9 @@ function StateNode({ data }) {
 - [x] Ticket oluşturulduğunda aktif Published flow'u otomatik atama
 - [x] Mevcut hardcoded status geçişlerini `StateFlowEngine` üzerinden yönlendirme
 - [x] Frontend ticket detay sayfasında: izin verilen geçişleri API'den alma (endpoint hazır)
-- [ ] Elsa workflow activity'lerini kademeli olarak devre dışı bırakma
+- [x] Queue routing: Elsa RouteToQueueActivity yerine kategori bazlı otomatik routing
+- [x] WaitForAssignment: Elsa blocking activity yerine StateFlow state olarak modellendi
+- [x] Elsa bağımlılığı RM modülünden tamamen kaldırıldı (IWorkflowStarter, Elsa.Workflows.Runtime NuGet)
 
 ### WorkItem (Project Management) Entegrasyonu
 
@@ -421,15 +423,15 @@ Elsa'nın timer özelliği yerine basit background job:
 
 | Aşama | Durum | Açıklama |
 |-------|-------|----------|
-| **Mevcut** | Elsa 3 aktif | Ticket workflow Elsa üzerinden çalışıyor |
-| **Aşama A-B** | ✅ Tamamlandı | StateFlow modülü geliştirildi, Elsa'ya dokunulmadı |
+| **Mevcut** | ✅ Elsa tamamen kaldırıldı | Tüm Elsa NuGet, konfigürasyon, activity, endpoint ve frontend sayfaları temizlendi |
+| **Aşama A-B** | ✅ Tamamlandı | StateFlow modülü + runtime engine geliştirildi |
 | **Aşama C** | ✅ Tamamlandı | Versiyonlama (Publish/Archive/NewVersion) hazır |
 | **Aşama D** | ✅ Tamamlandı | React Flow designer çalışıyor |
-| **Aşama E** | Kademeli geçiş | Ticket state geçişleri StateFlowEngine'e yönlendirilecek |
-| **Son** | Elsa devre dışı | Elsa dependency'leri kaldırılır, tabloları archived |
+| **Aşama E** | 🔶 Kısmen tamamlandı | Ticket entegrasyonu ✅. WorkItem entegrasyonu bekliyor |
+| **Son** | ✅ Tamamlandı | Elsa tamamen kaldırıldı (backend + frontend + designer workflow) |
 
-> [!WARNING]
-> Elsa 3 kaldırılmadan önce, Elsa üzerinden çalışan mevcut workflow instance'ları tamamlanmalı veya migrate edilmelidir.
+> [!NOTE]
+> Elsa 3 tamamen projeden kaldırılmıştır. DB'deki `"Elsa"` şeması mevcut verileri korumak için bırakılabilir veya manuel olarak `DROP SCHEMA "Elsa" CASCADE` ile temizlenebilir.
 
 ---
 

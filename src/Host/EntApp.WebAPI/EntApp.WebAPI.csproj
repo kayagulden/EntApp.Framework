@@ -20,14 +20,6 @@
     <PackageReference Include="Serilog.AspNetCore" Version="9.*" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.*" />
-    <!-- Elsa Workflows v3 -->
-    <PackageReference Include="Elsa" Version="3.*" />
-    <PackageReference Include="Elsa.EntityFrameworkCore" Version="3.*" />
-    <PackageReference Include="Elsa.EntityFrameworkCore.PostgreSql" Version="3.*" />
-    <PackageReference Include="Elsa.Identity" Version="3.*" />
-    <PackageReference Include="Elsa.Scheduling" Version="3.*" />
-    <PackageReference Include="Elsa.Workflows.Api" Version="3.*" />
-    <PackageReference Include="Elsa.Http" Version="3.*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,7 +32,6 @@
     <ProjectReference Include="..\..\Modules\MultiTenancy\EntApp.Modules.MultiTenancy.Infrastructure\EntApp.Modules.MultiTenancy.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Localization\EntApp.Modules.Localization.Infrastructure\EntApp.Modules.Localization.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\AI\EntApp.Modules.AI.Infrastructure\EntApp.Modules.AI.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\Modules\Workflow\EntApp.Modules.Workflow.Infrastructure\EntApp.Modules.Workflow.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\CRM\EntApp.Modules.CRM.Infrastructure\EntApp.Modules.CRM.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\HR\EntApp.Modules.HR.Infrastructure\EntApp.Modules.HR.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Finance\EntApp.Modules.Finance.Infrastructure\EntApp.Modules.Finance.Infrastructure.csproj" />

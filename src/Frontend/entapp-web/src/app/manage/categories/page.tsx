@@ -28,12 +28,6 @@ interface ServiceQueue {
   code: string;
 }
 
-interface WorkflowDef {
-  definitionId: string;
-  name: string;
-  description?: string;
-  isPublished: boolean;
-}
 
 interface Category {
   id: string | { value: string };
@@ -58,7 +52,6 @@ interface CategoryForm {
   description: string;
   departmentId: string;
   slaDefinitionId: string;
-  workflowDefinitionId: string;
   defaultQueueId: string;
   autoProjectThreshold: string;
   isActive: boolean;
@@ -70,7 +63,6 @@ const emptyForm: CategoryForm = {
   description: "",
   departmentId: "",
   slaDefinitionId: "",
-  workflowDefinitionId: "",
   defaultQueueId: "",
   autoProjectThreshold: "",
   isActive: true,
@@ -78,7 +70,6 @@ const emptyForm: CategoryForm = {
 
 // ── API ──────────────────────────────────────────────────────
 const REQ_API = "/api/req";
-const ELSA_API = "/elsa/api";
 const ORG_API = "/api/v1/org";
 
 async function fetchCategories(): Promise<Category[]> {
@@ -99,15 +90,6 @@ async function fetchSlaDefinitions(): Promise<SlaDefinition[]> {
   return res.json();
 }
 
-async function fetchWorkflowDefinitions(): Promise<WorkflowDef[]> {
-  const res = await fetch(
-    `${ELSA_API}/workflow-definitions?versionOptions=Latest`,
-    { headers: { Authorization: "ApiKey 00000000-0000-0000-0000-000000000000" } }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.items ?? data ?? [];
-}
 
 async function fetchServiceQueues(): Promise<ServiceQueue[]> {
   // Service queues are accessed through the request management module
@@ -180,7 +162,6 @@ export default function CategoriesPage() {
   // Lookup data
   const [departments, setDepartments] = useState<Department[]>([]);
   const [slaDefinitions, setSlaDefinitions] = useState<SlaDefinition[]>([]);
-  const [workflows, setWorkflows] = useState<WorkflowDef[]>([]);
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -193,16 +174,14 @@ export default function CategoriesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [cats, depts, slas, wfs] = await Promise.all([
+      const [cats, depts, slas] = await Promise.all([
         fetchCategories(),
         fetchDepartments(),
         fetchSlaDefinitions(),
-        fetchWorkflowDefinitions(),
       ]);
       setCategories(cats);
       setDepartments(depts);
       setSlaDefinitions(slas);
-      setWorkflows(wfs);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yükleme hatası");
     } finally {
@@ -229,7 +208,6 @@ export default function CategoriesPage() {
       description: cat.description || "",
       departmentId: unwrapId(cat.departmentId),
       slaDefinitionId: unwrapId(cat.slaDefinitionId),
-      workflowDefinitionId: cat.workflowDefinitionId || "",
       defaultQueueId: unwrapId(cat.defaultQueueId),
       autoProjectThreshold: cat.autoProjectThreshold?.toString() || "",
       isActive: cat.isActive,

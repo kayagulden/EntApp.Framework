@@ -16,12 +16,7 @@ docker compose up -d
 dotnet run --project src\Host\EntApp.WebAPI
 ```
 
-3. Workflow Designer'ı başlat (ayrı terminalde):
-```bash
-dotnet run --project src\Host\EntApp.WorkflowDesigner
-```
-
-4. Frontend'i başlat (ayrı terminalde):
+3. Frontend'i başlat (ayrı terminalde):
 ```bash
 cd src\Frontend\entapp-web && npm run dev
 ```
@@ -29,7 +24,6 @@ cd src\Frontend\entapp-web && npm run dev
 ## Adresler
 - **Backend API**: http://localhost:5212
 - **Swagger**: http://localhost:5212/swagger
-- **Workflow Designer**: http://localhost:5280
 - **Frontend**: http://localhost:3000
 - **Seq Logs**: http://localhost:5341
 - **RabbitMQ**: http://localhost:15672 (guest/guest)

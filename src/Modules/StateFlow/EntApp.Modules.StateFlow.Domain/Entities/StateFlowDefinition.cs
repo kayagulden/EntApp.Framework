@@ -119,7 +119,7 @@ public sealed class StateFlowDefinition : AggregateRoot<StateFlowDefinitionId>, 
         {
             Id = EntityId.New<StateFlowDefinitionId>(),
             EntityType = template.EntityType,
-            Key = $"{template.Key}-custom",
+            Key = $"{template.Key}-{DateTime.UtcNow:yyyyMMddHHmmss}",
             Name = customName ?? template.Name,
             Description = template.Description,
             Version = 1,
