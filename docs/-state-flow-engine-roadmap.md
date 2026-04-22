@@ -20,6 +20,121 @@ Elsa 3 ile yaşanan sorunlar:
 
 ---
 
+## Mimari Karar: Status = String + Semantic Flags
+
+> **Karar tarihi:** 2026-04-22
+
+State'ler entity'lerde **enum olarak değil, string olarak** saklanır. StateFlow tanımı **tek kaynak (single source of truth)** olur.
+
+### Neden?
+
+| Yaklaşım | Sorun |
+|-----------|-------|
+| Enum kalır, flow sadece geçiş kural tanımlar | Yeni state = code change + rebuild + redeploy → Designer anlamsız olur |
+| Enum kalkar, her yer raw string | Type safety yok, `if (status == "Done")` → typo riski |
+| **✅ String + Semantic Flags** | Dinamik state ekleme + flag'lerle anlamsal kontrol |
+
+### Kural: Kod asla state ADINI kontrol etmez
+
+```csharp
+// ❌ YANLIŞ
+if (ticket.Status == "Done") { StopSlaTimer(); }
+
+// ✅ DOĞRU — semantic flag kontrolü
+var stateDef = flow.States.First(s => s.Name == ticket.Status);
+if (stateDef.IsTerminal) { StopSlaTimer(); }
+```
+
+### Semantic Flag'ler
+
+| Flag | Tip | Anlamı | Kod davranışı |
+|------|-----|--------|--------------|
+| `IsInitial` | bool | Başlangıç state'i | Yeni entity oluşturulduğunda bu state atanır |
+| `IsTerminal` | bool | Bitiş state'i | SLA durdur, resolved say, raporlarda "kapalı" |
+| `Category` | string | Gruplama | `Active` / `Waiting` / `Closed` → dashboard, filtreleme |
+| `IsPaused` | bool | Beklemede mi? | SLA saatini duraklat (SLA timer freeze) |
+
+### Migration: Enum → String
+
+```sql
+-- Mevcut enum değerleri zaten string'e dönüştürülebilir
+-- TicketStatus.InProgress.ToString() == "InProgress"
+ALTER TABLE req.tickets ALTER COLUMN "Status" TYPE varchar(50);
+```
+
+---
+
+## Potansiyel Riskler & Koruma Önlemleri
+
+### Risk 1: Admin yanlışlıkla aktif state'i siler
+
+```
+"InProgress" state'inde 15 talep var → Admin state'i silmek istedi
+```
+
+**Koruma:**
+- Published flow readonly'dir, sadece Draft'ta değişiklik yapılabilir
+- Publish öncesi validasyon: silinen state'te aktif entity var mı kontrol et
+- Varsa uyarı göster: "Bu state'te 15 talep var. Önce bu talepleri başka state'e taşıyın."
+
+### Risk 2: State adı değiştirildi, mevcut entity'ler orphan kalır
+
+```
+"InProgress" → "Working" olarak yeniden adlandırıldı
+Ama DB'de hala Status = "InProgress" olan entity'ler var
+```
+
+**Koruma:**
+- State adı değiştirme = yeni versiyon gerektirir (mevcut state silinir + yeni eklenir)
+- Publish sırasında uyumluluk raporu: "Eski versiyondaki 'InProgress' state'ine karşılık yeni versiyonda state bulunamadı"
+- Admin mapping tanımlar: `InProgress → Working` (migrasyon sırasında otomatik güncellenir)
+
+### Risk 3: Flow tanımı olmadan entity oluşturma
+
+```
+EntityType = "Ticket" için Published flow yok → Ticket oluşturulamaz
+```
+
+**Koruma:**
+- `CreateTicket` handler'ı Published flow yoksa hata döner: "Bu entity tipi için aktif akış tanımı bulunamadı"
+- Seed data ile varsayılan akışlar otomatik oluşturulur (Ticket, WorkItem)
+- Admin panelde uyarı: "Yayınlanmış akış yok, yeni talep oluşturulamaz"
+
+### Risk 4: Performans — her state geçişinde DB'den flow yükleme
+
+```
+Her geçişte: Flow + States + Transitions → 3 tablo join
+```
+
+**Koruma:**
+- Flow tanımları nadiren değişir → **In-memory cache** (IMemoryCache, 5 dk TTL)
+- Publish/Archive olduğunda cache invalidate
+- Flow yükleme zaten hafif: ~3-10 state, ~5-15 transition = küçük veri seti
+
+### Risk 5: String karşılaştırmada büyük-küçük harf uyumsuzluğu
+
+```
+DB: Status = "inprogress" vs Flow state: "InProgress"
+```
+
+**Koruma:**
+- State name'ler her zaman **PascalCase** zorunluluğu (validation)
+- DB'ye yazarken ve flow'dan okurken `StringComparison.OrdinalIgnoreCase` kullanma
+- Alternatif: state name'ler slug formatında (`in-progress`) — typo riski azalır
+
+### Risk 6: Birden fazla Published flow aynı EntityType için
+
+```
+EntityType = "Ticket" için 2 tane Published flow var → hangisi kullanılacak?
+```
+
+**Koruma:**
+- DB constraint: `UNIQUE(EntityType, Status) WHERE Status = 'Published'` (partial unique index)
+- Publish komutu önceki Published'ı otomatik Archived yapar
+- Uygulama seviyesi validasyon: PublishFlowCommand içinde kontrol
+
+---
+
 ## Mimari Genel Bakış
 
 ```
@@ -77,6 +192,8 @@ StateFlowDefinition (Akış Tanımı)
 │   ├── Icon: string?          → "circle", "clock", "check"
 │   ├── IsInitial: bool        → İlk durum mu?
 │   ├── IsTerminal: bool       → Son durum mu? (Done, Cancelled)
+│   ├── IsPaused: bool         → Beklemede mi? (SLA freeze)
+│   ├── Category: string       → "Active", "Waiting", "Closed"
 │   ├── PositionX: double      → Designer canvas X koordinatı
 │   ├── PositionY: double      → Designer canvas Y koordinatı
 │   ├── SortOrder: int
