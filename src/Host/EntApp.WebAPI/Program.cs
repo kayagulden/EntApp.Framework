@@ -20,6 +20,7 @@ using EntApp.Modules.Sales.Infrastructure.Endpoints;
 using EntApp.Modules.Procurement.Infrastructure.Endpoints;
 using EntApp.Modules.TaskManagement.Infrastructure.Endpoints;
 using EntApp.Modules.RequestManagement.Infrastructure.Endpoints;
+using EntApp.Modules.StateFlow.Infrastructure.Endpoints;
 using EntApp.WebAPI.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -262,7 +263,8 @@ try
         typeof(EntApp.Modules.Notification.Infrastructure.NotificationModuleInstaller).Assembly,
         typeof(EntApp.Modules.Localization.Infrastructure.LocalizationModuleInstaller).Assembly,
         typeof(EntApp.Modules.FileManagement.Infrastructure.FileModuleInstaller).Assembly,
-        typeof(EntApp.Modules.RequestManagement.Infrastructure.RequestManagementModuleInstaller).Assembly
+        typeof(EntApp.Modules.RequestManagement.Infrastructure.RequestManagementModuleInstaller).Assembly,
+        typeof(EntApp.Modules.StateFlow.Infrastructure.StateFlowModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
@@ -371,6 +373,7 @@ try
         await EnsureModuleTables<EntApp.Modules.Localization.Infrastructure.Persistence.LocalizationDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.FileManagement.Infrastructure.Persistence.FileDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.StateFlow.Infrastructure.Persistence.StateFlowDbContext>(sp);
 
         // Elsa Workflows — eksik kolonları ekle (versiyon güncellemesi sonrası)
         try
@@ -500,6 +503,7 @@ try
     app.MapTaskManagementEndpoints();
     app.MapRequestManagementEndpoints();
     app.MapServiceQueueEndpoints();
+    app.MapStateFlowEndpoints();
     app.MapOrganizationEndpoints();
     app.MapAdminEndpoints();
     app.MapTenantManageEndpoints();
