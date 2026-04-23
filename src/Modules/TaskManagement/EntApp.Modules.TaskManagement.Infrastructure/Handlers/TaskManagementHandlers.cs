@@ -1159,7 +1159,9 @@ public sealed class CreateSprintCommandHandler(TaskManagementDbContext db) : IRe
         _ = await db.Projects.FindAsync([projectId], ct)
             ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
         var sprint = SprintBase.Create(projectId, request.Name,
-            request.StartDate, request.EndDate, request.Goal, request.CapacityPoints);
+            DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
+            DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
+            request.Goal, request.CapacityPoints);
         db.Sprints.Add(sprint);
         await db.SaveChangesAsync(ct);
         return sprint.Id.Value;
@@ -1172,7 +1174,10 @@ public sealed class UpdateSprintCommandHandler(TaskManagementDbContext db) : IRe
     {
         var sprint = await db.Sprints.FindAsync([new SprintId(request.SprintId)], ct)
             ?? throw new KeyNotFoundException($"Sprint {request.SprintId} not found");
-        sprint.Update(request.Name, request.Goal, request.StartDate, request.EndDate, request.CapacityPoints);
+        sprint.Update(request.Name, request.Goal,
+            request.StartDate.HasValue ? DateTime.SpecifyKind(request.StartDate.Value, DateTimeKind.Utc) : null,
+            request.EndDate.HasValue ? DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc) : null,
+            request.CapacityPoints);
         await db.SaveChangesAsync(ct);
         return sprint.Id.Value;
     }
@@ -1363,6 +1368,66 @@ public sealed class GetBurndownQueryHandler(TaskManagementDbContext db)
         return new BurndownChartDto(
             sprint.PlannedPoints, sprint.StartDate, sprint.EndDate,
             dataPoints);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// METRICS SUMMARY HANDLER
+// ══════════════════════════════════════════════════════════════
+
+public sealed class GetMetricsSummaryQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetMetricsSummaryQuery, MetricsSummaryDto>
+{
+    public async Task<MetricsSummaryDto> Handle(GetMetricsSummaryQuery request, CancellationToken ct)
+    {
+        var pid = new ProjectId(request.ProjectId);
+        var items = await db.WorkItems
+            .Where(t => t.ProjectId.HasValue && t.ProjectId == pid)
+            .Select(t => new
+            {
+                t.StoryPoints,
+                Status = t.Status.ToString(),
+                Type = t.Type.ToString(),
+                Priority = t.Priority.ToString(),
+                t.StartedAt, t.CompletedAt, t.CreatedAt
+            }).ToListAsync(ct);
+
+        var totalSp = items.Where(i => i.StoryPoints.HasValue).Sum(i => i.StoryPoints!.Value);
+        var completedSp = items.Where(i => i.Status == "Done" && i.StoryPoints.HasValue)
+            .Sum(i => i.StoryPoints!.Value);
+        var activeItems = items.Count(i => i.Status is "InProgress" or "InReview" or "Testing");
+
+        var byType = items.GroupBy(i => i.Type).ToDictionary(g => g.Key, g => g.Count());
+        var byStatus = items.GroupBy(i => i.Status).ToDictionary(g => g.Key, g => g.Count());
+        var byPriority = items.GroupBy(i => i.Priority).ToDictionary(g => g.Key, g => g.Count());
+
+        // Velocity ortalaması
+        var completedSprints = await db.Sprints
+            .Where(s => s.ProjectId == pid && s.Status == SprintStatus.Completed)
+            .Select(s => s.CompletedPoints)
+            .ToListAsync(ct);
+        var avgVelocity = completedSprints.Count > 0
+            ? (decimal)completedSprints.Sum() / completedSprints.Count
+            : 0m;
+
+        // Kanban metrikleri — tamamlanmış iş kalemleri üzerinden
+        var completedItems = items.Where(i => i.CompletedAt.HasValue).ToList();
+
+        decimal? avgLeadTime = completedItems.Count > 0
+            ? (decimal)completedItems.Average(i => (i.CompletedAt!.Value - i.CreatedAt).TotalDays)
+            : null;
+
+        var cycleItems = completedItems.Where(i => i.StartedAt.HasValue).ToList();
+        decimal? avgCycleTime = cycleItems.Count > 0
+            ? (decimal)cycleItems.Average(i => (i.CompletedAt!.Value - i.StartedAt!.Value).TotalDays)
+            : null;
+
+        return new MetricsSummaryDto(
+            totalSp, completedSp,
+            items.Count, activeItems,
+            avgVelocity,
+            byType, byStatus, byPriority,
+            avgLeadTime, avgCycleTime);
     }
 }
 

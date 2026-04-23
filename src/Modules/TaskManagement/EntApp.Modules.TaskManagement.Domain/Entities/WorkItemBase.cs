@@ -86,6 +86,13 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     /// <summary>Hiyerarşi derinliği cache'i — 0:Epic, 1:Feature, 2:Story, 3:Task.</summary>
     public int HierarchyLevel { get; private set; }
 
+    // ── Kanban Metrikleri Timestamp'leri ──────────────────────
+    /// <summary>İlk kez InProgress'e geçtiği an (Cycle Time başlangıcı).</summary>
+    public DateTime? StartedAt { get; private set; }
+
+    /// <summary>Done/Cancelled'a geçtiği an (Lead Time & Cycle Time bitişi).</summary>
+    public DateTime? CompletedAt { get; private set; }
+
     public Guid TenantId { get; set; }
 
     // Navigation
@@ -171,7 +178,22 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
         };
     }
 
-    public void MoveTo(WorkItemStatusEnum status) => Status = status;
+    public void MoveTo(WorkItemStatusEnum status)
+    {
+        // Cycle Time: ilk kez "işe başlama" durumuna geçtiğinde StartedAt set edilir
+        if (StartedAt is null && status == WorkItemStatusEnum.InProgress)
+            StartedAt = DateTime.UtcNow;
+
+        // Lead Time / Cycle Time bitişi: terminal duruma geçtiğinde
+        if (CompletedAt is null && status is WorkItemStatusEnum.Done or WorkItemStatusEnum.Cancelled)
+            CompletedAt = DateTime.UtcNow;
+
+        // Eğer terminal durumdan geri açılırsa CompletedAt sıfırlanır
+        if (CompletedAt.HasValue && status is not (WorkItemStatusEnum.Done or WorkItemStatusEnum.Cancelled))
+            CompletedAt = null;
+
+        Status = status;
+    }
     public void AssignTo(Guid userId) => AssigneeUserId = userId;
     public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;

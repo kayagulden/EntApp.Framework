@@ -153,6 +153,18 @@ public sealed record BurndownChartDto(int PlannedPoints, DateTime StartDate, Dat
 public sealed record BurndownPointDto(DateTime Date, int RemainingPoints, int CompletedPoints,
     int TotalItems, int CompletedItems);
 
+// ── Metrics Summary ─────────────────────────────────────────
+public sealed record GetMetricsSummaryQuery(Guid ProjectId) : IRequest<MetricsSummaryDto>;
+public sealed record MetricsSummaryDto(
+    int TotalStoryPoints, int CompletedStoryPoints,
+    int TotalWorkItems, int ActiveWorkItems,
+    decimal AverageVelocity,
+    Dictionary<string, int> ByType,
+    Dictionary<string, int> ByStatus,
+    Dictionary<string, int> ByPriority,
+    decimal? AverageLeadTimeDays,
+    decimal? AverageCycleTimeDays);
+
 // ── Backlog ─────────────────────────────────────────────────
 /// <summary>Proje backlog'unu flat veya tree olarak getirir.</summary>
 public sealed record GetBacklogQuery(Guid ProjectId,

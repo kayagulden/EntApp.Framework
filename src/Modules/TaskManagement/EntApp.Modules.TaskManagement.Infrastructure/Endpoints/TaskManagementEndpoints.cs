@@ -374,6 +374,10 @@ public static class TaskManagementEndpoints
             Results.Ok(await mediator.Send(new GetBurndownQuery(sprintId))))
             .WithName("GetBurndown").WithSummary("Sprint burndown (line chart data)");
 
+        metrics.MapGet("/projects/{projectId:guid}/metrics-summary", async (Guid projectId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new GetMetricsSummaryQuery(projectId))))
+            .WithName("GetMetricsSummary").WithSummary("Proje metrik özeti (dağılım, kanban metrikleri)");
+
         return app;
     }
 }

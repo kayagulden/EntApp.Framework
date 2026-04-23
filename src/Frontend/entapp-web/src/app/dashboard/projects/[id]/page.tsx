@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
   Loader2, CheckCircle2, PauseCircle, RotateCcw, AlertCircle,
   Briefcase, Edit3, Save, X, ListTodo, Layout, Milestone, Archive,
   ChevronRight, ChevronDown, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
-  Table2, TreePine, Filter, Search, RefreshCw,
+  Table2, TreePine, Filter, Search, RefreshCw, Timer, Play, Square, XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -98,11 +99,12 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config — kategori bazlı filtreleme
-type TabKey = "overview" | "workitems" | "board" | "metrics" | "milestones";
+type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
   { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
   { key: "board", label: "Board", icon: Layout, categories: ["all"] },
+  { key: "sprints", label: "Sprintler", icon: Timer, categories: ["all"] },
   { key: "metrics", label: "Metrikler", icon: BarChart3, categories: ["all"] },
   { key: "milestones", label: "Milestones", icon: Milestone, categories: ["all"] },
 ];
@@ -154,6 +156,59 @@ const STATUS_LABELS: Record<string,{label:string;color:string}> = {
 interface BoardColumnData { id: string; name: string; order: number; mappedStatus: string; wipLimit?: number | null; }
 interface BoardWorkItem { id: string; workItemNumber: string; title: string; type: string; status: string; priority: string; storyPoints?: number; assigneeUserId?: string; }
 interface VelocityData { sprintId: string; sprintName: string; plannedPoints: number; completedPoints: number; startDate: string; endDate: string; }
+interface MetricsSummary {
+  totalStoryPoints: number; completedStoryPoints: number;
+  totalWorkItems: number; activeWorkItems: number;
+  averageVelocity: number;
+  byType: Record<string, number>; byStatus: Record<string, number>; byPriority: Record<string, number>;
+  averageLeadTimeDays: number | null; averageCycleTimeDays: number | null;
+}
+interface BurndownData {
+  plannedPoints: number; startDate: string; endDate: string;
+  dataPoints: { date: string; remainingPoints: number; completedPoints: number; totalItems: number; completedItems: number }[];
+}
+interface SprintOption { id: string; name: string; status: string; }
+
+// Recharts (SSR uyumlu dynamic import)
+const RechartsLine = dynamic(() => import("recharts").then(m => {
+  const { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } = m;
+  return function BurndownChart({ data, ideal }: { data: { date: string; remaining: number; completed: number }[]; ideal: { date: string; ideal: number }[] }) {
+    const merged = ideal.map((p, i) => ({ ...p, ...data.find(d => d.date === p.date), remaining: data.find(d => d.date === p.date)?.remaining ?? null }));
+    return (
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={merged} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} />
+          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} />
+          <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Line type="monotone" dataKey="ideal" stroke="#6366f1" strokeDasharray="5 5" name="İdeal" dot={false} strokeWidth={2} />
+          <Line type="monotone" dataKey="remaining" stroke="#f59e0b" name="Kalan SP" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+}), { ssr: false, loading: () => <div className="h-80 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div> });
+
+const RechartsBar = dynamic(() => import("recharts").then(m => {
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } = m;
+  return function VelocityChart({ data, avg }: { data: { name: string; planned: number; completed: number }[]; avg: number }) {
+    return (
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} />
+          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} />
+          <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <ReferenceLine y={avg} stroke="#a78bfa" strokeDasharray="3 3" label={{ value: `Ort: ${avg.toFixed(0)}`, fill: "#a78bfa", fontSize: 10 }} />
+          <Bar dataKey="planned" fill="#6366f1" name="Planlanan" radius={[4, 4, 0, 0]} opacity={0.6} />
+          <Bar dataKey="completed" fill="#10b981" name="Tamamlanan" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+}), { ssr: false, loading: () => <div className="h-72 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div> });
 
 const TYPE_ICONS: Record<string,string> = { Task:"📋", Bug:"🐛", Feature:"🏗", Improvement:"⚡", Epic:"🎯", UserStory:"📖", TechDebt:"🔧", Spike:"🔬" };
 const PRIORITY_COLORS: Record<string,string> = { Critical:"bg-red-500", High:"bg-orange-500", Medium:"bg-yellow-500", Low:"bg-blue-500", None:"bg-gray-500" };
@@ -206,7 +261,12 @@ export default function ProjectDetailPage() {
 
   // Metrics state
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
+  const [metricsSummary, setMetricsSummary] = useState<MetricsSummary | null>(null);
+  const [burndown, setBurndown] = useState<BurndownData | null>(null);
+  const [metricsSprints, setMetricsSprints] = useState<SprintOption[]>([]);
+  const [selectedSprintId, setSelectedSprintId] = useState("");
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [burndownLoading, setBurndownLoading] = useState(false);
 
   // WorkItems state
   const [workItems, setWorkItems] = useState<BacklogWorkItem[]>([]);
@@ -219,6 +279,9 @@ export default function ProjectDetailPage() {
   const [creating, setCreating] = useState(false);
   const [newItem, setNewItem] = useState({ title: "", type: "Task", priority: "Medium", description: "", storyPoints: "" });
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // Sprints state (for backlog inline dropdown)
+  const [backlogSprints, setBacklogSprints] = useState<{id:string;name:string;status:string}[]>([]);
 
   // Milestones state
   interface MilestoneItem { id: string; name: string; description?: string; status: string; dueDate: string; completedDate?: string; sortOrder: number; workItemCount: number; sprintCount: number; createdAt: string; }
@@ -339,12 +402,34 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (activeTab !== "metrics" || !projectId) return;
     setMetricsLoading(true);
-    fetch(`/api/pm/projects/${projectId}/velocity`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setVelocity(Array.isArray(data) ? data : []))
-      .catch(() => setVelocity([]))
-      .finally(() => setMetricsLoading(false));
+    Promise.all([
+      fetch(`/api/pm/projects/${projectId}/velocity`).then(r => r.ok ? r.json() : []),
+      fetch(`/api/pm/projects/${projectId}/metrics-summary`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/pm/projects/${projectId}/sprints`).then(r => r.ok ? r.json() : []),
+    ]).then(([vel, summary, sprints]) => {
+      setVelocity(Array.isArray(vel) ? vel : []);
+      setMetricsSummary(summary);
+      const sprintList = Array.isArray(sprints) ? sprints : [];
+      setMetricsSprints(sprintList);
+      // Auto-select first active or latest sprint
+      if (!selectedSprintId && sprintList.length > 0) {
+        const active = sprintList.find((s: SprintOption) => s.status === "Active");
+        setSelectedSprintId(active ? active.id : sprintList[sprintList.length - 1].id);
+      }
+    }).catch(() => {})
+    .finally(() => setMetricsLoading(false));
   }, [activeTab, projectId]);
+
+  // Fetch burndown when sprint selected
+  useEffect(() => {
+    if (!selectedSprintId) return;
+    setBurndownLoading(true);
+    fetch(`/api/pm/sprints/${selectedSprintId}/burndown`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setBurndown(data))
+      .catch(() => setBurndown(null))
+      .finally(() => setBurndownLoading(false));
+  }, [selectedSprintId]);
 
   // Fetch work items
   const fetchWorkItems = useCallback(async () => {
@@ -364,8 +449,26 @@ export default function ProjectDetailPage() {
   }, [projectId, workItemView, wiTypeFilter, wiStatusFilter]);
 
   useEffect(() => {
-    if (activeTab === "workitems") fetchWorkItems();
-  }, [activeTab, fetchWorkItems]);
+    if (activeTab === "workitems") {
+      fetchWorkItems();
+      // Fetch sprints for inline assignment dropdown
+      fetch(`/api/pm/projects/${projectId}/sprints`)
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setBacklogSprints(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }
+  }, [activeTab, fetchWorkItems, projectId]);
+
+  const handleSprintAssign = async (workItemId: string, sprintId: string | null) => {
+    try {
+      await fetch(`/api/pm/work-items/${workItemId}/sprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sprintId: sprintId || null }),
+      });
+      fetchWorkItems();
+    } catch { /* */ }
+  };
 
   const createWorkItem = async () => {
     if (!newItem.title.trim() || !projectId) return;
@@ -914,6 +1017,7 @@ export default function ProjectDetailPage() {
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Öncelik</th>
                     <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SP</th>
                     <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">WSJF</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Sprint</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -953,6 +1057,18 @@ export default function ProjectDetailPage() {
                           {item.wsjfScore != null && item.wsjfScore > 0 ? (
                             <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">{item.wsjfScore.toFixed(1)}</span>
                           ) : <span className="text-[10px] text-[var(--color-text-muted)]">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                          <select
+                            className="text-[10px] rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-1.5 py-0.5 w-24 truncate"
+                            value={item.sprintId || ""}
+                            onChange={e => handleSprintAssign(itemId, e.target.value || null)}
+                          >
+                            <option value="">—</option>
+                            {backlogSprints.filter(s => s.status !== "Completed" && s.status !== "Cancelled").map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
                         </td>
                       </tr>
                     );
@@ -1130,48 +1246,183 @@ export default function ProjectDetailPage() {
         <div className="space-y-6">
           {metricsLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
-          ) : velocity.length === 0 ? (
-            <div className="text-center py-12 text-[var(--color-text-muted)]">
-              <BarChart3 className="w-10 h-10 mx-auto opacity-30 mb-2" />
-              <p className="text-sm">Tamamlanmış sprint bulunamadı</p>
-              <p className="text-[11px] mt-1">Sprint tamamlandığında velocity verileri burada görünecek</p>
-            </div>
           ) : (
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-indigo-400" /> Velocity Chart
-              </h3>
-              <div className="flex items-end gap-3 h-48">
-                {velocity.map(v => {
-                  const maxPts = Math.max(...velocity.map(x => Math.max(x.plannedPoints, x.completedPoints)), 1);
-                  const pctPlanned = (v.plannedPoints / maxPts) * 100;
-                  const pctCompleted = (v.completedPoints / maxPts) * 100;
-                  return (
-                    <div key={v.sprintId} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="flex items-end gap-1 w-full h-40">
-                        <div className="flex-1 rounded-t-md bg-indigo-500/20 border border-indigo-500/30 transition-all" style={{ height: `${pctPlanned}%` }} title={`Planlanan: ${v.plannedPoints} SP`} />
-                        <div className="flex-1 rounded-t-md bg-emerald-500/40 border border-emerald-500/50 transition-all" style={{ height: `${pctCompleted}%` }} title={`Tamamlanan: ${v.completedPoints} SP`} />
-                      </div>
-                      <span className="text-[9px] text-[var(--color-text-muted)] text-center truncate w-full">{v.sprintName}</span>
-                      <span className="text-[10px] font-mono text-emerald-400">{v.completedPoints} SP</span>
+            <>
+              {/* ── Özet Kartları ──────────────────────────── */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Toplam SP", value: metricsSummary?.totalStoryPoints ?? 0, icon: "⚡", color: "from-indigo-500/20 to-indigo-600/5 border-indigo-500/20" },
+                  { label: "Tamamlanan SP", value: metricsSummary?.completedStoryPoints ?? 0, icon: "✅", color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20" },
+                  { label: "Ort. Velocity", value: `${(metricsSummary?.averageVelocity ?? 0).toFixed(1)} SP`, icon: "🚀", color: "from-violet-500/20 to-violet-600/5 border-violet-500/20" },
+                  { label: "Aktif İş Kalemi", value: metricsSummary?.activeWorkItems ?? 0, icon: "🔄", color: "from-amber-500/20 to-amber-600/5 border-amber-500/20" },
+                ].map(card => (
+                  <div key={card.label} className={`rounded-xl border bg-gradient-to-br ${card.color} p-5 flex items-start gap-3`}>
+                    <span className="text-2xl">{card.icon}</span>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1">{card.label}</p>
+                      <p className="text-2xl font-bold text-[var(--color-text)]">{card.value}</p>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[var(--color-border)]">
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
-                  <span className="w-3 h-3 rounded bg-indigo-500/20 border border-indigo-500/30" /> Planlanan
+
+              {/* ── Kanban Metrikleri (Lead Time & Cycle Time) ─── */}
+              {(metricsSummary?.averageLeadTimeDays !== null || metricsSummary?.averageCycleTimeDays !== null) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-transparent p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">📊</span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400">Ort. Lead Time</span>
+                    </div>
+                    <p className="text-3xl font-bold text-[var(--color-text)]">
+                      {metricsSummary?.averageLeadTimeDays != null ? `${metricsSummary.averageLeadTimeDays.toFixed(1)} gün` : "—"}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Oluşturma → Tamamlanma arası ortalama süre</p>
+                  </div>
+                  <div className="rounded-xl border border-teal-500/20 bg-gradient-to-br from-teal-500/10 to-transparent p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">⏱️</span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-teal-400">Ort. Cycle Time</span>
+                    </div>
+                    <p className="text-3xl font-bold text-[var(--color-text)]">
+                      {metricsSummary?.averageCycleTimeDays != null ? `${metricsSummary.averageCycleTimeDays.toFixed(1)} gün` : "—"}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">İlk başlama → Tamamlanma arası ortalama süre</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)]">
-                  <span className="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-500/50" /> Tamamlanan
-                </div>
-                <span className="ml-auto text-[10px] text-[var(--color-text-muted)]">
-                  Ort. Velocity: {Math.round(velocity.reduce((s,v) => s + v.completedPoints, 0) / velocity.length)} SP
-                </span>
+              )}
+
+              {/* ── Velocity Chart ─────────────────────────── */}
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
+                <h3 className="text-sm font-semibold text-[var(--color-text)] mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-400" /> Velocity Chart
+                </h3>
+                {velocity.length === 0 ? (
+                  <div className="text-center py-10 text-[var(--color-text-muted)]">
+                    <BarChart3 className="w-8 h-8 mx-auto opacity-20 mb-2" />
+                    <p className="text-xs">Tamamlanmış sprint bulunamadı</p>
+                    <p className="text-[10px] mt-1">Sprint tamamlandığında velocity verileri burada görünecek</p>
+                  </div>
+                ) : (
+                  <RechartsBar
+                    data={velocity.map(v => ({ name: v.sprintName, planned: v.plannedPoints, completed: v.completedPoints }))}
+                    avg={velocity.length > 0 ? velocity.reduce((s, v) => s + v.completedPoints, 0) / velocity.length : 0}
+                  />
+                )}
               </div>
-            </div>
+
+              {/* ── Burndown Chart ─────────────────────────── */}
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-amber-400" /> Burndown Chart
+                  </h3>
+                  <select
+                    className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-1.5"
+                    value={selectedSprintId}
+                    onChange={e => setSelectedSprintId(e.target.value)}
+                  >
+                    <option value="">Sprint seçin...</option>
+                    {metricsSprints.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.status === "Active" ? "Aktif" : s.status === "Completed" ? "Tamamlandı" : s.status})</option>
+                    ))}
+                  </select>
+                </div>
+                {burndownLoading ? (
+                  <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-amber-400" /></div>
+                ) : !burndown || burndown.dataPoints.length === 0 ? (
+                  <div className="text-center py-10 text-[var(--color-text-muted)]">
+                    <GitBranch className="w-8 h-8 mx-auto opacity-20 mb-2" />
+                    <p className="text-xs">{selectedSprintId ? "Bu sprint için burndown verisi yok" : "Sprint seçerek burndown grafiğini görüntüleyin"}</p>
+                  </div>
+                ) : (() => {
+                  const start = new Date(burndown.startDate);
+                  const end = new Date(burndown.endDate);
+                  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+                  const idealLine = Array.from({ length: totalDays + 1 }, (_, i) => {
+                    const d = new Date(start); d.setDate(d.getDate() + i);
+                    return { date: d.toISOString().split("T")[0], ideal: Math.round(burndown.plannedPoints * (1 - i / totalDays)) };
+                  });
+                  const actual = burndown.dataPoints.map(p => ({
+                    date: new Date(p.date).toISOString().split("T")[0],
+                    remaining: p.remainingPoints, completed: p.completedPoints,
+                  }));
+                  return <RechartsLine data={actual} ideal={idealLine} />;
+                })()}
+              </div>
+
+              {/* ── Dağılım Grafikleri ─────────────────────── */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Tip Dağılımı */}
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Tip Dağılımı</h4>
+                  {metricsSummary && Object.entries(metricsSummary.byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
+                    const total = metricsSummary.totalWorkItems || 1;
+                    const pct = (count / total) * 100;
+                    return (
+                      <div key={type} className="mb-3">
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="text-[var(--color-text)]">{TYPE_ICONS[type] || "📋"} {type}</span>
+                          <span className="text-[var(--color-text-muted)]">{count} ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
+                          <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Durum Dağılımı */}
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Durum Dağılımı</h4>
+                  {metricsSummary && Object.entries(metricsSummary.byStatus).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
+                    const total = metricsSummary.totalWorkItems || 1;
+                    const pct = (count / total) * 100;
+                    const statusColors: Record<string, string> = { Backlog: "bg-slate-500", InProgress: "bg-amber-500", Done: "bg-emerald-500", Cancelled: "bg-red-500", InReview: "bg-purple-500", Testing: "bg-cyan-500" };
+                    return (
+                      <div key={status} className="mb-3">
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="text-[var(--color-text)]">{STATUS_LABELS[status]?.label || status}</span>
+                          <span className="text-[var(--color-text-muted)]">{count} ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
+                          <div className={`h-full rounded-full ${statusColors[status] || "bg-gray-500"} transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Öncelik Dağılımı */}
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Öncelik Dağılımı</h4>
+                  {metricsSummary && Object.entries(metricsSummary.byPriority).sort((a, b) => b[1] - a[1]).map(([priority, count]) => {
+                    const total = metricsSummary.totalWorkItems || 1;
+                    const pct = (count / total) * 100;
+                    return (
+                      <div key={priority} className="mb-3">
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="text-[var(--color-text)] flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${PRIORITY_COLORS[priority] || "bg-gray-500"}`} />
+                            {priority}
+                          </span>
+                          <span className="text-[var(--color-text-muted)]">{count} ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
+                          <div className={`h-full rounded-full ${PRIORITY_COLORS[priority] || "bg-gray-500"} transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
         </div>
+      )}
+
+      {/* Sprints Tab */}
+      {activeTab === "sprints" && (
+        <SprintsTab projectId={projectId as string} />
       )}
 
       {/* Milestones Tab */}
@@ -1566,3 +1817,355 @@ function TreeNode({ item, depth, getItemId, expandedNodes, toggleNode, router }:
   );
 }
 
+// ── Sprints Tab Component ───────────────────────────────────
+
+const SPRINT_STATUS_CONFIG: Record<string, { label: string; color: string; icon: string; bgClass: string }> = {
+  Planning: { label: "Planlama", color: "text-blue-400", icon: "📋", bgClass: "bg-blue-500/10 border-blue-500/20" },
+  Active: { label: "Aktif", color: "text-emerald-400", icon: "🚀", bgClass: "bg-emerald-500/10 border-emerald-500/20" },
+  Completed: { label: "Tamamlandı", color: "text-teal-400", icon: "✅", bgClass: "bg-teal-500/10 border-teal-500/20" },
+  Cancelled: { label: "İptal", color: "text-gray-400", icon: "🚫", bgClass: "bg-gray-500/10 border-gray-500/20" },
+};
+
+interface SprintListItem {
+  id: string; name: string; goal?: string; status: string;
+  startDate: string; endDate: string; capacityPoints?: number;
+  projectId: string; projectKey: string;
+  workItemCount: number; totalStoryPoints?: number; createdAt: string;
+}
+
+interface SprintDetail extends SprintListItem {
+  projectName: string; updatedAt?: string;
+  workItems: { id: string; workItemNumber: string; title: string; status: string; priority: string; type: string; assigneeUserId?: string; storyPoints?: number; wsjfScore?: number }[];
+}
+
+function SprintsTab({ projectId }: { projectId: string }) {
+  const [sprints, setSprints] = useState<SprintListItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingSprint, setEditingSprint] = useState<SprintListItem | null>(null);
+  const [form, setForm] = useState({ name: "", goal: "", startDate: "", endDate: "", capacityPoints: "" });
+  const [saving, setSaving] = useState(false);
+  const [expandedSprint, setExpandedSprint] = useState<string | null>(null);
+  const [sprintDetail, setSprintDetail] = useState<SprintDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [backlogItems, setBacklogItems] = useState<{ id: string; workItemNumber: string; title: string; type: string }[]>([]);
+  const [assigningItem, setAssigningItem] = useState("");
+  const router = useRouter();
+
+  const fetchSprints = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = statusFilter ? `?status=${statusFilter}` : "";
+      const res = await fetch(`/api/pm/projects/${projectId}/sprints${params}`);
+      if (res.ok) setSprints(await res.json());
+    } catch { /* */ }
+    finally { setLoading(false); }
+  }, [projectId, statusFilter]);
+
+  useEffect(() => { fetchSprints(); }, [fetchSprints]);
+
+  const fetchSprintDetail = async (sprintId: string) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/pm/sprints/${sprintId}`);
+      if (res.ok) setSprintDetail(await res.json());
+    } catch { /* */ }
+    finally { setDetailLoading(false); }
+  };
+
+  const fetchBacklogItems = useCallback(() => {
+    fetch(`/api/pm/projects/${projectId}/backlog?view=flat`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const items = (Array.isArray(data) ? data : [])
+          .filter((i: any) => !i.sprintId)
+          .map((i: any) => ({ id: typeof i.id === "object" ? i.id.value : i.id, workItemNumber: i.workItemNumber, title: i.title, type: i.type }));
+        setBacklogItems(items);
+      }).catch(() => {});
+  }, [projectId]);
+
+  const toggleExpand = (sprintId: string) => {
+    if (expandedSprint === sprintId) {
+      setExpandedSprint(null);
+      setSprintDetail(null);
+    } else {
+      setExpandedSprint(sprintId);
+      fetchSprintDetail(sprintId);
+      fetchBacklogItems();
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.startDate || !form.endDate) return;
+    setSaving(true);
+    try {
+      if (editingSprint) {
+        await fetch(`/api/pm/sprints/${editingSprint.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: form.name, goal: form.goal || null, startDate: form.startDate, endDate: form.endDate, capacityPoints: form.capacityPoints ? parseInt(form.capacityPoints) : null }),
+        });
+      } else {
+        await fetch(`/api/pm/projects/${projectId}/sprints`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: form.name, goal: form.goal || null, startDate: form.startDate, endDate: form.endDate, capacityPoints: form.capacityPoints ? parseInt(form.capacityPoints) : null }),
+        });
+      }
+      resetForm();
+      await fetchSprints();
+    } catch { /* */ }
+    finally { setSaving(false); }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingSprint(null);
+    setForm({ name: "", goal: "", startDate: "", endDate: "", capacityPoints: "" });
+  };
+
+  const startEdit = (s: SprintListItem) => {
+    setEditingSprint(s);
+    setForm({
+      name: s.name,
+      goal: s.goal || "",
+      startDate: new Date(s.startDate).toISOString().split("T")[0],
+      endDate: new Date(s.endDate).toISOString().split("T")[0],
+      capacityPoints: s.capacityPoints?.toString() || "",
+    });
+    setShowForm(true);
+  };
+
+  const handleAction = async (sprintId: string, action: "start" | "complete") => {
+    try {
+      await fetch(`/api/pm/sprints/${sprintId}/${action}`, { method: "POST" });
+      await fetchSprints();
+      if (expandedSprint === sprintId) fetchSprintDetail(sprintId);
+    } catch { /* */ }
+  };
+
+  const handleAssignItem = async (sprintId: string) => {
+    if (!assigningItem) return;
+    try {
+      await fetch(`/api/pm/work-items/${assigningItem}/sprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sprintId }),
+      });
+      setAssigningItem("");
+      fetchSprintDetail(sprintId);
+      fetchBacklogItems();
+      fetchSprints();
+    } catch { /* */ }
+  };
+
+  const handleRemoveFromSprint = async (workItemId: string, sprintId: string) => {
+    try {
+      await fetch(`/api/pm/work-items/${workItemId}/sprint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sprintId: null }),
+      });
+      fetchSprintDetail(sprintId);
+      fetchBacklogItems();
+      fetchSprints();
+    } catch { /* */ }
+  };
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+  const daysLeft = (end: string) => { const d = Math.ceil((new Date(end).getTime() - Date.now()) / 86400000); return d > 0 ? `${d} gün kaldı` : d === 0 ? "Bugün bitiyor" : `${Math.abs(d)} gün geçti`; };
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-1.5">
+            <option value="">Tümü</option>
+            <option value="Planning">Planlama</option>
+            <option value="Active">Aktif</option>
+            <option value="Completed">Tamamlandı</option>
+          </select>
+        </div>
+        <button onClick={() => { resetForm(); setShowForm(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors">
+          <Plus className="w-3.5 h-3.5" /> Yeni Sprint
+        </button>
+      </div>
+
+      {/* Create/Edit Form */}
+      {showForm && (
+        <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-3">
+          <h4 className="text-sm font-semibold text-[var(--color-text)]">{editingSprint ? "Sprint Düzenle" : "Yeni Sprint Oluştur"}</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input placeholder="Sprint adı *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-2" />
+            <input placeholder="Kapasite (SP)" type="number" value={form.capacityPoints} onChange={e => setForm({ ...form, capacityPoints: e.target.value })}
+              className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-2" />
+            <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })}
+              className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-2" />
+            <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })}
+              className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-2" />
+          </div>
+          <textarea placeholder="Sprint hedefi (opsiyonel)" value={form.goal} onChange={e => setForm({ ...form, goal: e.target.value })}
+            className="w-full text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-2 h-16 resize-none" />
+          <div className="flex gap-2">
+            <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.startDate || !form.endDate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Kaydet
+            </button>
+            <button onClick={resetForm} className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] text-xs hover:text-[var(--color-text)]">
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sprint List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
+      ) : sprints.length === 0 ? (
+        <div className="text-center py-12 text-[var(--color-text-muted)]">
+          <Timer className="w-10 h-10 mx-auto opacity-20 mb-2" />
+          <p className="text-sm">Henüz sprint oluşturulmamış</p>
+          <p className="text-[11px] mt-1">Yukarıdaki &quot;Yeni Sprint&quot; butonuyla başlayın</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sprints.map(s => {
+            const cfg = SPRINT_STATUS_CONFIG[s.status] || SPRINT_STATUS_CONFIG.Planning;
+            const isExpanded = expandedSprint === s.id;
+            const totalSp = s.totalStoryPoints || 0;
+
+            return (
+              <div key={s.id} className={cn("rounded-xl border transition-all", isExpanded ? "border-indigo-500/40 bg-indigo-500/5" : "border-[var(--color-border)] bg-[var(--color-card-bg)]")}>
+                {/* Sprint Card Header */}
+                <div className="p-4 flex items-start gap-3 cursor-pointer" onClick={() => toggleExpand(s.id)}>
+                  <div className={cn("w-9 h-9 rounded-lg border flex items-center justify-center text-lg shrink-0", cfg.bgClass)}>
+                    {cfg.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-[var(--color-text)]">{s.name}</span>
+                      <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[9px] font-medium border", cfg.bgClass, cfg.color)}>{cfg.label}</span>
+                    </div>
+                    {s.goal && <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-1 mb-1">{s.goal}</p>}
+                    <div className="flex items-center gap-4 text-[10px] text-[var(--color-text-muted)]">
+                      <span>📅 {fmtDate(s.startDate)} → {fmtDate(s.endDate)}</span>
+                      <span>📦 {s.workItemCount} iş kalemi</span>
+                      <span>⚡ {totalSp} SP</span>
+                      {s.capacityPoints && <span>🎯 Kapasite: {s.capacityPoints} SP</span>}
+                      {s.status === "Active" && <span className="text-amber-400">{daysLeft(s.endDate)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    {s.status === "Planning" && (
+                      <>
+                        <button onClick={() => startEdit(s)} className="p-1.5 rounded-lg hover:bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]" title="Düzenle">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleAction(s.id, "start")} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-medium" title="Başlat">
+                          <Play className="w-3 h-3" /> Başlat
+                        </button>
+                      </>
+                    )}
+                    {s.status === "Active" && (
+                      <button onClick={() => handleAction(s.id, "complete")} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-medium" title="Tamamla">
+                        <Square className="w-3 h-3" /> Tamamla
+                      </button>
+                    )}
+                    <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", isExpanded && "rotate-180")} />
+                  </div>
+                </div>
+
+                {/* Sprint Detail (Expanded) */}
+                {isExpanded && (
+                  <div className="border-t border-[var(--color-border)] p-4 space-y-3">
+                    {detailLoading ? (
+                      <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /></div>
+                    ) : sprintDetail ? (
+                      <>
+                        {/* Assign Work Item */}
+                        {s.status !== "Completed" && s.status !== "Cancelled" && backlogItems.length > 0 && (
+                          <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-indigo-500/30 bg-indigo-500/5">
+                            <select value={assigningItem} onChange={e => setAssigningItem(e.target.value)}
+                              className="flex-1 text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-3 py-1.5">
+                              <option value="">Backlog&apos;dan iş kalemi seçin...</option>
+                              {backlogItems.map(i => (
+                                <option key={i.id} value={i.id}>{i.workItemNumber} — {i.title}</option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleAssignItem(s.id)} disabled={!assigningItem}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium">
+                              <Plus className="w-3 h-3" /> Ata
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Work Items Table */}
+                        {sprintDetail.workItems.length === 0 ? (
+                          <p className="text-center text-[11px] text-[var(--color-text-muted)] py-4">Bu sprint&apos;e henüz iş kalemi atanmamış</p>
+                        ) : (
+                          <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
+                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase">Numara</th>
+                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase">Başlık</th>
+                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase">Tip</th>
+                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase">Durum</th>
+                                  <th className="text-center px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase">SP</th>
+                                  <th className="text-center px-3 py-2 text-[9px] font-semibold text-[var(--color-text-muted)] uppercase w-10"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sprintDetail.workItems.map(wi => {
+                                  const wiId = typeof wi.id === "object" ? (wi.id as any).value : wi.id;
+                                  const stl = STATUS_LABELS[wi.status] || { label: wi.status, color: "bg-gray-500/20 text-gray-400" };
+                                  return (
+                                    <tr key={wiId} className="border-b border-[var(--color-border)] hover:bg-indigo-500/5 transition-colors">
+                                      <td className="px-3 py-2">
+                                        <button onClick={() => router.push(`/dashboard/tasks/${wiId}`)} className="text-[10px] font-mono text-indigo-400 hover:underline">{wi.workItemNumber}</button>
+                                      </td>
+                                      <td className="px-3 py-2 text-[var(--color-text)]">{wi.title}</td>
+                                      <td className="px-3 py-2">{TYPE_ICONS[wi.type] || "📋"} {wi.type}</td>
+                                      <td className="px-3 py-2"><span className={cn("px-2 py-0.5 rounded-full text-[9px] font-medium", stl.color)}>{stl.label}</span></td>
+                                      <td className="px-3 py-2 text-center">
+                                        {wi.storyPoints != null && wi.storyPoints > 0
+                                          ? <span className="text-[10px] font-bold text-indigo-400">{wi.storyPoints}</span>
+                                          : <span className="text-[var(--color-text-muted)]">—</span>}
+                                      </td>
+                                      <td className="px-3 py-2 text-center">
+                                        {s.status !== "Completed" && s.status !== "Cancelled" && (
+                                          <button onClick={() => handleRemoveFromSprint(wiId, s.id)} className="text-[var(--color-text-muted)] hover:text-red-400" title="Sprint&apos;ten çıkar">
+                                            <XCircle className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                            <div className="px-3 py-1.5 border-t border-[var(--color-border)] bg-[var(--color-bg)] flex items-center justify-between">
+                              <span className="text-[9px] text-[var(--color-text-muted)]">{sprintDetail.workItems.length} iş kalemi</span>
+                              <span className="text-[9px] text-indigo-400 font-medium">
+                                {sprintDetail.workItems.filter(w => w.storyPoints).reduce((sum, w) => sum + (w.storyPoints || 0), 0)} SP
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

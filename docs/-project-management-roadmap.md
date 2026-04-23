@@ -81,8 +81,10 @@
 - [x] Backend filtreleme: Done/Cancelled varsayılan hariç, sprint/assignee query parametreleri
 
 ### Metrik Gorsellestirme
-- [ ] Frontend burndown line chart gorsellestirme
-- [ ] Kanban metrikleri: Lead Time, Cycle Time, WIP yaslanma
+- [x] Frontend burndown line chart gorsellestirme (recharts, sprint selector, ideal/actual çizgileri)
+- [x] Kanban metrikleri: Lead Time, Cycle Time (StartedAt/CompletedAt timestamps, özet kartlar)
+- [x] Proje metrik özet kartları: Toplam SP, Tamamlanan SP, Ort. Velocity, Aktif İş Kalemi
+- [x] İş kalemi dağılım grafikleri: Tip, Durum, Öncelik bazlı
 
 ### Efor & Önceliklendirme
 - [x] Story Points düzenleme: Fibonacci dropdown (detay sayfası), T-Shirt gösterim modu (proje bazlı)
