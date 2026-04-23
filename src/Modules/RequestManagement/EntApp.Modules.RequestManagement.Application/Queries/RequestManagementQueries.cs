@@ -13,7 +13,7 @@ public sealed record ListSlaDefinitionsQuery(bool? ActiveOnly = true) : IRequest
 
 // ── Ticket ───────────────────────────────────────────────────
 public sealed record ListTicketsQuery(
-    TicketStatus? Status, TicketPriority? Priority,
+    string? Status, TicketPriority? Priority,
     Guid? AssigneeUserId, Guid? ReporterUserId, Guid? DepartmentId,
     Guid? ServiceQueueId = null,
     string? QueueIds = null,

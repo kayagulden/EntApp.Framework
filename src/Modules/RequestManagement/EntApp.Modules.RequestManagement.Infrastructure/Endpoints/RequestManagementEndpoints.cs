@@ -70,7 +70,7 @@ public static class RequestManagementEndpoints
         // ═══════════ Tickets ═══════════
         var tickets = app.MapGroup("/api/req/tickets").WithTags("Request Mgmt - Tickets");
 
-        tickets.MapGet("/", async (ISender mediator, TicketStatus? status, TicketPriority? priority,
+        tickets.MapGet("/", async (ISender mediator, string? status, TicketPriority? priority,
             Guid? assigneeUserId, Guid? reporterUserId, Guid? departmentId, Guid? serviceQueueId,
             string? queueIds, bool unassignedOnly = false, Guid? configurationItemId = null,
             int page = 1, int pageSize = 20) =>
@@ -203,7 +203,7 @@ public sealed record UpdateSlaRequest(string Name, string? Description, string? 
 public sealed record CreateTicketRequest(string Title, Guid CategoryId, Guid DepartmentId, string? Description, TicketPriority Priority, TicketChannel Channel, string? FormDataJson = null, Guid? ReporterUserId = null, Guid? ConfigurationItemId = null);
 public sealed record UpdateTicketRequest(string Title, string? Description, TicketPriority Priority, Guid? ConfigurationItemId = null);
 public sealed record AssignTicketRequest(Guid AssigneeUserId);
-public sealed record ChangeStatusRequest(TicketStatus NewStatus, string? Reason);
+public sealed record ChangeStatusRequest(string NewStatus, string? Reason);
 public sealed record CloseTicketRequest(string? Reason);
 public sealed record AddCommentRequest(string Content, bool IsInternal);
 public sealed record RouteTicketRequest(Guid QueueId);

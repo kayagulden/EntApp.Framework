@@ -7,6 +7,7 @@ using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Modules.RequestManagement.Infrastructure.Persistence;
 using EntApp.Modules.RequestManagement.Infrastructure.Services;
 using EntApp.Modules.StateFlow.Application.Interfaces;
+using EntApp.Modules.StateFlow.Application.Commands;
 using EntApp.Modules.StateFlow.Application.Queries;
 using EntApp.Shared.Contracts.Identity;
 using EntApp.Shared.Contracts.Messaging;
@@ -118,7 +119,7 @@ public sealed class CreateTicketHandler(
             request.FormDataJson,
             configurationItemId: request.ConfigurationItemId);
 
-        // ── StateFlow: Published akışı ata ──────────────────
+        // ── StateFlow: Published akışı ata ve başlangıç geçişini tetikle ──
         try
         {
             var publishedFlow = await mediator.Send(
@@ -126,6 +127,27 @@ public sealed class CreateTicketHandler(
             if (publishedFlow is not null)
             {
                 ticket.SetFlowDefinition(publishedFlow.Id);
+
+                // Başlangıç geçişini tetikle: New → WaitForAssignment
+                var initialState = publishedFlow.States.FirstOrDefault(s => s.IsInitial);
+                if (initialState != null)
+                {
+                    try
+                    {
+                        var newState = await mediator.Send(
+                            new FireTransitionCommand("Ticket", initialState.Name, "Submit", publishedFlow.Id), ct);
+                        ticket.ChangeStatus(newState, reporterUserId, "Otomatik başlangıç geçişi");
+                        logger.LogInformation(
+                            "StateFlow initial transition: Ticket {Number} → {State}",
+                            number, newState);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex,
+                            "StateFlow initial transition failed for ticket {Number} — staying at {State}",
+                            number, initialState.Name);
+                    }
+                }
             }
             else
             {
@@ -227,8 +249,8 @@ public sealed class ChangeTicketStatusHandler(
         // ── StateFlow validasyonu ────────────────────────────
         if (ticket.FlowDefinitionId.HasValue)
         {
-            var currentState = ticket.Status.ToString();
-            var targetState = request.NewStatus.ToString();
+            var currentState = ticket.Status;
+            var targetState = request.NewStatus;
 
             // Trigger'ı bul: currentState → targetState geçişinin trigger adı
             var allowedTriggers = await stateFlowEngine.GetAllowedTriggersAsync(
@@ -253,7 +275,7 @@ public sealed class ChangeTicketStatusHandler(
         ticket.ChangeStatus(request.NewStatus, currentUser.UserId, request.Reason);
         await db.SaveChangesAsync(ct);
 
-        if (request.NewStatus == TicketStatus.Resolved)
+        if (request.NewStatus == TicketStates.Resolved)
         {
             await eventBus.PublishAsync(new TicketResolvedEvent(
                 ticket.Id.Value, ticket.Number,
@@ -273,7 +295,7 @@ public sealed class CloseTicketHandler(RequestManagementDbContext db, ICurrentUs
             .FirstOrDefaultAsync(t => t.Id == new TicketId(request.TicketId), ct)
             ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
 
-        ticket.ChangeStatus(TicketStatus.Closed, currentUser.UserId, request.Reason);
+        ticket.ChangeStatus(TicketStates.Closed, currentUser.UserId, request.Reason);
         await db.SaveChangesAsync(ct);
     }
 }
@@ -362,7 +384,7 @@ public sealed class ListTicketsHandler(RequestManagementDbContext db)
             .Include(t => t.ServiceQueue)
             .AsQueryable();
 
-        if (request.Status.HasValue) query = query.Where(t => t.Status == request.Status.Value);
+        if (!string.IsNullOrEmpty(request.Status)) query = query.Where(t => t.Status == request.Status);
         if (request.Priority.HasValue) query = query.Where(t => t.Priority == request.Priority.Value);
         if (request.AssigneeUserId.HasValue) query = query.Where(t => t.AssigneeUserId == request.AssigneeUserId.Value);
         if (request.ReporterUserId.HasValue) query = query.Where(t => t.ReporterUserId == request.ReporterUserId.Value);
@@ -539,7 +561,7 @@ public sealed class GetMyQueuesHandler(RequestManagementDbContext db)
         // Tüm aktif ticket'ları queue bazlı gruplayarak çek
         var allQueueTickets = await db.Tickets
             .Where(t => t.ServiceQueueId.HasValue
-                && t.Status != TicketStatus.Closed && t.Status != TicketStatus.Cancelled)
+                && t.Status != TicketStates.Closed && t.Status != TicketStates.Cancelled)
             .GroupBy(t => t.ServiceQueueId!.Value)
             .Select(g => new
             {

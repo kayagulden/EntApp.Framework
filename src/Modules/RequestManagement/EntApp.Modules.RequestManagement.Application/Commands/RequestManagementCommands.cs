@@ -42,7 +42,7 @@ public sealed record UpdateTicketCommand(
 public sealed record AssignTicketCommand(Guid TicketId, Guid AssigneeUserId) : IRequest;
 
 public sealed record ChangeTicketStatusCommand(
-    Guid TicketId, TicketStatus NewStatus, string? Reason) : IRequest;
+    Guid TicketId, string NewStatus, string? Reason) : IRequest;
 
 public sealed record CloseTicketCommand(Guid TicketId, string? Reason) : IRequest;
 

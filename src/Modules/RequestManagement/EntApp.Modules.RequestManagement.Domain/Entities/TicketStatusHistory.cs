@@ -1,4 +1,3 @@
-using EntApp.Modules.RequestManagement.Domain.Enums;
 using EntApp.Modules.RequestManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 
@@ -8,8 +7,8 @@ namespace EntApp.Modules.RequestManagement.Domain.Entities;
 public sealed class TicketStatusHistory : BaseEntity<TicketStatusHistoryId>
 {
     public TicketId TicketId { get; private set; }
-    public TicketStatus OldStatus { get; private set; }
-    public TicketStatus NewStatus { get; private set; }
+    public string OldStatus { get; private set; } = string.Empty;
+    public string NewStatus { get; private set; } = string.Empty;
     public Guid ChangedByUserId { get; private set; }
     public DateTime ChangedAt { get; private set; }
     public string? Reason { get; private set; }
@@ -19,7 +18,7 @@ public sealed class TicketStatusHistory : BaseEntity<TicketStatusHistoryId>
 
     private TicketStatusHistory() { }
 
-    public static TicketStatusHistory Create(TicketId ticketId, TicketStatus oldStatus, TicketStatus newStatus,
+    public static TicketStatusHistory Create(TicketId ticketId, string oldStatus, string newStatus,
         Guid changedByUserId, string? reason = null)
     {
         return new TicketStatusHistory

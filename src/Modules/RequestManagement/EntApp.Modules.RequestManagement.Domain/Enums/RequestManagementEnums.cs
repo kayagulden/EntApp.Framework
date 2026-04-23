@@ -1,19 +1,7 @@
 namespace EntApp.Modules.RequestManagement.Domain.Enums;
 
-public enum TicketStatus
-{
-    New = 0,
-    Open = 1,
-    InProgress = 2,
-    WaitingForInfo = 3,
-    Escalated = 4,
-    Resolved = 5,
-    Closed = 6,
-    Cancelled = 7,
-    Reopened = 8,
-    /// <summary>Tüm bağlı görevler tamamlandı, son onay bekleniyor.</summary>
-    AllTasksDone = 9
-}
+// TicketStatus enum kaldırıldı — artık StateFlow string state'leri kullanılıyor.
+// Bkz: TicketStates static class (Ticket.cs)
 
 public enum TicketPriority
 {

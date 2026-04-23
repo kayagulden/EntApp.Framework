@@ -114,7 +114,7 @@ public sealed class RequestManagementDbContext : BaseDbContext
             e.Property(x => x.Number).HasMaxLength(20).IsRequired();
             e.Property(x => x.Title).HasMaxLength(500).IsRequired();
             e.Property(x => x.Description).HasMaxLength(5000);
-            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasMaxLength(50);
             e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Channel).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.FormDataJson).HasColumnType("jsonb");
@@ -174,8 +174,8 @@ public sealed class RequestManagementDbContext : BaseDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TicketStatusHistoryId>());
             e.HasIndex(x => x.TicketId);
-            e.Property(x => x.OldStatus).HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.NewStatus).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.OldStatus).HasMaxLength(50);
+            e.Property(x => x.NewStatus).HasMaxLength(50);
             e.Property(x => x.Reason).HasMaxLength(500);
 
             e.Property(x => x.TicketId).HasConversion(new StronglyTypedIdValueConverter<TicketId>());

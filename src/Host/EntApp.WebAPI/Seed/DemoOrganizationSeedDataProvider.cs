@@ -266,7 +266,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t1.Assign(users[1].Id);
         t1.RecordFirstResponse();
         t1.SetSlaDeadlines(DateTime.UtcNow.AddHours(-2), DateTime.UtcNow.AddHours(6));
-        t1.ChangeStatus(TicketStatus.Resolved, users[1].Id, "VPN profili yeniden oluşturuldu, sorun giderildi.");
+        t1.ChangeStatus(TicketStates.Resolved, users[1].Id, "VPN profili yeniden oluşturuldu, sorun giderildi.");
         demoTickets.Add(t1);
 
         var t2 = Ticket.Create("REQ-0002", "ERP raporları yüklenmiyor",
@@ -277,7 +277,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t2.Assign(users[0].Id);
         t2.RecordFirstResponse();
         t2.SetSlaDeadlines(DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(3));
-        t2.ChangeStatus(TicketStatus.InProgress, users[0].Id, "Veritabanı sorgu optimizasyonu yapılıyor.");
+        t2.ChangeStatus(TicketStates.InProgress, users[0].Id, "Veritabanı sorgu optimizasyonu yapılıyor.");
         demoTickets.Add(t2);
 
         var t3 = Ticket.Create("REQ-0003", "Dashboard'a gerçek zamanlı grafik eklenmesi",
@@ -295,7 +295,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
             serviceQueueId: qReport.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t4.Assign(users[2].Id);
         t4.RecordFirstResponse();
-        t4.ChangeStatus(TicketStatus.WaitingForInfo, users[2].Id, "Hangi müşteri segmentleri dahil edilecek?");
+        t4.ChangeStatus(TicketStates.WaitingForInfo, users[2].Id, "Hangi müşteri segmentleri dahil edilecek?");
         demoTickets.Add(t4);
 
         var t5 = Ticket.Create("REQ-0005", "Yıllık izin talebi — 14-18 Nisan",
@@ -307,8 +307,8 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         {
             t5.Assign(users[3].Id);
             t5.RecordFirstResponse();
-            t5.ChangeStatus(TicketStatus.Resolved, users[3].Id, "İzin onaylandı.");
-            t5.ChangeStatus(TicketStatus.Closed, users[3].Id);
+            t5.ChangeStatus(TicketStates.Resolved, users[3].Id, "İzin onaylandı.");
+            t5.ChangeStatus(TicketStates.Closed, users[3].Id);
         }
         demoTickets.Add(t5);
 
@@ -326,7 +326,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
             serviceQueueId: qAppSupport.Id, routingSource: TicketRoutingSource.CategoryDefault);
         t7.Assign(users[0].Id);
         t7.RecordFirstResponse();
-        t7.ChangeStatus(TicketStatus.InProgress, users[0].Id, "DBA onayı bekleniyor.");
+        t7.ChangeStatus(TicketStates.InProgress, users[0].Id, "DBA onayı bekleniyor.");
         demoTickets.Add(t7);
 
         var t8 = Ticket.Create("REQ-0008", "Yeni monitör talebi — 27\" 4K",
@@ -344,7 +344,7 @@ public sealed class DemoOrganizationSeedDataProvider : ISeedDataProvider
         t9.Assign(users[0].Id);
         t9.RecordFirstResponse();
         t9.SetSlaDeadlines(DateTime.UtcNow.AddMinutes(30), DateTime.UtcNow.AddHours(2));
-        t9.ChangeStatus(TicketStatus.Escalated, users[0].Id, "Microsoft desteğine eskalasyon yapıldı.");
+        t9.ChangeStatus(TicketStates.Escalated, users[0].Id, "Microsoft desteğine eskalasyon yapıldı.");
         demoTickets.Add(t9);
 
         var t10 = Ticket.Create("REQ-0010", "Ofis klima bakım talebi",

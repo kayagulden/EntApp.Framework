@@ -6,6 +6,21 @@ using EntApp.Shared.Kernel.Domain.Ids;
 
 namespace EntApp.Modules.RequestManagement.Domain.Entities;
 
+/// <summary>StateFlow state name sabitleri — flow designer'daki Name alanlarıyla eşleşir.</summary>
+public static class TicketStates
+{
+    public const string New = "New";
+    public const string WaitForAssignment = "WaitForAssignment";
+    public const string Open = "Open";
+    public const string InProgress = "InProgress";
+    public const string WaitingForInfo = "WaitingForInfo";
+    public const string Escalated = "Escalated";
+    public const string AllTasksDone = "AllTasksDone";
+    public const string Resolved = "Resolved";
+    public const string Closed = "Closed";
+    public const string Cancelled = "Cancelled";
+}
+
 /// <summary>Talep (Ticket) — AggregateRoot, domain events desteği.</summary>
 public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
 {
@@ -15,7 +30,7 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public TicketPriority Priority { get; private set; } = TicketPriority.Medium;
-    public TicketStatus Status { get; private set; } = TicketStatus.New;
+    public string Status { get; private set; } = TicketStates.New;
     public TicketChannel Channel { get; private set; } = TicketChannel.Portal;
 
     // SLA
@@ -109,17 +124,15 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public void Assign(Guid userId)
     {
         AssigneeUserId = userId;
-        if (Status == TicketStatus.New) Status = TicketStatus.Open;
     }
 
-    /// <summary>Ticket'ı havuza geri bırakır — assignee kaldırılır, status Open'a döner.</summary>
+    /// <summary>Ticket'ı havuza geri bırakır — assignee kaldırılır.</summary>
     public void Unassign()
     {
         AssigneeUserId = null;
-        if (Status == TicketStatus.InProgress) Status = TicketStatus.Open;
     }
 
-    public void ChangeStatus(TicketStatus newStatus, Guid changedByUserId, string? reason = null)
+    public void ChangeStatus(string newStatus, Guid changedByUserId, string? reason = null)
     {
         var old = Status;
         Status = newStatus;
@@ -127,8 +140,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         StatusHistory.Add(TicketStatusHistory.Create(
             Id, old, newStatus, changedByUserId, reason));
 
-        if (newStatus == TicketStatus.Resolved) ResolvedAt = DateTime.UtcNow;
-        if (newStatus == TicketStatus.Closed) ClosedAt = DateTime.UtcNow;
+        if (newStatus == TicketStates.Resolved) ResolvedAt = DateTime.UtcNow;
+        if (newStatus == TicketStates.Closed) ClosedAt = DateTime.UtcNow;
     }
 
     public void RecordFirstResponse()
@@ -182,11 +195,11 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     /// <summary>Tüm görevler tamamlandığında çağrılır — AllTasksDone ara durumuna geçer.</summary>
     public void MarkAllTasksDone(Guid systemUserId)
     {
-        if (Status is TicketStatus.InProgress or TicketStatus.Open or TicketStatus.New)
+        if (Status is TicketStates.InProgress or TicketStates.Open or TicketStates.New)
         {
             var old = Status;
-            Status = TicketStatus.AllTasksDone;
-            StatusHistory.Add(TicketStatusHistory.Create(Id, old, TicketStatus.AllTasksDone, systemUserId,
+            Status = TicketStates.AllTasksDone;
+            StatusHistory.Add(TicketStatusHistory.Create(Id, old, TicketStates.AllTasksDone, systemUserId,
                 "Tüm bağlı görevler tamamlandı."));
         }
     }
