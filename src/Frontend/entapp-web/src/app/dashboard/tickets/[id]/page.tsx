@@ -20,7 +20,6 @@ import {
   Inbox,
   GitBranch,
   Calendar,
-  Hand,
   UserCheck,
   ListTodo,
   CircleDot,
@@ -28,11 +27,11 @@ import {
   Circle,
   ChevronDown,
   Zap,
-  ShieldCheck,
   ShieldX,
   Monitor,
   FolderKanban,
   Save,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -56,8 +55,8 @@ interface TicketDetail {
   reporterUserId: string;
   childTicketCount?: number;
   completedChildTicketCount?: number;
-  parentTicketId?: string;
-  parentTicket?: { number: string; title: string };
+  parentTicketId?: { value: string } | string;
+  parentTicket?: { id?: { value: string } | string; number: string; title: string };
   workflowInstanceId?: string;
   category?: { name: string };
   department?: { name: string };
@@ -102,13 +101,6 @@ interface ChildTicketItem {
   resolvedAt?: string;
 }
 
-interface WorkflowAction {
-  bookmarkId: string;
-  activityType: string;
-  label: string;
-  outcomes: string[];
-  ticketId?: string;
-}
 
 interface QueueMember {
   userId: string;
@@ -173,7 +165,7 @@ const ROUTING_LABELS: Record<string, string> = {
   WorkflowRule: "İş Akışı", Unrouted: "Atanmamış",
 };
 
-const STATUS_OPTIONS = ["New", "Open", "InProgress", "WaitingForInfo", "Escalated", "AllTasksDone", "Resolved", "Closed"];
+// STATUS_OPTIONS removed — transitions come from StateFlow API
 const TASK_STATUS_OPTIONS = ["Backlog", "Todo", "InProgress", "InReview", "Done", "Cancelled"];
 const TASK_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
 
@@ -214,12 +206,10 @@ export default function TicketDetailPage() {
   const [statusChanging, setStatusChanging] = useState(false);
   const [newStatus, setNewStatus] = useState("");
 
-  // Workflow actions state
-  const [workflowActions, setWorkflowActions] = useState<WorkflowAction[]>([]);
-  const [actionsLoading, setActionsLoading] = useState(false);
-  const [actionExecuting, setActionExecuting] = useState<string | null>(null);
-  const [actionComment, setActionComment] = useState("");
-  const [selectedOutcome, setSelectedOutcome] = useState("");
+
+  // Allowed transitions from StateFlow
+  interface AllowedTransition { triggerName: string; label: string; toStateName: string; requiredRole?: string }
+  const [allowedTransitions, setAllowedTransitions] = useState<AllowedTransition[]>([]);
 
   // Child ticket state
   const [childTickets, setChildTickets] = useState<ChildTicketItem[]>([]);
@@ -227,9 +217,18 @@ export default function TicketDetailPage() {
   const [showChildForm, setShowChildForm] = useState(false);
   const [childFormData, setChildFormData] = useState({ title: "", categoryId: "", departmentId: "", priority: "Medium", description: "" });
   const [childCreating, setChildCreating] = useState(false);
+
+  // Department & Category for child ticket form
+  const [childDepartments, setChildDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [childCategories, setChildCategories] = useState<{ id: string; name: string; departmentId: string }[]>([]);
   const [queueMembers, setQueueMembers] = useState<QueueMember[]>([]);
   const [reassigning, setReassigning] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const [ciName, setCiName] = useState<string | null>(null);
+
+  // Hierarchy tree
+  interface HierarchyNode { id: string; number: string; title: string; status: string; children: HierarchyNode[] }
+  const [hierarchyTree, setHierarchyTree] = useState<HierarchyNode | null>(null);
 
   // Projeye Aktar state
   interface ProjectOption { id: string; name: string; key: string; category: string; }
@@ -271,16 +270,15 @@ export default function TicketDetailPage() {
       .catch(() => setQueueMembers([]));
   }, [ticket?.serviceQueue]);
 
-  // Fetch workflow actions when ticket has a workflow
+
+  // Fetch allowed transitions from StateFlow
   useEffect(() => {
-    if (!ticket?.workflowInstanceId) { setWorkflowActions([]); return; }
-    setActionsLoading(true);
-    fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions`)
+    if (!ticketId) return;
+    fetch(`/api/req/tickets/${ticketId}/allowed-transitions`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setWorkflowActions(Array.isArray(data) ? data : []))
-      .catch(() => setWorkflowActions([]))
-      .finally(() => setActionsLoading(false));
-  }, [ticket?.workflowInstanceId]);
+      .then((data) => setAllowedTransitions(Array.isArray(data) ? data : []))
+      .catch(() => setAllowedTransitions([]));
+  }, [ticketId, ticket?.status]);
 
   // Fetch CI name for display
   useEffect(() => {
@@ -291,23 +289,53 @@ export default function TicketDetailPage() {
       .catch(() => setCiName(null));
   }, [ticket?.configurationItemId]);
 
+  // Fetch departments & categories when child form opens
+  useEffect(() => {
+    if (!showChildForm) return;
+    fetch("/api/v1/org/departments")
+      .then((r) => (r.ok ? r.json() : { value: [] }))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.value ?? []);
+        setChildDepartments(list.map((d: any) => ({ id: extractId(d.id), name: d.name })));
+      })
+      .catch(() => setChildDepartments([]));
+    fetch("/api/req/categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setChildCategories(list.map((c: any) => ({
+          id: extractId(c.id),
+          name: c.name,
+          departmentId: extractId(c.departmentId),
+        })));
+      })
+      .catch(() => setChildCategories([]));
+  }, [showChildForm]);
+
+  // Fetch hierarchy tree
+  useEffect(() => {
+    if (!ticketId) return;
+    fetch(`/api/req/tickets/${ticketId}/hierarchy`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setHierarchyTree(data))
+      .catch(() => setHierarchyTree(null));
+  }, [ticketId]);
+
   const refreshAll = async () => {
-    const [ticketRes, childRes] = await Promise.all([
+    const [ticketRes, childRes, hierRes] = await Promise.all([
       fetch(`/api/req/tickets/${ticketId}`),
       fetch(`/api/req/tickets/${ticketId}/children`),
+      fetch(`/api/req/tickets/${ticketId}/hierarchy`),
     ]);
     let ticketData = null;
     if (ticketRes.ok) { ticketData = await ticketRes.json(); setTicket(ticketData); setNewStatus(ticketData.status); }
     if (childRes.ok) { setChildTickets(await childRes.json()); }
-    // Refresh workflow actions
-    if (ticketData?.workflowInstanceId) {
-      try {
-        const actRes = await fetch(`/api/wf/instance/${ticketData.workflowInstanceId}/actions`);
-        if (actRes.ok) setWorkflowActions(await actRes.json());
-      } catch { /* silently fail */ }
-    } else {
-      setWorkflowActions([]);
-    }
+    if (hierRes.ok) { setHierarchyTree(await hierRes.json()); }
+    // Refresh allowed transitions
+    try {
+      const transRes = await fetch(`/api/req/tickets/${ticketId}/allowed-transitions`);
+      if (transRes.ok) setAllowedTransitions(await transRes.json());
+    } catch { /* */ }
   };
 
   const handleComment = async () => {
@@ -342,58 +370,6 @@ export default function TicketDetailPage() {
     }
   };
 
-  const handleWorkflowAction = async (bookmarkId: string, decision: string) => {
-    if (!ticket?.workflowInstanceId) return;
-    setActionExecuting(bookmarkId + decision);
-    try {
-      await fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions/${bookmarkId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision, comment: actionComment.trim() || null }),
-      });
-      setActionComment("");
-      // Backend workflow dispatch asenkron — bookmark işlenene kadar bekle
-      await new Promise((r) => setTimeout(r, 2500));
-      await refreshAll();
-    } catch {
-    } finally {
-      setActionExecuting(null);
-    }
-  };
-
-  const handleClaimSelf = async (action: WorkflowAction) => {
-    if (!ticket?.workflowInstanceId) return;
-    setActionExecuting(action.bookmarkId + "ClaimSelf");
-    try {
-      // DEV: Gerçek kuyruk üyesinin userId'sini kullan (seed'de oluşturulan).
-      // Hardcoded DEV_USERS ID'leri veritabanındaki gerçek ID'lerle eşleşmez!
-      // Production'da backend ICurrentUser üzerinden JWT'den alacak.
-      const claimerId = queueMembers.length > 0
-        ? queueMembers[0].userId
-        : DEV_USERS[0].id; // fallback — kuyruk üyeleri yüklenemezse
-
-      const res = await fetch(`/api/wf/instance/${ticket.workflowInstanceId}/actions/${action.bookmarkId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decision: "ClaimSelf",
-          ticketId: action.ticketId || ticketId,
-          claimerUserId: claimerId,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error("ClaimSelf failed:", res.status, err);
-      }
-      // Backend workflow dispatch asenkron çalışır — bookmark resume edilene kadar
-      // kısa bir bekleme gerekir, yoksa eski bookmark hala görünür.
-      await new Promise((r) => setTimeout(r, 1500));
-      await refreshAll();
-    } catch {
-    } finally {
-      setActionExecuting(null);
-    }
-  };
 
   const handleReassign = async (newAssigneeUserId: string) => {
     if (!ticket || !ticketId || reassigning) return;
@@ -411,6 +387,30 @@ export default function TicketDetailPage() {
     } catch {
     } finally {
       setReassigning(false);
+    }
+  };
+
+  const handleClaimSelf = async () => {
+    if (!ticket || !ticketId || claiming) return;
+    setClaiming(true);
+    try {
+      // Kuyruk üyelerinden ilkini claimer olarak kullan (dev modda)
+      const claimerId = queueMembers.length > 0
+        ? queueMembers[0].userId
+        : DEV_USERS[0].id;
+      const res = await fetch(`/api/req/tickets/${ticketId}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimerUserId: claimerId }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        alert(err || "Üzerine alma başarısız.");
+      }
+      await refreshAll();
+    } catch {
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -434,6 +434,9 @@ export default function TicketDetailPage() {
         setChildFormData({ title: "", categoryId: "", departmentId: "", priority: "Medium", description: "" });
         setShowChildForm(false);
         await refreshAll();
+      } else {
+        const err = await res.text();
+        alert(err || "Alt talep oluşturulamadı.");
       }
     } catch {
     } finally {
@@ -505,6 +508,23 @@ export default function TicketDetailPage() {
   const childProgress = childTickets.length > 0 ? Math.round((completedChildCount / childTickets.length) * 100) : 0;
   const isAlreadyPromoted = !!ticket.projectId;
 
+  // Hierarchy limits
+  const MAX_DEPTH = 3;
+  const MAX_CHILDREN = 10;
+  const currentDepth = (() => {
+    if (!hierarchyTree) return 0;
+    const findDepth = (node: HierarchyNode, id: string, depth: number): number => {
+      if (node.id === id) return depth;
+      for (const child of node.children) {
+        const found = findDepth(child, id, depth + 1);
+        if (found >= 0) return found;
+      }
+      return -1;
+    };
+    return findDepth(hierarchyTree, extractId(ticket.id), 0);
+  })();
+  const canAddChild = currentDepth < MAX_DEPTH - 1 && childTickets.length < MAX_CHILDREN;
+
   // Merge comments and status history into activity feed
   const activities: { type: "comment" | "status"; time: string; data: any }[] = [
     ...(ticket.comments ?? []).map((c) => ({ type: "comment" as const, time: c.createdAt, data: c })),
@@ -516,7 +536,11 @@ export default function TicketDetailPage() {
       {/* Back + Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => router.push("/dashboard/tickets")}
+          onClick={() => router.push(
+            ticket.parentTicketId
+              ? `/dashboard/tickets/${extractId(ticket.parentTicketId)}`
+              : "/dashboard/tickets"
+          )}
           className="p-2 rounded-lg hover:bg-[var(--color-border)] transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-[var(--color-text-muted)]" />
@@ -535,6 +559,12 @@ export default function TicketDetailPage() {
               <span className={cn("w-2 h-2 rounded-full", priorityCfg.dot)} />
               <span className={cn("text-xs font-medium", priorityCfg.color)}>{priorityCfg.label}</span>
             </span>
+            {childTickets.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                <ListTodo className="w-3 h-3" />
+                {childTickets.length} alt talep
+              </span>
+            )}
           </div>
           <h1 className="text-xl font-bold text-[var(--color-text)] mt-1">{ticket.title}</h1>
         </div>
@@ -687,7 +717,18 @@ export default function TicketDetailPage() {
                 </button>
                 <button
                   onClick={() => setShowChildForm(!showChildForm)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-teal-600 text-white hover:bg-teal-700 transition-all"
+                  disabled={!canAddChild}
+                  title={!canAddChild
+                    ? currentDepth >= MAX_DEPTH - 1
+                      ? `Maksimum hiyerarşi derinliğine (${MAX_DEPTH} seviye) ulaşıldı`
+                      : `Maksimum alt talep sayısına (${MAX_CHILDREN}) ulaşıldı`
+                    : undefined}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    canAddChild
+                      ? "bg-teal-600 text-white hover:bg-teal-700"
+                      : "bg-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed opacity-50"
+                  )}
                 >
                   <Plus className="w-3 h-3" />
                   Alt Talep Ekle
@@ -713,49 +754,61 @@ export default function TicketDetailPage() {
                     rows={2}
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                   />
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      value={childFormData.departmentId}
+                      onChange={(e) => setChildFormData({ ...childFormData, departmentId: e.target.value, categoryId: "" })}
+                      className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      <option value="">Departman seçin</option>
+                      {childDepartments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
                     <select
                       value={childFormData.categoryId}
                       onChange={(e) => setChildFormData({ ...childFormData, categoryId: e.target.value })}
-                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                      disabled={!childFormData.departmentId}
+                      className={cn(
+                        "px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none",
+                        !childFormData.departmentId && "opacity-40 cursor-not-allowed"
+                      )}
                     >
-                      <option value="">Kategori seçin</option>
-                      {/* TODO: Kategori listesi API'den yüklenecek */}
-                    </select>
-                    <select
-                      value={childFormData.departmentId}
-                      onChange={(e) => setChildFormData({ ...childFormData, departmentId: e.target.value })}
-                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
-                    >
-                      <option value="">Departman seçin</option>
-                      {/* TODO: Departman listesi API'den yüklenecek */}
+                      <option value="">{childFormData.departmentId ? "Kategori seçin" : "Önce departman seçin"}</option>
+                      {childCategories
+                        .filter((c) => c.departmentId === childFormData.departmentId)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
                     </select>
                     <select
                       value={childFormData.priority}
                       onChange={(e) => setChildFormData({ ...childFormData, priority: e.target.value })}
-                      className="flex-1 px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                      className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
                     >
                       <option value="Low">Düşük</option>
                       <option value="Medium">Orta</option>
                       <option value="High">Yüksek</option>
                       <option value="Critical">Kritik</option>
                     </select>
-                    <button
-                      onClick={handleCreateChildTicket}
-                      disabled={childCreating || !childFormData.title.trim() || !childFormData.categoryId || !childFormData.departmentId}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-medium",
-                        "bg-teal-600 text-white hover:bg-teal-700",
-                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                      )}
-                    >
-                      {childCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Oluştur"}
-                    </button>
+                  </div>
+                  <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setShowChildForm(false)}
                       className="px-2.5 py-1.5 rounded-lg text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-border)] transition-all"
                     >
                       İptal
+                    </button>
+                    <button
+                      onClick={handleCreateChildTicket}
+                      disabled={childCreating || !childFormData.title.trim() || !childFormData.categoryId || !childFormData.departmentId}
+                      className={cn(
+                        "px-4 py-1.5 rounded-lg text-xs font-medium",
+                        "bg-teal-600 text-white hover:bg-teal-700",
+                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      )}
+                    >
+                      {childCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Alt Talep Oluştur"}
                     </button>
                   </div>
                 </div>
@@ -981,10 +1034,90 @@ export default function TicketDetailPage() {
             </div>
           )}
 
+          {/* ══════════ Ticket Hierarchy Tree (API-driven) ══════════ */}
+          {hierarchyTree && (() => {
+            const currentId = extractId(ticket.id);
+
+            const renderNode = (node: HierarchyNode, depth: number, isLast: boolean, parentLines: boolean[]): React.ReactNode => {
+              const isCurrent = node.id === currentId;
+              const statusCfgNode = STATUS_CONFIG[node.status];
+              const NodeIcon = statusCfgNode?.icon || CircleDot;
+              return (
+                <div key={node.id}>
+                  <div className="flex items-center gap-0">
+                    {/* Tree indent lines */}
+                    {depth > 0 && (
+                      <div className="flex items-center" style={{ width: `${(depth - 1) * 16}px` }}>
+                        {parentLines.slice(0, -1).map((showLine, i) => (
+                          <div key={i} className="w-4 h-6 relative flex-shrink-0">
+                            {showLine && <div className="absolute left-[7px] top-0 bottom-0 w-px bg-[var(--color-border)]/50" />}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {depth > 0 && (
+                      <div className="w-4 h-6 relative flex-shrink-0">
+                        <div className={cn("absolute left-[7px] top-0 w-px bg-[var(--color-border)]/50", isLast ? "h-3" : "h-full")} />
+                        <div className="absolute left-[7px] top-3 w-[9px] h-px bg-[var(--color-border)]/50" />
+                      </div>
+                    )}
+                    {/* Node content */}
+                    {isCurrent ? (
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/25">
+                        <NodeIcon className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+                        <span className="text-[11px] font-mono font-bold text-indigo-400 flex-shrink-0">{node.number}</span>
+                        <span className="text-[11px] text-indigo-300 truncate">{node.title}</span>
+                      </div>
+                    ) : (
+                      <a
+                        href={`/dashboard/tickets/${node.id}`}
+                        className="flex items-center gap-1.5 flex-1 min-w-0 px-1.5 py-0.5 rounded hover:bg-[var(--color-border)]/40 transition-colors"
+                      >
+                        <NodeIcon className="w-3 h-3 text-[var(--color-text-muted)] flex-shrink-0" />
+                        <span className="text-[11px] font-mono text-[var(--color-text-muted)] flex-shrink-0">{node.number}</span>
+                        <span className="text-[11px] text-[var(--color-text-muted)] truncate">{node.title}</span>
+                      </a>
+                    )}
+                  </div>
+                  {node.children.map((child, idx) =>
+                    renderNode(child, depth + 1, idx === node.children.length - 1, [...parentLines, !isLast])
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4">
+                <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Talep Hiyerarşisi
+                </h3>
+                <div className="space-y-0">
+                  {renderNode(hierarchyTree, 0, true, [])}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Details Card */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
             <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Detaylar</h3>
             <div className="space-y-3">
+              {/* Durum satırı — renkli badge ile */}
+              <div className="flex items-center gap-2.5">
+                <Activity className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" />
+                <span className="text-xs text-[var(--color-text-muted)] w-20 shrink-0">Durum</span>
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                  STATUS_CONFIG[ticket.status]?.color ?? "bg-gray-500/10 text-gray-400"
+                )}>
+                  {STATUS_CONFIG[ticket.status]?.icon && (() => {
+                    const Icon = STATUS_CONFIG[ticket.status].icon;
+                    return <Icon className="w-3 h-3" />;
+                  })()}
+                  {STATUS_CONFIG[ticket.status]?.label ?? ticket.status}
+                </span>
+              </div>
               {[
                 { icon: Building2, label: "Departman", value: ticket.department?.name ?? "—" },
                 { icon: Tag, label: "Kategori", value: ticket.category?.name ?? "—" },
@@ -1013,9 +1146,72 @@ export default function TicketDetailPage() {
                 </div>
               ))}
 
-              {/* Başkasına Ata — sadece kuyruk üyeleri varsa ve ticket atanmışsa */}
-              {ticket.assigneeUserId && queueMembers.length > 1 && (
-                <div className="pt-2 mt-2 border-t border-[var(--color-border)]">
+            </div>
+          </div>
+
+          {/* Actions Card — StateFlow-driven */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
+            <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5" />
+              Aksiyonlar
+            </h3>
+
+            <div className="space-y-3">
+              {/* WaitForAssignment → Üzerime Al, diğer durumlar → Durum Değiştir */}
+              {ticket.status === "WaitForAssignment" ? (
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-2">
+                    Bu talep atama bekliyor. Üzerinize alarak işleme başlayabilirsiniz.
+                  </p>
+                  <button
+                    onClick={handleClaimSelf}
+                    disabled={claiming}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {claiming ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <UserCheck className="w-3.5 h-3.5" />
+                    )}
+                    Üzerime Al
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Durum Geçişi</label>
+                  {allowedTransitions.length > 0 ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={newStatus}
+                        onChange={(e) => setNewStatus(e.target.value)}
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                      >
+                        <option value={ticket.status}>İşlem seçin...</option>
+                        {allowedTransitions.map((t) => (
+                          <option key={t.triggerName} value={t.toStateName}>{t.label || t.triggerName}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={handleStatusChange}
+                        disabled={statusChanging || newStatus === ticket.status}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-medium",
+                          "bg-indigo-600 text-white hover:bg-indigo-700",
+                          "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        )}
+                      >
+                        {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--color-text-muted)] italic">Bu durumdan geçiş tanımlı değil</p>
+                  )}
+                </div>
+              )}
+
+              {/* Başkasına Ata — kuyruk üyeleri varsa her zaman göster (dispatcher) */}
+              {queueMembers.length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border)]">
                   <div className="flex items-center gap-2 mb-1.5">
                     <UserPlus className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
                     <span className="text-xs text-[var(--color-text-muted)]">Başkasına Ata</span>
@@ -1046,196 +1242,9 @@ export default function TicketDetailPage() {
               )}
             </div>
           </div>
-
-          {/* Actions Card — Workflow-driven or static fallback */}
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-            <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5" />
-              Aksiyonlar
-            </h3>
-
-            {ticket.workflowInstanceId ? (
-              /* ── Workflow-driven dynamic actions ── */
-              <div className="space-y-3">
-                {actionsLoading ? (
-                  <div className="flex items-center gap-2 py-3">
-                    <Loader2 className="w-4 h-4 text-teal-400 animate-spin" />
-                    <span className="text-xs text-[var(--color-text-muted)]">Aksiyonlar yükleniyor...</span>
-                  </div>
-                ) : workflowActions.length > 0 ? (
-                  workflowActions.map((action) => {
-                    // ── WaitForAssignment: "Üzerime Al" butonu ──
-                    const isAssignment = action.activityType === "WaitForAssignmentActivity" ||
-                      action.activityType === "EntApp.WaitForAssignmentActivity" ||
-                      action.outcomes.includes("ClaimSelf");
-
-                    if (isAssignment) {
-                      const executing = actionExecuting !== null;
-                      return (
-                        <div key={action.bookmarkId} className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Hand className="w-3.5 h-3.5 text-amber-400" />
-                            <span className="text-xs font-semibold text-[var(--color-text)]">
-                              {action.label}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-[var(--color-text-muted)]">
-                            Bu talebi üzerinize alarak işleme başlayabilirsiniz.
-                          </p>
-                          <button
-                            onClick={() => handleClaimSelf(action)}
-                            disabled={executing}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {executing ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Hand className="w-3.5 h-3.5" />
-                            )}
-                            Üzerime Al
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    // ── Generic: combo + uygula butonu ──
-                    return (
-                    <div key={action.bookmarkId} className="space-y-2">
-                      {/* Action label */}
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-3.5 h-3.5 text-violet-400" />
-                        <span className="text-xs font-semibold text-[var(--color-text)]">
-                          {action.label}
-                        </span>
-                      </div>
-
-                      {/* Inline comment textarea */}
-                      <textarea
-                        value={actionComment}
-                        onChange={(e) => setActionComment(e.target.value)}
-                        placeholder="Yorum (opsiyonel)..."
-                        rows={2}
-                        className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                      />
-
-                      {/* Status label mapping */}
-                      {(() => {
-                        const statusLabels: Record<string, string> = {
-                          approved: "Onayla", rejected: "Reddet",
-                          resolved: "Çözüldü", cancelled: "İptal",
-                          escalated: "Eskale Et", closed: "Kapat",
-                          reopened: "Yeniden Aç", inprogress: "İşleme Al",
-                          waitingforinfo: "Bilgi İste", open: "Aç",
-                          returntopool: "Havuza Bırak",
-                        };
-                        const getLabel = (o: string) => statusLabels[o.toLowerCase()] || o;
-                        const currentOutcome = selectedOutcome || action.outcomes[0] || "";
-                        const executing = actionExecuting !== null;
-
-                        return (
-                          <div className="flex gap-2">
-                            <select
-                              value={currentOutcome}
-                              onChange={(e) => setSelectedOutcome(e.target.value)}
-                              disabled={executing}
-                              className="flex-1 px-2.5 py-2 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-violet-500/40 disabled:opacity-40"
-                            >
-                              {action.outcomes.map((o) => (
-                                <option key={o} value={o}>{getLabel(o)}</option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() => handleWorkflowAction(action.bookmarkId, currentOutcome)}
-                              disabled={executing}
-                              className="px-4 py-2 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                            >
-                              {executing ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <ShieldCheck className="w-3.5 h-3.5" />
-                              )}
-                              Uygula
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    );
-                  })
-                ) : (
-                  /* No active bookmarks — workflow is running but no user action needed */
-                  <div className="py-3 text-center">
-                    <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-violet-500/10 flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-violet-400" />
-                    </div>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      Workflow çalışıyor — şu an aksiyonunuz beklenmiyor
-                    </p>
-                  </div>
-                )}
-
-                {/* Manual override — collapsible */}
-                <details className="mt-2">
-                  <summary className="text-[10px] text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text)] transition-colors">
-                    Manuel durum değiştir
-                  </summary>
-                  <div className="mt-2 flex gap-2">
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleStatusChange}
-                      disabled={statusChanging || newStatus === ticket.status}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-medium",
-                        "bg-indigo-600 text-white hover:bg-indigo-700",
-                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                      )}
-                    >
-                      {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
-                    </button>
-                  </div>
-                </details>
-              </div>
-            ) : (
-              /* ── Static fallback — no workflow ── */
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-[var(--color-text-muted)] mb-1 block">Durum Değiştir</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleStatusChange}
-                      disabled={statusChanging || newStatus === ticket.status}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-medium",
-                        "bg-indigo-600 text-white hover:bg-indigo-700",
-                        "disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                      )}
-                    >
-                      {statusChanging ? <Loader2 className="w-3 h-3 animate-spin" /> : "Uygula"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
   );
 }
+

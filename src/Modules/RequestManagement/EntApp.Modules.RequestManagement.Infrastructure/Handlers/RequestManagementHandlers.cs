@@ -217,16 +217,32 @@ public sealed class UpdateTicketHandler(RequestManagementDbContext db)
 }
 
 public sealed class AssignTicketHandler(
-    RequestManagementDbContext db, IEventBus eventBus)
+    RequestManagementDbContext db, IEventBus eventBus,
+    IStateFlowEngine stateFlowEngine, ICurrentUser currentUser)
     : IRequestHandler<AssignTicketCommand>
 {
     public async Task Handle(AssignTicketCommand request, CancellationToken ct)
     {
-        var ticket = await db.Tickets.FindAsync([new TicketId(request.TicketId)], ct)
+        var ticket = await db.Tickets
+            .Include(t => t.StatusHistory)
+            .FirstOrDefaultAsync(t => t.Id == new TicketId(request.TicketId), ct)
             ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
 
         var previousAssignee = ticket.AssigneeUserId;
         ticket.Assign(request.AssigneeUserId);
+
+        // WaitForAssignment → Open otomatik geçiş
+        if (ticket.Status == TicketStates.WaitForAssignment && ticket.FlowDefinitionId.HasValue)
+        {
+            var triggers = await stateFlowEngine.GetAllowedTriggersAsync(
+                "Ticket", ticket.Status, ticket.FlowDefinitionId.Value, ct);
+            var openTrigger = triggers.FirstOrDefault(t => t.ToStateName == TicketStates.Open);
+            if (openTrigger is not null)
+            {
+                ticket.ChangeStatus(TicketStates.Open, currentUser.UserId, "Talep atandı — otomatik geçiş.");
+            }
+        }
+
         await db.SaveChangesAsync(ct);
 
         await eventBus.PublishAsync(new TicketAssignedEvent(
@@ -509,18 +525,20 @@ public sealed class GetMyTicketsHandler(RequestManagementDbContext db)
 // ═══════════════════════════════════════════════════════════════
 
 public sealed class ClaimTicketHandler(
-    RequestManagementDbContext db, IEventBus eventBus)
+    RequestManagementDbContext db, IEventBus eventBus,
+    IStateFlowEngine stateFlowEngine, ICurrentUser currentUser)
     : IRequestHandler<ClaimTicketCommand>
 {
     public async Task Handle(ClaimTicketCommand request, CancellationToken ct)
     {
-        var ticket = await db.Tickets.FindAsync([new TicketId(request.TicketId)], ct)
+        var ticket = await db.Tickets
+            .Include(t => t.StatusHistory)
+            .FirstOrDefaultAsync(t => t.Id == new TicketId(request.TicketId), ct)
             ?? throw new KeyNotFoundException($"Ticket '{request.TicketId}' not found.");
 
         if (ticket.AssigneeUserId.HasValue)
         {
             // İdempotent: Aynı kullanıcı zaten atanmışsa → event'i tekrar publish et
-            // (WaitForAssignment bookmark'ı resume olsun diye)
             if (ticket.AssigneeUserId.Value == request.ClaimerUserId)
             {
                 await eventBus.PublishAsync(new TicketAssignedEvent(
@@ -542,6 +560,19 @@ public sealed class ClaimTicketHandler(
 
         var previousAssignee = ticket.AssigneeUserId;
         ticket.Assign(request.ClaimerUserId);
+
+        // WaitForAssignment → Open otomatik geçiş
+        if (ticket.Status == TicketStates.WaitForAssignment && ticket.FlowDefinitionId.HasValue)
+        {
+            var triggers = await stateFlowEngine.GetAllowedTriggersAsync(
+                "Ticket", ticket.Status, ticket.FlowDefinitionId.Value, ct);
+            var openTrigger = triggers.FirstOrDefault(t => t.ToStateName == TicketStates.Open);
+            if (openTrigger is not null)
+            {
+                ticket.ChangeStatus(TicketStates.Open, currentUser.UserId, "Talep üzerine alındı — otomatik geçiş.");
+            }
+        }
+
         await db.SaveChangesAsync(ct);
 
         await eventBus.PublishAsync(new TicketAssignedEvent(
@@ -671,7 +702,29 @@ public sealed class CreateChildTicketHandler(
             .FirstOrDefaultAsync(t => t.Id == new TicketId(request.ParentTicketId), ct)
             ?? throw new KeyNotFoundException($"Parent ticket '{request.ParentTicketId}' not found.");
 
-        // 2. Kategori yükle (SLA + routing için)
+        // 2. Derinlik kontrolü (max 3 seviye: root=0, child=1, grandchild=2)
+        const int MaxDepth = 3;
+        var depth = 1; // parent zaten 1 seviye
+        var ancestor = parent;
+        while (ancestor.ParentTicketId.HasValue && depth < MaxDepth)
+        {
+            ancestor = await db.Tickets
+                .FirstOrDefaultAsync(t => t.Id == ancestor.ParentTicketId.Value, ct);
+            if (ancestor is null) break;
+            depth++;
+        }
+        if (depth >= MaxDepth)
+            throw new InvalidOperationException($"Maksimum hiyerarşi derinliğine ({MaxDepth} seviye) ulaşıldı. Daha derin alt talep oluşturulamaz.");
+
+        // 3. Alt talep sayısı kontrolü (max 10 per parent)
+        const int MaxChildrenPerParent = 10;
+        var existingChildCount = await db.Tickets
+            .CountAsync(t => t.ParentTicketId.HasValue
+                && t.ParentTicketId.Value == new TicketId(request.ParentTicketId), ct);
+        if (existingChildCount >= MaxChildrenPerParent)
+            throw new InvalidOperationException($"Bir talebin altında en fazla {MaxChildrenPerParent} alt talep oluşturulabilir.");
+
+        // 4. Kategori yükle (SLA + routing için)
         var category = await db.Categories
             .Include(c => c.SlaDefinitionEntity)
             .FirstOrDefaultAsync(c => c.Id == new RequestCategoryId(request.CategoryId), ct)
@@ -686,13 +739,15 @@ public sealed class CreateChildTicketHandler(
             ? TicketRoutingSource.CategoryDefault
             : TicketRoutingSource.Unrouted;
 
-        // 5. Child ticket oluştur
+        // 5. Child ticket oluştur (configurationItemId: explicit > parent miras)
+        var ciId = request.ConfigurationItemId ?? parent.ConfigurationItemId;
+
         var child = Ticket.Create(
             number, request.Title, new RequestCategoryId(request.CategoryId),
             new DepartmentId(request.DepartmentId), currentUser.UserId,
             request.Description, request.Priority, request.Channel,
             request.FormDataJson, queueId, routingSource,
-            request.ConfigurationItemId);
+            ciId);
 
         child.SetParentTicket(parent.Id);
 
@@ -789,5 +844,57 @@ public sealed class ListChildTicketsHandler(RequestManagementDbContext db)
                 t.ServiceQueue != null ? t.ServiceQueue.Name : null,
                 t.CreatedAt, t.ResolvedAt))
             .ToListAsync(ct);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Ticket Hierarchy Handler
+// ═══════════════════════════════════════════════════════════════
+
+public sealed class GetTicketHierarchyHandler(RequestManagementDbContext db)
+    : IRequestHandler<GetTicketHierarchyQuery, TicketHierarchyNode?>
+{
+    public async Task<TicketHierarchyNode?> Handle(GetTicketHierarchyQuery request, CancellationToken ct)
+    {
+        // 1. Başlangıç ticket'ı bul
+        var start = await db.Tickets
+            .FirstOrDefaultAsync(t => t.Id == new TicketId(request.TicketId), ct);
+        if (start is null) return null;
+
+        // 2. Root'a kadar yukarı yürü
+        var current = start;
+        var maxDepth = 20; // sonsuz döngü koruması
+        while (current.ParentTicketId.HasValue && maxDepth-- > 0)
+        {
+            var parent = await db.Tickets
+                .FirstOrDefaultAsync(t => t.Id == current.ParentTicketId.Value, ct);
+            if (parent is null) break;
+            current = parent;
+        }
+        var root = current;
+
+        // 3. Root'tan aşağı tüm ağacı recursive yükle
+        return await BuildTreeNodeAsync(root.Id, ct);
+    }
+
+    private async Task<TicketHierarchyNode> BuildTreeNodeAsync(TicketId ticketId, CancellationToken ct)
+    {
+        var ticket = await db.Tickets
+            .FirstAsync(t => t.Id == ticketId, ct);
+
+        var children = await db.Tickets
+            .Where(t => t.ParentTicketId.HasValue && t.ParentTicketId.Value == ticketId)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+
+        var childNodes = new List<TicketHierarchyNode>();
+        foreach (var child in children)
+        {
+            childNodes.Add(await BuildTreeNodeAsync(child.Id, ct));
+        }
+
+        return new TicketHierarchyNode(
+            ticket.Id.Value, ticket.Number, ticket.Title, ticket.Status,
+            childNodes);
     }
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { ManageSidebar } from "@/components/manage/manage-sidebar";
 
 export default function ManageLayout({
@@ -9,6 +10,15 @@ export default function ManageLayout({
   children: React.ReactNode;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const pathname = usePathname();
+
+  // StateFlow designer sayfasında sidebar otomatik daralt
+  useEffect(() => {
+    const isStateFlowDetail = /^\/manage\/state-flows\/[^/]+$/.test(pathname);
+    if (isStateFlowDetail) {
+      setSidebarCollapsed(true);
+    }
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">

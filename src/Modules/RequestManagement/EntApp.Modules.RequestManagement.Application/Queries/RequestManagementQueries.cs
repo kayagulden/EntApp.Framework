@@ -51,3 +51,11 @@ public sealed record ChildTicketDto(
     string Channel, string? CategoryName, string? DepartmentName,
     string? AssigneeUserId, string? ServiceQueueName,
     DateTime CreatedAt, DateTime? ResolvedAt);
+
+// ── Ticket Hierarchy ────────────────────────────────────────
+/// <summary>Bir ticket'ın root'tan başlayarak tüm hiyerarşi ağacını döndürür.</summary>
+public sealed record GetTicketHierarchyQuery(Guid TicketId) : IRequest<TicketHierarchyNode?>;
+
+public sealed record TicketHierarchyNode(
+    Guid Id, string Number, string Title, string Status,
+    List<TicketHierarchyNode> Children);

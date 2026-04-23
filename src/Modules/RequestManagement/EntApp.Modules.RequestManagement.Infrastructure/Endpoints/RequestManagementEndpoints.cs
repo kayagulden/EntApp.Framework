@@ -164,6 +164,12 @@ public static class RequestManagementEndpoints
             Results.Ok(await mediator.Send(new ListChildTicketsQuery(id))))
             .WithName("ListChildTickets").WithSummary("Alt talepleri listeler");
 
+        tickets.MapGet("/{id:guid}/hierarchy", async (Guid id, ISender mediator) =>
+        {
+            var tree = await mediator.Send(new GetTicketHierarchyQuery(id));
+            return tree is not null ? Results.Ok(tree) : Results.NotFound();
+        }).WithName("GetTicketHierarchy").WithSummary("Talep hiyerarşi ağacını döndürür");
+
         // ═══════════ State Flow — Allowed Transitions ═══════════
         tickets.MapGet("/{id:guid}/allowed-transitions", async (
             Guid id, ISender mediator, IStateFlowEngine stateFlowEngine) =>
