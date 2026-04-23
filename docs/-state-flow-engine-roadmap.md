@@ -254,9 +254,13 @@ Geçiş talebi geldiğinde:
   - `GetAllowedTriggers(entityType, currentState, flowDefinitionId)` → List<TriggerInfo>
   - `FireTransition(entityType, currentState, trigger, flowDefinitionId)` → newState
 - [x] `StateFlowEngine` implementasyonu — DB'den tanım yükle, Stateless machine kur
-- [ ] Guard desteği — role-based, expression-based
+- [/] Guard desteği — role-based (RequiredRole API'den dönüyor), expression-based (bekliyor)
 - [ ] Side effect sistemi — OnEntry/OnExit action'ları MediatR event olarak tetikle
 - [x] Ticket modülüne entegrasyon: mevcut hardcoded state geçişlerini StateFlowEngine'e yönlendir
+- [x] Ticket atama + durum geçişi atomik hale getirildi (ClaimTicketHandler, AssignTicketHandler → WaitForAssignment'tan Open'a otomatik geçiş)
+- [x] Frontend: Transition label'ları ile aksiyon-odaklı UI ("İşe Başla", "İptal Et")
+- [x] Frontend: Detaylar panelinde durum badge'i (renkli, STATUS_CONFIG'den)
+- [x] Frontend: Aksiyonlar kartı — WaitForAssignment/normal mod switch, Başkasına Ata her zaman erişilebilir
 - [ ] WorkItem modülüne entegrasyon
 
 ---
@@ -366,6 +370,7 @@ function StateNode({ data }) {
 - [ ] Versiyon listesi ve karşılaştırma UI
 - [ ] Migrasyon modalı (taşınabilir entity sayısı, onay)
 - [x] Admin sayfası: `/dashboard/admin/state-flows` (liste + designer)
+- [x] Designer sayfasına geçişte sidebar otomatik daraltma (canvas'a maksimum alan)
 
 ---
 
@@ -427,7 +432,7 @@ Elsa'nın timer özelliği yerine basit background job:
 | **Aşama A-B** | ✅ Tamamlandı | StateFlow modülü + runtime engine geliştirildi |
 | **Aşama C** | ✅ Tamamlandı | Versiyonlama (Publish/Archive/NewVersion) hazır |
 | **Aşama D** | ✅ Tamamlandı | React Flow designer çalışıyor |
-| **Aşama E** | 🔶 Kısmen tamamlandı | Ticket entegrasyonu ✅. WorkItem entegrasyonu bekliyor |
+| **Aşama E** | 🔶 Kısmen tamamlandı | Ticket entegrasyonu ✅ (atomik atama+geçiş, transition-label UI). WorkItem entegrasyonu bekliyor |
 | **Son** | ✅ Tamamlandı | Elsa tamamen kaldırıldı (backend + frontend + designer workflow) |
 
 > [!NOTE]
