@@ -128,6 +128,7 @@ interface BacklogWorkItem {
   tags?: string;
   createdAt: string;
   children?: BacklogWorkItem[];
+  wsjfScore?: number | null;
 }
 
 const WORK_ITEM_TYPES = [
@@ -912,6 +913,7 @@ export default function ProjectDetailPage() {
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Durum</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Öncelik</th>
                     <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SP</th>
+                    <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">WSJF</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -945,6 +947,11 @@ export default function ProjectDetailPage() {
                         <td className="px-4 py-2.5 text-center">
                           {item.storyPoints != null && item.storyPoints > 0 ? (
                             <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints}</span>
+                          ) : <span className="text-[10px] text-[var(--color-text-muted)]">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {item.wsjfScore != null && item.wsjfScore > 0 ? (
+                            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">{item.wsjfScore.toFixed(1)}</span>
                           ) : <span className="text-[10px] text-[var(--color-text-muted)]">—</span>}
                         </td>
                       </tr>

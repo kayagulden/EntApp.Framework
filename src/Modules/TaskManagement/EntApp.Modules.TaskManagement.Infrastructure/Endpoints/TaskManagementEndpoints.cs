@@ -274,7 +274,8 @@ public static class TaskManagementEndpoints
         {
             var taskId = await mediator.Send(new UpdateWorkItemCommand(id, req.Title, req.Description,
                 req.Priority, req.Type, req.DueDate, req.EstimatedHours, req.Tags, req.AssigneeUserId,
-                req.StoryPoints, req.AcceptanceCriteria, req.SprintId));
+                req.StoryPoints, req.AcceptanceCriteria, req.SprintId,
+                req.BusinessValue, req.TimeCriticality, req.RiskReduction));
             return Results.Ok(new { id = taskId });
         }).WithName("UpdateTask").WithSummary("Görev bilgilerini günceller");
         tasks.MapPost("/{id:guid}/sprint", async (Guid id, AssignToSprintRequest req, ISender mediator) =>
@@ -421,7 +422,8 @@ public sealed record CreateTimeEntryRequest(Guid TaskId, Guid UserId, decimal Ho
 public sealed record UpdateWorkItemRequest(string? Title = null, string? Description = null,
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
-    int? StoryPoints = null, string? AcceptanceCriteria = null, Guid? SprintId = null);
+    int? StoryPoints = null, string? AcceptanceCriteria = null, Guid? SprintId = null,
+    int? BusinessValue = null, int? TimeCriticality = null, int? RiskReduction = null);
 public sealed record AddDeliverableRequest(Guid ConfigurationItemId, string? Role = "Primary", string? Notes = null);
 public sealed record AssignToSprintRequest(Guid? SprintId);
 

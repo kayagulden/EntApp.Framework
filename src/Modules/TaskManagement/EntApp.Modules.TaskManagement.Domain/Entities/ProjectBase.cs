@@ -1,4 +1,4 @@
-﻿using EntApp.Modules.TaskManagement.Domain.Enums;
+using EntApp.Modules.TaskManagement.Domain.Enums;
 using EntApp.Modules.TaskManagement.Domain.Ids;
 using EntApp.Shared.Kernel.Domain;
 using EntApp.Shared.Kernel.Domain.Attributes;
@@ -21,6 +21,9 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
     public ProjectStatus Status { get; private set; } = ProjectStatus.Planning;
     public ProjectMethodology Methodology { get; private set; } = ProjectMethodology.Kanban;
     public ProjectCategory Category { get; private set; } = ProjectCategory.General;
+
+    /// <summary>Proje tahmin gösterim modu (SP, T-Shirt, Saat).</summary>
+    public EstimationDisplayMode EstimationMode { get; private set; } = EstimationDisplayMode.StoryPoints;
 
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }

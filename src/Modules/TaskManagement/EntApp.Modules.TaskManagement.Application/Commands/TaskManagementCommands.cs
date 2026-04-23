@@ -66,7 +66,8 @@ public sealed record UpdateWorkItemCommand(Guid TaskId, string? Title = null, st
     string? Priority = null, string? Type = null, DateTime? DueDate = null,
     decimal? EstimatedHours = null, string? Tags = null, Guid? AssigneeUserId = null,
     int? StoryPoints = null, string? AcceptanceCriteria = null,
-    Guid? SprintId = null) : IRequest<Guid>;
+    Guid? SprintId = null,
+    int? BusinessValue = null, int? TimeCriticality = null, int? RiskReduction = null) : IRequest<Guid>;
 
 // ── Sprint ──────────────────────────────────────────────────
 public sealed record CreateSprintCommand(Guid ProjectId, string Name,

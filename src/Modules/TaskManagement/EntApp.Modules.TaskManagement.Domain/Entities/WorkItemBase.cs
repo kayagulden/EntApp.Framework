@@ -70,6 +70,19 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     /// <summary>Milestone bağlantısı (nullable). Bu iş kalemi hangi milestone'a katkı sağlıyor?</summary>
     public MilestoneId? MilestoneId { get; private set; }
 
+    // ── WSJF (Weighted Shortest Job First) ────────────────────
+    /// <summary>İş değeri (1-13 Fibonacci). WSJF Cost of Delay bileşeni.</summary>
+    public int? BusinessValue { get; private set; }
+
+    /// <summary>Zaman hassasiyeti (1-13 Fibonacci). WSJF Cost of Delay bileşeni.</summary>
+    public int? TimeCriticality { get; private set; }
+
+    /// <summary>Risk azaltma / fırsat yaratma (1-13 Fibonacci). WSJF Cost of Delay bileşeni.</summary>
+    public int? RiskReduction { get; private set; }
+
+    /// <summary>Hesaplanmış WSJF skoru: (BV + TC + RR) / JobSize.</summary>
+    public decimal? WsjfScore { get; private set; }
+
     /// <summary>Hiyerarşi derinliği cache'i — 0:Epic, 1:Feature, 2:Story, 3:Task.</summary>
     public int HierarchyLevel { get; private set; }
 
@@ -162,12 +175,34 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     public void AssignTo(Guid userId) => AssigneeUserId = userId;
     public void Unassign() => AssigneeUserId = null;
     public void SetSortOrder(int order) => SortOrder = order;
-    public void SetStoryPoints(int? points) => StoryPoints = points;
+    public void SetStoryPoints(int? points)
+    {
+        StoryPoints = points;
+        RecalculateWsjf();
+    }
     public void SetAcceptanceCriteria(string? criteria) => AcceptanceCriteria = criteria;
     public void AssignToSprint(SprintId? sprintId) => SprintId = sprintId;
     public void SetHierarchyLevel(int level) => HierarchyLevel = level;
     public void MoveToProject(ProjectId projectId) => ProjectId = projectId;
     public void SetParent(WorkItemId? parentId, int hierarchyLevel) { ParentTaskId = parentId; HierarchyLevel = hierarchyLevel; }
+
+    /// <summary>WSJF bileşenlerini ayarlar ve skoru otomatik hesaplar.</summary>
+    public void SetWsjfComponents(int? businessValue, int? timeCriticality, int? riskReduction)
+    {
+        BusinessValue = businessValue;
+        TimeCriticality = timeCriticality;
+        RiskReduction = riskReduction;
+        RecalculateWsjf();
+    }
+
+    private void RecalculateWsjf()
+    {
+        if (BusinessValue.HasValue && TimeCriticality.HasValue && RiskReduction.HasValue
+            && StoryPoints.HasValue && StoryPoints.Value > 0)
+            WsjfScore = (decimal)(BusinessValue.Value + TimeCriticality.Value + RiskReduction.Value) / StoryPoints.Value;
+        else
+            WsjfScore = null;
+    }
 
     /// <summary>Görev bilgilerini günceller.</summary>
     public void Update(string? title = null, string? description = null,
@@ -182,7 +217,7 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
         if (dueDate.HasValue) DueDate = dueDate.Value;
         if (estimatedHours.HasValue) EstimatedHours = estimatedHours.Value;
         if (tags is not null) Tags = tags;
-        if (storyPoints.HasValue) StoryPoints = storyPoints.Value;
+        if (storyPoints.HasValue) SetStoryPoints(storyPoints.Value);
         if (acceptanceCriteria is not null) AcceptanceCriteria = acceptanceCriteria;
     }
 

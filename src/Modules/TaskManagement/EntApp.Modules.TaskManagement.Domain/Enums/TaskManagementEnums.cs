@@ -134,6 +134,19 @@ public enum ProjectCategory
     Business = 4
 }
 
+/// <summary>Proje tahmin gösterim modu.</summary>
+public enum EstimationDisplayMode
+{
+    /// <summary>Story Points (Fibonacci: 0, 1, 2, 3, 5, 8, 13, 21).</summary>
+    StoryPoints = 0,
+    /// <summary>T-Shirt bedenleri (XS, S, M, L, XL) — SP'ye eşlenir.</summary>
+    TShirt = 1,
+    /// <summary>Saat bazlı tahmin.</summary>
+    Hours = 2,
+    /// <summary>Tahmin kullanılmaz.</summary>
+    None = 3
+}
+
 /// <summary>Teslim edilebilir rolü — CI'ın projede hangi kapasitede olduğu.</summary>
 public enum DeliverableRole
 {

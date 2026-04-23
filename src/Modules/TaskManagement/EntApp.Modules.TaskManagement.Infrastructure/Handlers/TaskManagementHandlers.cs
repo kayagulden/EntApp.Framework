@@ -351,10 +351,11 @@ public sealed class GetWorkItemQueryHandler(TaskManagementDbContext db) : IReque
                 st.Id.Value, st.WorkItemNumber, st.Title, st.Status.ToString(),
                 st.Priority.ToString(), st.Type.ToString(), st.AssigneeUserId,
                 st.DueDate, st.EstimatedHours, st.CreatedAt,
-                st.StoryPoints, st.HierarchyLevel)).ToList(),
+                st.StoryPoints, st.HierarchyLevel, WsjfScore: st.WsjfScore)).ToList(),
             t.StoryPoints, t.AcceptanceCriteria,
             t.SprintId.HasValue ? t.SprintId.Value.Value : null,
-            sprintName, t.HierarchyLevel);
+            sprintName, t.HierarchyLevel,
+            t.BusinessValue, t.TimeCriticality, t.RiskReduction, t.WsjfScore);
     }
 }
 
@@ -446,7 +447,7 @@ public sealed class ListWorkItemsBySourceQueryHandler(TaskManagementDbContext db
                 t.Priority.ToString(), t.Type.ToString(), t.AssigneeUserId,
                 t.DueDate, t.EstimatedHours, t.CreatedAt,
                 t.StoryPoints, t.HierarchyLevel,
-                t.ProjectId?.Value))
+                t.ProjectId?.Value, t.WsjfScore))
             .ToList();
     }
 }
@@ -693,6 +694,13 @@ public sealed class UpdateWorkItemCommandHandler(TaskManagementDbContext db) : I
 
         if (request.SprintId.HasValue)
             task.AssignToSprint(new SprintId(request.SprintId.Value));
+
+        // WSJF bileşenleri
+        if (request.BusinessValue.HasValue || request.TimeCriticality.HasValue || request.RiskReduction.HasValue)
+            task.SetWsjfComponents(
+                request.BusinessValue ?? task.BusinessValue,
+                request.TimeCriticality ?? task.TimeCriticality,
+                request.RiskReduction ?? task.RiskReduction);
 
         await db.SaveChangesAsync(ct);
         return task.Id.Value;
@@ -1139,7 +1147,7 @@ public sealed class GetSprintQueryHandler(TaskManagementDbContext db) : IRequest
                 w.Id.Value, w.WorkItemNumber, w.Title, w.Status.ToString(),
                 w.Priority.ToString(), w.Type.ToString(), w.AssigneeUserId,
                 w.DueDate, w.EstimatedHours, w.CreatedAt,
-                w.StoryPoints, w.HierarchyLevel)).ToList());
+                w.StoryPoints, w.HierarchyLevel, WsjfScore: w.WsjfScore)).ToList());
     }
 }
 
@@ -1420,7 +1428,7 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
                 t.DueDate, t.EstimatedHours, t.SortOrder, t.Tags,
                 t.StoryPoints, t.AcceptanceCriteria, t.HierarchyLevel,
                 SprintId = t.SprintId.HasValue ? t.SprintId.Value.Value : (Guid?)null,
-                t.CreatedAt
+                t.CreatedAt, t.WsjfScore
             }).ToListAsync(ct);
 
         if (request.View.Equals("tree", StringComparison.OrdinalIgnoreCase))
@@ -1431,7 +1439,7 @@ public sealed class GetBacklogQueryHandler(TaskManagementDbContext db) : IReques
             {
                 item.Id, item.WorkItemNumber, item.Title, item.Status, item.Priority, item.Type,
                 item.AssigneeUserId, item.DueDate, item.StoryPoints, item.HierarchyLevel,
-                item.SortOrder, item.SprintId,
+                item.SortOrder, item.SprintId, item.WsjfScore,
                 Children = BuildTree(item.Id.Value)
             }).ToList();
             return BuildTree(null);

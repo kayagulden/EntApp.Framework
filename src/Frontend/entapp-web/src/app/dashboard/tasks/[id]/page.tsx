@@ -32,6 +32,9 @@ import {
   TrendingUp,
   Layers,
   Hash,
+  Zap,
+  Brain,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores";
@@ -62,6 +65,15 @@ interface TaskDetail {
   createdAt: string;
   updatedAt?: string;
   subTasks: SubTaskData[];
+  storyPoints?: number;
+  acceptanceCriteria?: string;
+  sprintId?: string;
+  sprintName?: string;
+  hierarchyLevel?: number;
+  businessValue?: number;
+  timeCriticality?: number;
+  riskReduction?: number;
+  wsjfScore?: number;
 }
 
 interface SubTaskData {
@@ -120,7 +132,10 @@ const TYPE_CONFIG: Record<string, { icon: React.ComponentType<{ className?: stri
 
 const TASK_STATUS_OPTIONS = ["Backlog", "Todo", "InProgress", "InReview", "Done", "Cancelled"];
 const TASK_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
-const TASK_TYPE_OPTIONS = ["Task", "Bug", "Feature", "Improvement", "Epic"];
+const TASK_TYPE_OPTIONS = ["Task", "Bug", "Feature", "Improvement", "Epic", "UserStory", "TechDebt", "Spike"];
+const FIBONACCI_SP = [0, 1, 2, 3, 5, 8, 13, 21];
+const WSJF_SCALE = [1, 2, 3, 5, 8, 13];
+const WSJF_ELIGIBLE_TYPES = ["Epic", "Feature", "UserStory"];
 
 const DEV_USERS = [
   { id: "868b6d11-0110-4182-9cc3-9a155f140fe4", fullName: "Ahmet Yılmaz" },
@@ -189,6 +204,13 @@ export default function TaskDetailPage() {
   const [editTags, setEditTags] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [editStoryPoints, setEditStoryPoints] = useState<string>("");
+
+  // WSJF inline edit
+  const [wsjfBV, setWsjfBV] = useState<string>("");
+  const [wsjfTC, setWsjfTC] = useState<string>("");
+  const [wsjfRR, setWsjfRR] = useState<string>("");
+  const [wsjfSaving, setWsjfSaving] = useState(false);
 
   // Time entry form
   const [showTimeEntry, setShowTimeEntry] = useState(false);
@@ -206,6 +228,10 @@ export default function TaskDetailPage() {
       .then((data) => {
         setTask(data);
         setNewStatus(data?.status ?? "");
+        // Init WSJF state
+        setWsjfBV(data?.businessValue?.toString() ?? "");
+        setWsjfTC(data?.timeCriticality?.toString() ?? "");
+        setWsjfRR(data?.riskReduction?.toString() ?? "");
       })
       .catch(() => setTask(null))
       .finally(() => setLoading(false));
@@ -280,6 +306,7 @@ export default function TaskDetailPage() {
     setEditEstimatedHours(task.estimatedHours.toString());
     setEditTags(task.tags ?? "");
     setEditAssignee(task.assigneeUserId ?? "");
+    setEditStoryPoints(task.storyPoints?.toString() ?? "");
     setEditing(true);
   };
 
@@ -298,6 +325,7 @@ export default function TaskDetailPage() {
           estimatedHours: parseFloat(editEstimatedHours) || 0,
           tags: editTags.trim() || null,
           assigneeUserId: editAssignee || null,
+          storyPoints: editStoryPoints ? parseInt(editStoryPoints) : null,
         }),
       });
       if (res.ok) {
@@ -340,6 +368,23 @@ export default function TaskDetailPage() {
       });
       await refreshAll();
     } catch { /* */ }
+  };
+
+  // WSJF save
+  const handleWsjfSave = async () => {
+    setWsjfSaving(true);
+    try {
+      const res = await fetch(`/api/pm/work-items/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessValue: wsjfBV ? parseInt(wsjfBV) : null,
+          timeCriticality: wsjfTC ? parseInt(wsjfTC) : null,
+          riskReduction: wsjfRR ? parseInt(wsjfRR) : null,
+        }),
+      });
+      if (res.ok) await refreshAll();
+    } catch { /* */ } finally { setWsjfSaving(false); }
   };
 
   if (loading) {
@@ -708,6 +753,7 @@ export default function TaskDetailPage() {
                     { icon: User, label: "Raporlayan", value: getUserName(task.reporterUserId) },
                     { icon: Calendar, label: "Bitiş Tarihi", value: task.dueDate ? formatDate(task.dueDate) : "—", warning: isOverdue },
                     { icon: Timer, label: "Tahmini", value: task.estimatedHours > 0 ? `${task.estimatedHours} saat` : "—" },
+                    { icon: Zap, label: "Story Points", value: task.storyPoints != null ? `${task.storyPoints} SP` : "—" },
                     { icon: Timer, label: "Harcanan", value: totalLoggedHours > 0 ? `${totalLoggedHours.toFixed(1)} saat` : "—" },
                     { icon: Hash, label: "Oluşturma", value: formatDateTime(task.createdAt) },
                   ].map((item) => (
@@ -773,9 +819,111 @@ export default function TaskDetailPage() {
                     <input type="text" value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="frontend, api"
                       className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]" />
                   </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--color-text-muted)] mb-1 block">Story Points</label>
+                    <select value={editStoryPoints} onChange={(e) => setEditStoryPoints(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                      <option value="">—</option>
+                      {FIBONACCI_SP.map((sp) => <option key={sp} value={sp}>{sp}</option>)}
+                    </select>
+                  </div>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Efor & Story Points Card (read-only, always visible) */}
+          {!editing && task.storyPoints != null && (
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
+              <h3 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                Story Points
+              </h3>
+              <div className="flex items-center justify-center">
+                <span className="text-3xl font-bold text-violet-300">{task.storyPoints}</span>
+                <span className="text-xs text-[var(--color-text-muted)] ml-2">SP</span>
+              </div>
+            </div>
+          )}
+
+          {/* WSJF Prioritization Card — only for Epic/Feature/UserStory */}
+          {WSJF_ELIGIBLE_TYPES.includes(task.type) && (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+              <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" />
+                WSJF Önceliklendirme
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: "İş Değeri", value: wsjfBV, setter: setWsjfBV, current: task.businessValue },
+                  { label: "Zaman Hassasiyeti", value: wsjfTC, setter: setWsjfTC, current: task.timeCriticality },
+                  { label: "Risk Azaltma", value: wsjfRR, setter: setWsjfRR, current: task.riskReduction },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    <span className="text-[10px] text-[var(--color-text-muted)] w-24 shrink-0">{item.label}</span>
+                    <select
+                      value={item.value}
+                      onChange={(e) => item.setter(e.target.value)}
+                      className="flex-1 px-2 py-1 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
+                    >
+                      <option value="">—</option>
+                      {WSJF_SCALE.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                ))}
+
+                {/* Cost of Delay + Score summary */}
+                <div className="border-t border-amber-500/10 pt-3 mt-3 space-y-2">
+                  {wsjfBV && wsjfTC && wsjfRR && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--color-text-muted)]">Cost of Delay</span>
+                      <span className="text-amber-300 font-medium">{parseInt(wsjfBV) + parseInt(wsjfTC) + parseInt(wsjfRR)}</span>
+                    </div>
+                  )}
+                  {task.storyPoints != null && task.storyPoints > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[var(--color-text-muted)]">Job Size (SP)</span>
+                      <span className="text-violet-300 font-medium">{task.storyPoints}</span>
+                    </div>
+                  )}
+                  {task.wsjfScore != null && (
+                    <div className="flex justify-between text-xs border-t border-amber-500/10 pt-2">
+                      <span className="text-amber-300 font-semibold">WSJF Skoru</span>
+                      <span className="text-lg font-bold text-amber-300">{task.wsjfScore.toFixed(1)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Save button */}
+                <button
+                  onClick={handleWsjfSave}
+                  disabled={wsjfSaving}
+                  className="w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600/80 text-white hover:bg-amber-700 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {wsjfSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  WSJF Kaydet
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Estimation — disabled placeholder */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 opacity-60">
+            <h3 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Brain className="w-3.5 h-3.5" />
+              AI Tahmini
+              <span className="ml-auto text-[9px] bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded-full font-medium">Yakında</span>
+            </h3>
+            <p className="text-[10px] text-[var(--color-text-muted)] mb-3 leading-relaxed">
+              Geçmiş verilere dayalı olarak Story Points, süre ve öncelik tahmini yapılacaktır.
+            </p>
+            <button
+              disabled
+              className="w-full px-3 py-2 rounded-lg text-xs font-medium bg-violet-600/30 text-violet-300 cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <Brain className="w-3.5 h-3.5" />
+              AI ile Tahmin Et
+            </button>
           </div>
 
           {/* Time Progress Card */}

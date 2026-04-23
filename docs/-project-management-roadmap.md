@@ -84,9 +84,11 @@
 - [ ] Frontend burndown line chart gorsellestirme
 - [ ] Kanban metrikleri: Lead Time, Cycle Time, WIP yaslanma
 
-### Efor & Onceliklendirme
-- [ ] Efor tahmini: Saat, T-Shirt, AI tahmini (StoryPoints mevcut)
-- [ ] WSJF (Weighted Shortest Job First) onceliklendirme
+### Efor & Önceliklendirme
+- [x] Story Points düzenleme: Fibonacci dropdown (detay sayfası), T-Shirt gösterim modu (proje bazlı)
+- [x] WSJF (Weighted Shortest Job First) önceliklendirme: BusinessValue, TimeCriticality, RiskReduction → otomatik skor hesaplama
+- [x] Backlog tablosunda WSJF kolonu + sıralama
+- [ ] AI tahmini: UI butonu hazır (disabled), backend entegrasyonu gelecek fazda
 
 ### Cross-Module Bağlantılar
 - [x] Ticket -> Proje bağlantısı: **"Projeye Aktar" modalı** (proje/tip/öncelik seçimi, mevcut task'ları taşıma, aktarıldıktan sonra kilitli durum)

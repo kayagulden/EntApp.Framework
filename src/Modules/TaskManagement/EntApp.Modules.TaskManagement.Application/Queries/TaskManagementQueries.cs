@@ -98,7 +98,7 @@ public sealed record WorkItemBySourceDto(
     string Priority, string Type, Guid? AssigneeUserId,
     DateTime? DueDate, decimal EstimatedHours, DateTime CreatedAt,
     int? StoryPoints = null, int HierarchyLevel = 0,
-    Guid? ProjectId = null);
+    Guid? ProjectId = null, decimal? WsjfScore = null);
 
 public sealed record WorkItemDetailDto(
     Guid Id, string WorkItemNumber, string Title, string? Description,
@@ -112,7 +112,9 @@ public sealed record WorkItemDetailDto(
     List<WorkItemBySourceDto> SubTasks,
     int? StoryPoints = null, string? AcceptanceCriteria = null,
     Guid? SprintId = null, string? SprintName = null,
-    int HierarchyLevel = 0);
+    int HierarchyLevel = 0,
+    int? BusinessValue = null, int? TimeCriticality = null,
+    int? RiskReduction = null, decimal? WsjfScore = null);
 
 // ── Sprint ──────────────────────────────────────────────────
 public sealed record ListSprintsQuery(Guid ProjectId, string? Status = null) : IRequest<List<SprintListDto>>;
