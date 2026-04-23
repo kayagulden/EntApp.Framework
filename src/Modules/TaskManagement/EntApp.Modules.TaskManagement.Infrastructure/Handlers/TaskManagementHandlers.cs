@@ -363,8 +363,31 @@ public sealed class GetKanbanBoardQueryHandler(TaskManagementDbContext db) : IRe
     public async Task<object> Handle(GetKanbanBoardQuery request, CancellationToken ct)
     {
         var pid = new ProjectId(request.ProjectId);
-        var items = await db.WorkItems
-            .Where(t => t.ProjectId != null && t.ProjectId == pid)
+        var query = db.WorkItems
+            .Where(t => t.ProjectId != null && t.ProjectId == pid);
+
+        // Varsayılan: Done ve Cancelled hariç (board sadece aktif kartları gösterir)
+        if (!request.IncludeCompleted)
+        {
+            query = query.Where(t =>
+                t.Status != WorkItemStatus.Done &&
+                t.Status != WorkItemStatus.Cancelled);
+        }
+
+        // Sprint filtresi
+        if (request.SprintId.HasValue)
+        {
+            var sprintId = new SprintId(request.SprintId.Value);
+            query = query.Where(t => t.SprintId != null && t.SprintId == sprintId);
+        }
+
+        // Assignee filtresi
+        if (request.AssigneeUserId.HasValue)
+        {
+            query = query.Where(t => t.AssigneeUserId == request.AssigneeUserId.Value);
+        }
+
+        var items = await query
             .OrderBy(t => t.SortOrder)
             .ToListAsync(ct);
 

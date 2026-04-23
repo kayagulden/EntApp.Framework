@@ -280,8 +280,10 @@ public static class TaskManagementEndpoints
         tasks.MapPost("/{id:guid}/sprint", async (Guid id, AssignToSprintRequest req, ISender mediator) =>
             Results.Ok(new { id = await mediator.Send(new AssignToSprintCommand(id, req.SprintId)) }))
             .WithName("AssignTaskToSprint").WithSummary("Work item'ı sprint'e ata veya çıkar");
-        tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, ISender mediator)
-            => Results.Ok(await mediator.Send(new GetKanbanBoardQuery(projectId)))).WithName("KanbanBoard").WithSummary("Kanban board — duruma göre gruplu");
+        tasks.MapGet("/board/{projectId:guid}", async (Guid projectId, ISender mediator,
+            Guid? sprintId = null, Guid? assigneeUserId = null, bool includeCompleted = false)
+            => Results.Ok(await mediator.Send(new GetKanbanBoardQuery(projectId, sprintId, assigneeUserId, includeCompleted))))
+            .WithName("KanbanBoard").WithSummary("Kanban board — duruma göre gruplu, filtrelenebilir");
 
         // ── Cross-Module Source Endpoints ────────────────────────
         tasks.MapGet("/by-source", async (ISender mediator, string module, string type, Guid sourceId)

@@ -80,7 +80,11 @@ public sealed record ListWorkItemsQuery(Guid? ProjectId, string? Status, string?
     int Page = 1, int PageSize = 20, Guid? ReporterUserId = null, string? AssigneeUserIds = null,
     string? Type = null, string? SourceFilter = null) : IRequest<PagedResult<object>>;
 public sealed record GetWorkItemQuery(Guid Id) : IRequest<WorkItemDetailDto?>;
-public sealed record GetKanbanBoardQuery(Guid ProjectId) : IRequest<object>;
+public sealed record GetKanbanBoardQuery(
+    Guid ProjectId,
+    Guid? SprintId = null,
+    Guid? AssigneeUserId = null,
+    bool IncludeCompleted = false) : IRequest<object>;
 public sealed record ListCommentsQuery(Guid TaskId) : IRequest<List<object>>;
 public sealed record ListTimeEntriesQuery(Guid? TaskId, Guid? UserId, int Page = 1, int PageSize = 20) : IRequest<PagedResult<object>>;
 

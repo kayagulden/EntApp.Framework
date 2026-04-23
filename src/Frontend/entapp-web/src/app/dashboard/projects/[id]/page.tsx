@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
   Loader2, CheckCircle2, PauseCircle, RotateCcw, AlertCircle,
@@ -166,7 +166,16 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab") as TabKey | null;
+  const [activeTab, setActiveTabState] = useState<TabKey>(tabFromUrl || "overview");
+  const setActiveTab = (tab: TabKey) => {
+    setActiveTabState(tab);
+    const url = new URL(window.location.href);
+    if (tab === "overview") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    window.history.replaceState({}, "", url.toString());
+  };
   const [portfolios, setPortfolios] = useState<PortfolioOption[]>([]);
 
   // Edit mode
@@ -184,6 +193,15 @@ export default function ProjectDetailPage() {
   const [boardColumns, setBoardColumns] = useState<BoardColumnData[]>([]);
   const [boardItems, setBoardItems] = useState<BoardWorkItem[]>([]);
   const [boardLoading, setBoardLoading] = useState(false);
+  // Board filters & DnD
+  const [boardSearch, setBoardSearch] = useState("");
+  const [boardTypeFilter, setBoardTypeFilter] = useState("");
+  const [boardSwimlane, setBoardSwimlane] = useState<"none" | "assignee" | "priority" | "type">("none");
+  const [boardIncludeCompleted, setBoardIncludeCompleted] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<BoardWorkItem | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [boardSprints, setBoardSprints] = useState<{id:string;name:string;status:string}[]>([]);
+  const [boardSprintFilter, setBoardSprintFilter] = useState("");
 
   // Metrics state
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
@@ -230,13 +248,18 @@ export default function ProjectDetailPage() {
   useEffect(() => { fetchProject(); fetchPortfolios(); }, [fetchProject, fetchPortfolios]);
 
   // Fetch board data
-  useEffect(() => {
-    if (activeTab !== "board" || !projectId) return;
+  const fetchBoardData = useCallback(() => {
+    if (!projectId) return;
     setBoardLoading(true);
+    const params = new URLSearchParams();
+    if (boardIncludeCompleted) params.set("includeCompleted", "true");
+    if (boardSprintFilter) params.set("sprintId", boardSprintFilter);
+    const qs = params.toString();
     Promise.all([
       fetch(`/api/pm/projects/${projectId}/board-columns`).then(r => r.ok ? r.json() : []),
-      fetch(`/api/pm/work-items/board/${projectId}`).then(r => r.ok ? r.json() : {}),
-    ]).then(([cols, boardData]) => {
+      fetch(`/api/pm/work-items/board/${projectId}${qs ? `?${qs}` : ""}`).then(r => r.ok ? r.json() : {}),
+      fetch(`/api/pm/projects/${projectId}/sprints`).then(r => r.ok ? r.json() : []),
+    ]).then(([cols, boardData, sprintsData]) => {
       setBoardColumns(Array.isArray(cols) ? cols : []);
       const items: BoardWorkItem[] = [];
       if (boardData && typeof boardData === "object") {
@@ -245,8 +268,71 @@ export default function ProjectDetailPage() {
         });
       }
       setBoardItems(items);
+      setBoardSprints(Array.isArray(sprintsData) ? sprintsData : []);
     }).catch(() => {}).finally(() => setBoardLoading(false));
-  }, [activeTab, projectId]);
+  }, [projectId, boardIncludeCompleted, boardSprintFilter]);
+
+  useEffect(() => {
+    if (activeTab !== "board") return;
+    fetchBoardData();
+  }, [activeTab, fetchBoardData]);
+
+  // Board DnD handler
+  const handleBoardDrop = async (item: BoardWorkItem, targetStatus: string) => {
+    if (item.status === targetStatus) return;
+    const prevItems = [...boardItems];
+    // Optimistic update
+    setBoardItems(prev => prev.map(i => i.id === item.id ? { ...i, status: targetStatus } : i));
+    setDraggedItem(null);
+    setDragOverColumn(null);
+    try {
+      const res = await fetch(`/api/pm/work-items/${item.id}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setBoardItems(prevItems); // Rollback
+    }
+  };
+
+  // Board client-side filter
+  const filteredBoardItems = boardItems.filter(item => {
+    if (boardSearch && !item.title.toLowerCase().includes(boardSearch.toLowerCase()) &&
+        !item.workItemNumber.toLowerCase().includes(boardSearch.toLowerCase())) return false;
+    if (boardTypeFilter && item.type !== boardTypeFilter) return false;
+    return true;
+  });
+
+  // Swimlane grouping
+  const swimlaneGroups = (() => {
+    if (boardSwimlane === "none") return new Map([["all", filteredBoardItems]]);
+    const map = new Map<string, BoardWorkItem[]>();
+    filteredBoardItems.forEach(item => {
+      let key = "";
+      if (boardSwimlane === "assignee") key = item.assigneeUserId || "unassigned";
+      else if (boardSwimlane === "priority") key = item.priority;
+      else if (boardSwimlane === "type") key = item.type;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    });
+    // "Atanmamış" en sona
+    if (boardSwimlane === "assignee" && map.has("unassigned")) {
+      const u = map.get("unassigned")!;
+      map.delete("unassigned");
+      map.set("unassigned", u);
+    }
+    return map;
+  })();
+
+  const getSwimlaneLabel = (key: string) => {
+    if (key === "all") return "";
+    if (key === "unassigned") return "Atanmamış";
+    if (boardSwimlane === "priority") return ({ Critical:"🔴 Kritik", High:"🟠 Yüksek", Medium:"🟡 Orta", Low:"🔵 Düşük" }[key] ?? key);
+    if (boardSwimlane === "type") return `${TYPE_ICONS[key] ?? "📋"} ${key}`;
+    return key.slice(0, 8) + "..."; // userId kısalt
+  };
 
   // Fetch metrics data
   useEffect(() => {
@@ -668,18 +754,21 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            {/* Future tabs info */}
+            {/* Tamamlanan & Yakında */}
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Yakında</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Özellikler</h3>
               <ul className="space-y-3">
                 {[
-                  { icon: ListTodo, label: "İş Kalemleri", desc: "Tablo & ağaç görünüm, hiyerarşi" },
-                  { icon: Layout, label: "Drag & Drop Board", desc: "Kanban kartlarını sürükle-bırak" },
-                  { icon: Milestone, label: "Milestones", desc: "Proje kilometre taşları" },
+                  { icon: ListTodo, label: "İş Kalemleri", desc: "Tablo & ağaç görünüm", done: true },
+                  { icon: Layout, label: "Kanban Board", desc: "Sürükle-bırak, swimlane, filtre", done: true },
+                  { icon: Milestone, label: "Milestones", desc: "Timeline görünümü", done: true },
+                  { icon: BarChart3, label: "Metrikler", desc: "Velocity, Burndown", done: true },
+                  { icon: GitBranch, label: "Ağaç Görünüm", desc: "Hiyerarşik drag & drop sıralama", done: false },
                 ].map(item => (
                   <li key={item.label} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[var(--color-border)] flex items-center justify-center mt-0.5 shrink-0">
-                      <item.icon className="w-4 h-4 text-[var(--color-text-muted)]" />
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 shrink-0",
+                      item.done ? "bg-emerald-500/10" : "bg-[var(--color-border)]")}>
+                      <item.icon className={cn("w-4 h-4", item.done ? "text-emerald-400" : "text-[var(--color-text-muted)]")} />
                     </div>
                     <div>
                       <span className="text-sm font-medium text-[var(--color-text)]">{item.label}</span>
@@ -886,6 +975,56 @@ export default function ProjectDetailPage() {
       {/* Board Tab */}
       {activeTab === "board" && (
         <div className="space-y-4">
+          {/* Board Toolbar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+              <input type="text" placeholder="Kart ara..." value={boardSearch} onChange={e => setBoardSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
+            </div>
+
+            {/* Type filter */}
+            <select value={boardTypeFilter} onChange={e => setBoardTypeFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+              <option value="">Tüm Tipler</option>
+              {WORK_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+            </select>
+
+            {/* Sprint filter */}
+            {boardSprints.length > 0 && (
+              <select value={boardSprintFilter} onChange={e => setBoardSprintFilter(e.target.value)}
+                className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                <option value="">Tüm Sprintler</option>
+                {boardSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+
+            {/* Swimlane */}
+            <select value={boardSwimlane} onChange={e => setBoardSwimlane(e.target.value as typeof boardSwimlane)}
+              className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+              <option value="none">Swimlane: Kapalı</option>
+              <option value="assignee">👤 Kişiye Göre</option>
+              <option value="priority">🎯 Önceliğe Göre</option>
+              <option value="type">📋 Tipe Göre</option>
+            </select>
+
+            <div className="flex-1" />
+
+            {/* Include completed toggle */}
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={boardIncludeCompleted} onChange={e => setBoardIncludeCompleted(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-[var(--color-border)] accent-indigo-500" />
+              <span className="text-[10px] text-[var(--color-text-muted)]">Tamamlananlar</span>
+            </label>
+
+            {/* Refresh */}
+            <button onClick={fetchBoardData}
+              className="p-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]/50 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {boardLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
           ) : boardColumns.length === 0 ? (
@@ -894,53 +1033,86 @@ export default function ProjectDetailPage() {
               <p className="text-sm">Board kolonları henüz oluşturulmadı</p>
             </div>
           ) : (
-            <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 400 }}>
-              {boardColumns.map(col => {
-                const colItems = boardItems.filter(item => item.status === col.mappedStatus);
-                const isOverWip = col.wipLimit != null && colItems.length > col.wipLimit;
-                return (
-                  <div key={col.id} className={cn(
-                    "flex-shrink-0 w-72 rounded-xl border bg-[var(--color-card-bg)] flex flex-col",
-                    isOverWip ? "border-red-500/50" : "border-[var(--color-border)]"
-                  )}>
-                    <div className={cn(
-                      "px-4 py-3 border-b flex items-center justify-between rounded-t-xl",
-                      isOverWip ? "border-red-500/30 bg-red-500/5" : "border-[var(--color-border)]"
-                    )}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--color-text)]">{col.name}</span>
-                        <span className={cn(
-                          "text-xs font-mono px-1.5 py-0.5 rounded-full",
-                          isOverWip ? "bg-red-500/20 text-red-400" : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
-                        )}>{colItems.length}{col.wipLimit != null ? `/${col.wipLimit}` : ""}</span>
-                      </div>
+            <div className="space-y-6">
+              {Array.from(swimlaneGroups.entries()).map(([laneKey, laneItems]) => (
+                <div key={laneKey}>
+                  {/* Swimlane header */}
+                  {boardSwimlane !== "none" && (
+                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-[var(--color-border)]">
+                      <span className="text-xs font-semibold text-[var(--color-text)]">{getSwimlaneLabel(laneKey)}</span>
+                      <span className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-border)] px-1.5 py-0.5 rounded-full">{laneItems.length}</span>
                     </div>
-                    <div className="p-2 flex-1 space-y-2 overflow-y-auto" style={{ maxHeight: 500 }}>
-                      {colItems.map(item => (
-                        <div key={item.id}
-                          onClick={() => router.push(`/dashboard/tasks/${item.id}`)}
-                          className="p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-pointer group">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="text-xs">{TYPE_ICONS[item.type] ?? "📋"}</span>
-                            <span className="text-[10px] font-mono text-[var(--color-text-muted)]">{item.workItemNumber}</span>
-                            {item.storyPoints != null && item.storyPoints > 0 && (
-                              <span className="ml-auto text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints} SP</span>
+                  )}
+
+                  {/* Columns */}
+                  <div className="flex gap-3 overflow-x-auto pb-2" style={{ minHeight: boardSwimlane === "none" ? 400 : 200 }}>
+                    {boardColumns.map(col => {
+                      const colItems = laneItems.filter(item => item.status === col.mappedStatus);
+                      const allColItems = boardItems.filter(item => item.status === col.mappedStatus);
+                      const isOverWip = col.wipLimit != null && allColItems.length > col.wipLimit;
+                      const isDragOver = dragOverColumn === `${laneKey}-${col.mappedStatus}`;
+                      return (
+                        <div key={col.id}
+                          onDragOver={e => { e.preventDefault(); setDragOverColumn(`${laneKey}-${col.mappedStatus}`); }}
+                          onDragLeave={() => setDragOverColumn(null)}
+                          onDrop={e => { e.preventDefault(); if (draggedItem) handleBoardDrop(draggedItem, col.mappedStatus); }}
+                          className={cn(
+                            "flex-shrink-0 w-72 rounded-xl border bg-[var(--color-card-bg)] flex flex-col transition-all duration-200",
+                            isDragOver ? "border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-500/5" :
+                            isOverWip ? "border-red-500/50" : "border-[var(--color-border)]"
+                          )}>
+                          <div className={cn(
+                            "px-4 py-3 border-b flex items-center justify-between rounded-t-xl",
+                            isOverWip ? "border-red-500/30 bg-red-500/5" : "border-[var(--color-border)]"
+                          )}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-[var(--color-text)]">{col.name}</span>
+                              <span className={cn(
+                                "text-xs font-mono px-1.5 py-0.5 rounded-full",
+                                isOverWip ? "bg-red-500/20 text-red-400" : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
+                              )}>{colItems.length}{col.wipLimit != null ? `/${col.wipLimit}` : ""}</span>
+                            </div>
+                          </div>
+                          <div className="p-2 flex-1 space-y-2 overflow-y-auto" style={{ maxHeight: boardSwimlane === "none" ? 500 : 300 }}>
+                            {colItems.map(item => (
+                              <div key={item.id}
+                                draggable
+                                onDragStart={() => setDraggedItem(item)}
+                                onDragEnd={() => { setDraggedItem(null); setDragOverColumn(null); }}
+                                onClick={() => router.push(`/dashboard/tasks/${item.id}`)}
+                                className={cn(
+                                  "p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-grab active:cursor-grabbing group",
+                                  draggedItem?.id === item.id && "opacity-40 scale-95"
+                                )}>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="text-xs">{TYPE_ICONS[item.type] ?? "📋"}</span>
+                                  <span className="text-[10px] font-mono text-[var(--color-text-muted)]">{item.workItemNumber}</span>
+                                  {item.storyPoints != null && item.storyPoints > 0 && (
+                                    <span className="ml-auto text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints} SP</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-[var(--color-text)] line-clamp-2">{item.title}</p>
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", PRIORITY_COLORS[item.priority] ?? "bg-gray-500")} />
+                                  <span className="text-[9px] text-[var(--color-text-muted)]">{item.priority}</span>
+                                </div>
+                              </div>
+                            ))}
+                            {colItems.length === 0 && (
+                              <div className={cn(
+                                "text-center py-6 text-[10px] text-[var(--color-text-muted)] rounded-lg transition-colors",
+                                isDragOver ? "bg-indigo-500/10 text-indigo-400" : "opacity-50"
+                              )}>
+                                {isDragOver ? "Buraya bırak" : "Boş"}
+                              </div>
                             )}
                           </div>
-                          <p className="text-xs text-[var(--color-text)] line-clamp-2">{item.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            <span className={cn("w-1.5 h-1.5 rounded-full", PRIORITY_COLORS[item.priority] ?? "bg-gray-500")} />
-                            <span className="text-[9px] text-[var(--color-text-muted)]">{item.priority}</span>
-                          </div>
                         </div>
-                      ))}
-                      {colItems.length === 0 && (
-                        <div className="text-center py-6 text-[10px] text-[var(--color-text-muted)] opacity-50">Boş</div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>

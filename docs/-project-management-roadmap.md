@@ -75,9 +75,10 @@
 - [ ] Sprint'e atama (inline veya modal)
 
 ### Kanban Board Gelistirmeleri
-- [ ] Drag & drop kart surukleme (frontend)
-- [ ] Swimlane destegi (assignee, priority, type bazli)
-- [ ] Quick filter: "Benim itemlarim", tip bazli, sprint bazli
+- [x] Drag & drop kart surukleme (HTML5 DnD API, optimistic update + rollback)
+- [x] Swimlane destegi (assignee, priority, type bazli)
+- [x] Quick filter: arama, tip bazli, sprint bazli, "Tamamlananlar" toggle
+- [x] Backend filtreleme: Done/Cancelled varsayılan hariç, sprint/assignee query parametreleri
 
 ### Metrik Gorsellestirme
 - [ ] Frontend burndown line chart gorsellestirme
