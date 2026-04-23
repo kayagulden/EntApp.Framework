@@ -1536,23 +1536,10 @@ public sealed class PromoteTicketToProjectCommandHandler(TaskManagementDbContext
             hierarchyLevel: parentLevel);
 
         db.WorkItems.Add(parent);
-
-        // 3. Mevcut ticket task'larını bul ve taşı
-        var existingTasks = await db.WorkItems
-            .Where(w => w.SourceModule == "RequestManagement"
-                     && w.SourceType == "Ticket"
-                     && w.SourceId == request.TicketId
-                     && w.Id != parent.Id)
-            .ToListAsync(ct);
-
-        foreach (var task in existingTasks)
-        {
-            task.MoveToProject(projectId);
-            task.SetParent(parent.Id, parentLevel + 1);
-        }
-
         await db.SaveChangesAsync(ct);
 
-        return new PromoteTicketResult(parent.Id.Value, existingTasks.Count);
+        // Child ticket mekanizması ile artık ticket altında WorkItem olmadığı için
+        // mevcut task taşıma adımı kaldırıldı.
+        return new PromoteTicketResult(parent.Id.Value, 0);
     }
 }

@@ -41,3 +41,13 @@ public sealed record MyQueueDto(
     string? DepartmentName, string Role, int TicketCount, int UnassignedCount);
 
 public sealed record TaskAssigneeDto(Guid UserId, string Role, string? DisplayName);
+
+// ── Child Ticket ────────────────────────────────────────────
+/// <summary>Belirtilen parent ticket'ın alt taleplerini listeler.</summary>
+public sealed record ListChildTicketsQuery(Guid ParentTicketId) : IRequest<IReadOnlyList<ChildTicketDto>>;
+
+public sealed record ChildTicketDto(
+    Guid Id, string Number, string Title, string Status, string Priority,
+    string Channel, string? CategoryName, string? DepartmentName,
+    string? AssigneeUserId, string? ServiceQueueName,
+    DateTime CreatedAt, DateTime? ResolvedAt);

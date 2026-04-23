@@ -4,7 +4,7 @@ using Elsa.Workflows.Activities.Flowchart.Attributes;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
 using EntApp.Modules.RequestManagement.Application.Commands;
-using EntApp.Modules.RequestManagement.Domain.Enums;
+using EntApp.Modules.RequestManagement.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -49,6 +49,15 @@ public sealed class WaitForStatusDecisionActivity : Activity
     [Output(Description = "Optional comment from the user.")]
     public Output<string?> Comment { get; set; } = default!;
 
+    // TicketStates sabitlerinden geçerli state isimlerini al
+    private static readonly HashSet<string> ValidStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        TicketStates.New, TicketStates.WaitForAssignment, TicketStates.Open,
+        TicketStates.InProgress, TicketStates.WaitingForInfo, TicketStates.Escalated,
+        TicketStates.AllChildrenDone, TicketStates.Resolved, TicketStates.Closed,
+        TicketStates.Cancelled
+    };
+
     protected override ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
         var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
@@ -59,7 +68,7 @@ public sealed class WaitForStatusDecisionActivity : Activity
         var rawStatuses = context.Get(AllowedStatuses) ?? "Resolved, Cancelled";
         var statuses = rawStatuses
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => Enum.TryParse<TicketStatus>(s, true, out _))
+            .Where(s => ValidStatuses.Contains(s))
             .ToArray();
 
         if (statuses.Length == 0)
@@ -114,17 +123,15 @@ public sealed class WaitForStatusDecisionActivity : Activity
         }
 
         // ── Normal status değişikliği ──
-        if (string.IsNullOrWhiteSpace(selectedStatusStr) ||
-            !Enum.TryParse<TicketStatus>(selectedStatusStr, true, out var newStatus))
+        if (string.IsNullOrWhiteSpace(selectedStatusStr) || !ValidStatuses.Contains(selectedStatusStr))
         {
-            newStatus = TicketStatus.Resolved;
             selectedStatusStr = "Resolved";
         }
 
         // Status'ü otomatik değiştir
         var mediator = context.GetRequiredService<ISender>();
         var reason = comment ?? $"Workflow kararı: {selectedStatusStr}";
-        await mediator.Send(new ChangeTicketStatusCommand(ticketId, newStatus, reason));
+        await mediator.Send(new ChangeTicketStatusCommand(ticketId, selectedStatusStr, reason));
 
         // Output'ları set et
         context.Set(SelectedStatus, selectedStatusStr);

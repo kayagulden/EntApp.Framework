@@ -4,7 +4,7 @@ using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Activities.Flowchart.Attributes;
 using Elsa.Workflows.Models;
 using EntApp.Modules.RequestManagement.Application.Commands;
-using EntApp.Modules.RequestManagement.Domain.Enums;
+using EntApp.Modules.RequestManagement.Domain.Entities;
 using MediatR;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Activities;
@@ -124,7 +124,7 @@ public sealed class WaitForAssignmentActivity : Activity
             if (autoSetInProgress)
             {
                 await mediator.Send(new ChangeTicketStatusCommand(
-                    resolvedTicketId, TicketStatus.InProgress, "Ticket atandı — otomatik InProgress"));
+                    resolvedTicketId, TicketStates.InProgress, "Ticket atandı — otomatik InProgress"));
             }
         }
 

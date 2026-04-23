@@ -150,6 +150,20 @@ public static class RequestManagementEndpoints
             return Results.NoContent();
         }).WithName("UnclaimTicket");
 
+        // ═══════════ Child Tickets ═══════════
+        tickets.MapPost("/{id:guid}/children", async (Guid id, CreateChildTicketRequest req, ISender mediator) =>
+        {
+            var childId = await mediator.Send(new CreateChildTicketCommand(
+                id, req.Title, req.CategoryId, req.DepartmentId,
+                req.Description, req.Priority, req.Channel,
+                req.FormDataJson, req.ConfigurationItemId));
+            return Results.Created($"/api/req/tickets/{childId}", new { id = childId });
+        }).WithName("CreateChildTicket").WithSummary("Alt talep oluşturur");
+
+        tickets.MapGet("/{id:guid}/children", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListChildTicketsQuery(id))))
+            .WithName("ListChildTickets").WithSummary("Alt talepleri listeler");
+
         // ═══════════ State Flow — Allowed Transitions ═══════════
         tickets.MapGet("/{id:guid}/allowed-transitions", async (
             Guid id, ISender mediator, IStateFlowEngine stateFlowEngine) =>
@@ -208,4 +222,8 @@ public sealed record CloseTicketRequest(string? Reason);
 public sealed record AddCommentRequest(string Content, bool IsInternal);
 public sealed record RouteTicketRequest(Guid QueueId);
 public sealed record ClaimTicketRequest(Guid ClaimerUserId);
-
+public sealed record CreateChildTicketRequest(
+    string Title, Guid CategoryId, Guid DepartmentId,
+    string? Description, TicketPriority Priority,
+    TicketChannel Channel = TicketChannel.Internal,
+    string? FormDataJson = null, Guid? ConfigurationItemId = null);

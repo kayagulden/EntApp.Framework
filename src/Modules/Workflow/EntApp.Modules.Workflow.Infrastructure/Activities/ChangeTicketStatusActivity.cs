@@ -3,7 +3,6 @@ using Elsa.Workflows;
 using Elsa.Workflows.Attributes;
 using Elsa.Workflows.Models;
 using EntApp.Modules.RequestManagement.Application.Commands;
-using EntApp.Modules.RequestManagement.Domain.Enums;
 using MediatR;
 
 namespace EntApp.Modules.Workflow.Infrastructure.Activities;
@@ -21,7 +20,7 @@ public sealed class ChangeTicketStatusActivity : CodeActivity
 
     [Input(Description = "The new status to set.",
         UIHint = "dropdown",
-        Options = new[] { "New", "Open", "InProgress", "WaitingForInfo", "Escalated", "AllTasksDone", "Resolved", "Closed", "Cancelled", "Reopened" })]
+        Options = new[] { "New", "Open", "InProgress", "WaitingForInfo", "Escalated", "AllChildrenDone", "Resolved", "Closed", "Cancelled", "Reopened" })]
     public Input<string> NewStatus { get; set; } = default!;
 
     [Input(Description = "Optional reason for the status change.")]
@@ -30,10 +29,8 @@ public sealed class ChangeTicketStatusActivity : CodeActivity
     protected override async ValueTask ExecuteAsync(ActivityExecutionContext context)
     {
         var ticketId = ActivityHelpers.ResolveTicketId(context, TicketId);
-        var newStatusStr = context.Get(NewStatus) ?? "New";
+        var newStatus = context.Get(NewStatus) ?? "New";
         var reason = context.Get(Reason);
-
-        var newStatus = Enum.Parse<TicketStatus>(newStatusStr);
 
         var mediator = context.GetRequiredService<ISender>();
         await mediator.Send(new ChangeTicketStatusCommand(ticketId, newStatus, reason));

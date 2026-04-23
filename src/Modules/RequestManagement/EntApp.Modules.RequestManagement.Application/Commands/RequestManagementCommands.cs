@@ -58,3 +58,13 @@ public sealed record UnclaimTicketCommand(Guid TicketId) : IRequest;
 // ── TicketComment ────────────────────────────────────────────
 public sealed record AddCommentCommand(
     Guid TicketId, string Content, bool IsInternal) : IRequest<Guid>;
+
+// ── Child Ticket ────────────────────────────────────────────
+/// <summary>Mevcut bir talebin altında, farklı departman/kuyruğa yönlendirilen alt talep oluşturur.</summary>
+public sealed record CreateChildTicketCommand(
+    Guid ParentTicketId,
+    string Title, Guid CategoryId, Guid DepartmentId,
+    string? Description, TicketPriority Priority,
+    TicketChannel Channel = TicketChannel.Internal,
+    string? FormDataJson = null,
+    Guid? ConfigurationItemId = null) : IRequest<Guid>;

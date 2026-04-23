@@ -128,9 +128,19 @@ public sealed class RequestManagementDbContext : BaseDbContext
                 v => v.HasValue ? new ServiceQueueId(v.Value) : null);
             e.Property(x => x.RoutingSource).HasConversion<string>().HasMaxLength(30);
 
-            // Görev entegrasyonu sayaçları
-            e.Property(x => x.LinkedTaskCount).HasDefaultValue(0);
-            e.Property(x => x.CompletedTaskCount).HasDefaultValue(0);
+            // Child ticket sayaçları
+            e.Property(x => x.ChildTicketCount).HasDefaultValue(0);
+            e.Property(x => x.CompletedChildTicketCount).HasDefaultValue(0);
+
+            // Parent-Child ilişkisi
+            e.Property(x => x.ParentTicketId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new TicketId(v.Value) : null);
+            e.HasIndex(x => x.ParentTicketId);
+            e.HasOne(x => x.ParentTicket)
+                .WithMany(t => t.ChildTickets)
+                .HasForeignKey(x => x.ParentTicketId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             e.HasIndex(x => x.ServiceQueueId);
 

@@ -282,6 +282,33 @@ public sealed class ChangeTicketStatusHandler(
                 ticket.ReporterUserId, ticket.AssigneeUserId,
                 ticket.ResolvedAt ?? DateTime.UtcNow), ct);
         }
+
+        // Child ticket tamamlandıysa parent'ın sayaçlarını güncelle
+        if (ticket.ParentTicketId.HasValue
+            && request.NewStatus is TicketStates.Resolved or TicketStates.Closed or TicketStates.Cancelled)
+        {
+            var parent = await db.Tickets
+                .Include(t => t.StatusHistory)
+                .Include(t => t.ChildTickets)
+                .FirstOrDefaultAsync(t => t.Id == ticket.ParentTicketId.Value, ct);
+
+            if (parent is not null)
+            {
+                var totalChildren = parent.ChildTickets.Count;
+                var completedChildren = parent.ChildTickets
+                    .Count(c => c.Status is TicketStates.Resolved or TicketStates.Closed or TicketStates.Cancelled);
+                parent.SetChildCounts(totalChildren, completedChildren);
+
+                if (completedChildren >= totalChildren && totalChildren > 0)
+                {
+                    parent.MarkAllChildrenDone(currentUser.UserId);
+                    logger.LogInformation(
+                        "Ticket {ParentNumber}: Tüm alt talepler tamamlandı ({Count}).",
+                        parent.Number, totalChildren);
+                }
+                await db.SaveChangesAsync(ct);
+            }
+        }
     }
 }
 
@@ -449,6 +476,8 @@ public sealed class GetTicketHandler(RequestManagementDbContext db)
             .Include(t => t.Category)
             .Include(t => t.Department)
             .Include(t => t.ServiceQueue)
+            .Include(t => t.ParentTicket)
+            .Include(t => t.ChildTickets.OrderByDescending(c => c.CreatedAt))
             .Include(t => t.Comments.OrderByDescending(c => c.CreatedAt))
             .Include(t => t.StatusHistory.OrderByDescending(h => h.ChangedAt))
             .FirstOrDefaultAsync(t => t.Id == new TicketId(request.Id), ct);
@@ -623,4 +652,142 @@ internal sealed class TaskAssigneeRaw
     public Guid UserId { get; set; }
     public string Role { get; set; } = "";
     public string? DisplayName { get; set; }
+}
+
+// ═════════════════════════════════════════════════════════════════
+//  Child Ticket Handlers
+// ═════════════════════════════════════════════════════════════════
+
+public sealed class CreateChildTicketHandler(
+    RequestManagementDbContext db, ISender mediator,
+    ICurrentUser currentUser, IEventBus eventBus,
+    ILogger<CreateChildTicketHandler> logger)
+    : IRequestHandler<CreateChildTicketCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateChildTicketCommand request, CancellationToken ct)
+    {
+        // 1. Parent ticket kontrolü
+        var parent = await db.Tickets
+            .FirstOrDefaultAsync(t => t.Id == new TicketId(request.ParentTicketId), ct)
+            ?? throw new KeyNotFoundException($"Parent ticket '{request.ParentTicketId}' not found.");
+
+        // 2. Kategori yükle (SLA + routing için)
+        var category = await db.Categories
+            .Include(c => c.SlaDefinitionEntity)
+            .FirstOrDefaultAsync(c => c.Id == new RequestCategoryId(request.CategoryId), ct)
+            ?? throw new KeyNotFoundException($"Category '{request.CategoryId}' not found.");
+
+        // 3. Numara üret
+        var number = await TicketNumberGenerator.NextAsync(db, ct);
+
+        // 4. Queue routing (kategori default queue)
+        ServiceQueueId? queueId = category.DefaultQueueId;
+        var routingSource = queueId.HasValue
+            ? TicketRoutingSource.CategoryDefault
+            : TicketRoutingSource.Unrouted;
+
+        // 5. Child ticket oluştur
+        var child = Ticket.Create(
+            number, request.Title, new RequestCategoryId(request.CategoryId),
+            new DepartmentId(request.DepartmentId), currentUser.UserId,
+            request.Description, request.Priority, request.Channel,
+            request.FormDataJson, queueId, routingSource,
+            request.ConfigurationItemId);
+
+        child.SetParentTicket(parent.Id);
+
+        // 6. StateFlow: Published akışı ata ve başlangıç geçişini tetikle
+        try
+        {
+            var publishedFlow = await mediator.Send(
+                new GetPublishedFlowQuery("Ticket"), ct);
+            if (publishedFlow is not null)
+            {
+                child.SetFlowDefinition(publishedFlow.Id);
+
+                var initialState = publishedFlow.States.FirstOrDefault(s => s.IsInitial);
+                if (initialState != null)
+                {
+                    try
+                    {
+                        var newState = await mediator.Send(
+                            new FireTransitionCommand("Ticket", initialState.Name, "Submit", publishedFlow.Id), ct);
+                        child.ChangeStatus(newState, currentUser.UserId, "Alt talep oluşturuldu.");
+                        logger.LogInformation(
+                            "StateFlow initial transition: Child ticket {Number} → {State}",
+                            number, newState);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex,
+                            "StateFlow initial transition failed for child ticket {Number}", number);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to lookup StateFlow for child ticket {Number}", number);
+        }
+
+        // 7. SLA hesapla
+        if (category.SlaDefinitionEntity is not null)
+        {
+            var sla = category.SlaDefinitionEntity;
+            child.SetSlaDeadlines(
+                SlaCalculator.CalculateResponseDeadline(sla.ResponseTimeJson, request.Priority),
+                SlaCalculator.CalculateResolutionDeadline(sla.ResolutionTimeJson, request.Priority));
+        }
+
+        // 8. Queue routing
+        if (queueId.HasValue)
+        {
+            child.RouteToQueue(queueId.Value, routingSource);
+        }
+
+        db.Tickets.Add(child);
+
+        // 9. Parent sayaç güncelle
+        parent.IncrementChildCount();
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation(
+            "Child ticket {ChildNumber} created under parent {ParentNumber} (Dept: {DeptId}, Queue: {QueueId})",
+            child.Number, parent.Number, request.DepartmentId, queueId?.Value);
+
+        // 10. Integration event
+        await eventBus.PublishAsync(new TicketCreatedEvent(
+            child.Id.Value, child.Number, child.Title,
+            request.CategoryId, request.DepartmentId,
+            queueId?.Value, currentUser.UserId,
+            request.Priority.ToString(), request.Channel.ToString(),
+            routingSource.ToString()), ct);
+
+        return child.Id.Value;
+    }
+}
+
+public sealed class ListChildTicketsHandler(RequestManagementDbContext db)
+    : IRequestHandler<ListChildTicketsQuery, IReadOnlyList<ChildTicketDto>>
+{
+    public async Task<IReadOnlyList<ChildTicketDto>> Handle(ListChildTicketsQuery request, CancellationToken ct)
+    {
+        return await db.Tickets
+            .Include(t => t.Category)
+            .Include(t => t.Department)
+            .Include(t => t.ServiceQueue)
+            .Where(t => t.ParentTicketId.HasValue
+                && t.ParentTicketId.Value == new TicketId(request.ParentTicketId))
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new ChildTicketDto(
+                t.Id.Value, t.Number, t.Title, t.Status, t.Priority.ToString(),
+                t.Channel.ToString(),
+                t.Category != null ? t.Category.Name : null,
+                t.Department != null ? t.Department.Name : null,
+                t.AssigneeUserId.HasValue ? t.AssigneeUserId.Value.ToString() : null,
+                t.ServiceQueue != null ? t.ServiceQueue.Name : null,
+                t.CreatedAt, t.ResolvedAt))
+            .ToListAsync(ct);
+    }
 }

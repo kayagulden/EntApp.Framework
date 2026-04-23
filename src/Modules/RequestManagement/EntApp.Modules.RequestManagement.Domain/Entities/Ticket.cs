@@ -15,7 +15,7 @@ public static class TicketStates
     public const string InProgress = "InProgress";
     public const string WaitingForInfo = "WaitingForInfo";
     public const string Escalated = "Escalated";
-    public const string AllTasksDone = "AllTasksDone";
+    public const string AllChildrenDone = "AllChildrenDone";
     public const string Resolved = "Resolved";
     public const string Closed = "Closed";
     public const string Cancelled = "Cancelled";
@@ -51,17 +51,20 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public string? WorkflowInstanceId { get; private set; }
     public Guid? ProjectId { get; private set; }
 
+    // Parent-Child ilişkisi
+    public TicketId? ParentTicketId { get; private set; }
+
     /// <summary>Bu ticket'ın bağlı olduğu StateFlow tanımının ID'si.</summary>
     public Guid? FlowDefinitionId { get; private set; }
 
     /// <summary>İlgili Configuration Item (uygulama, sunucu vb.) — cross-module, raw Guid.</summary>
     public Guid? ConfigurationItemId { get; private set; }
 
-    // Görev entegrasyonu (denormalized — event-driven güncellenir)
-    /// <summary>Bu talebe bağlı toplam görev sayısı.</summary>
-    public int LinkedTaskCount { get; private set; }
-    /// <summary>Bu talebe bağlı tamamlanmış görev sayısı.</summary>
-    public int CompletedTaskCount { get; private set; }
+    // Child ticket sayaçları (denormalized — event-driven güncellenir)
+    /// <summary>Bu talebe bağlı toplam alt talep sayısı.</summary>
+    public int ChildTicketCount { get; private set; }
+    /// <summary>Bu talebe bağlı tamamlanmış alt talep sayısı.</summary>
+    public int CompletedChildTicketCount { get; private set; }
 
     /// <summary>Dinamik form verileri (JSON). RequestCategory.FormSchemaJson'a göre doldurulan alan değerleri.</summary>
     public string? FormDataJson { get; private set; }
@@ -77,6 +80,8 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
     public RequestCategory Category { get; private set; } = null!;
     public Department Department { get; private set; } = null!;
     public ServiceQueue? ServiceQueue { get; private set; }
+    public Ticket? ParentTicket { get; private set; }
+    public ICollection<Ticket> ChildTickets { get; private set; } = [];
     public ICollection<TicketComment> Comments { get; private set; } = [];
     public ICollection<TicketStatusHistory> StatusHistory { get; private set; } = [];
 
@@ -181,26 +186,29 @@ public sealed class Ticket : AggregateRoot<TicketId>, ITenantEntity
         if (configurationItemId.HasValue) ConfigurationItemId = configurationItemId;
     }
 
-    // ── Görev Entegrasyonu ──────────────────────────────────
-    /// <summary>Yeni bir görev oluşturulduğunda çağrılır (event handler tarafından).</summary>
-    public void IncrementTaskCount() => LinkedTaskCount++;
+    // ── Child Ticket Entegrasyonu ──────────────────────────────
+    /// <summary>Yeni bir alt talep oluşturulduğunda çağrılır.</summary>
+    public void IncrementChildCount() => ChildTicketCount++;
 
-    /// <summary>Görev sayaçlarını günceller (toplam ve tamamlanan).</summary>
-    public void SetTaskCounts(int total, int completed)
+    /// <summary>Alt talep sayaçlarını günceller (toplam ve tamamlanan).</summary>
+    public void SetChildCounts(int total, int completed)
     {
-        LinkedTaskCount = total;
-        CompletedTaskCount = completed;
+        ChildTicketCount = total;
+        CompletedChildTicketCount = completed;
     }
 
-    /// <summary>Tüm görevler tamamlandığında çağrılır — AllTasksDone ara durumuna geçer.</summary>
-    public void MarkAllTasksDone(Guid systemUserId)
+    /// <summary>Tüm alt talepler tamamlandığında çağrılır — AllChildrenDone ara durumuna geçer.</summary>
+    public void MarkAllChildrenDone(Guid systemUserId)
     {
         if (Status is TicketStates.InProgress or TicketStates.Open or TicketStates.New)
         {
             var old = Status;
-            Status = TicketStates.AllTasksDone;
-            StatusHistory.Add(TicketStatusHistory.Create(Id, old, TicketStates.AllTasksDone, systemUserId,
-                "Tüm bağlı görevler tamamlandı."));
+            Status = TicketStates.AllChildrenDone;
+            StatusHistory.Add(TicketStatusHistory.Create(Id, old, TicketStates.AllChildrenDone, systemUserId,
+                "Tüm alt talepler tamamlandı."));
         }
     }
+
+    /// <summary>Alt talep oluşturmak için parent ticket'ı ayarlar.</summary>
+    public void SetParentTicket(TicketId parentTicketId) => ParentTicketId = parentTicketId;
 }
