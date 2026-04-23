@@ -12,6 +12,18 @@ import { cn } from "@/lib/utils";
 
 // ── Types ───────────────────────────────────────────────────
 
+interface TemplateData {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  methodology: string;
+  category: string;
+  estimationMode: string;
+  isBuiltIn: boolean;
+  sortOrder: number;
+}
+
 interface PortfolioData {
   id: string;
   name: string;
@@ -94,9 +106,14 @@ export default function ProjectsPage() {
   const [portfolioFilter, setPortfolioFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
+  // Templates
+  const [templates, setTemplates] = useState<TemplateData[]>([]);
+
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createType, setCreateType] = useState<"project" | "portfolio">("project");
+  const [createStep, setCreateStep] = useState<"template" | "form">("template");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateData | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -121,9 +138,27 @@ export default function ProjectsPage() {
     } catch { /* */ }
   }, []);
 
-  useEffect(() => { fetchProjects(); fetchPortfolios(); }, [fetchProjects, fetchPortfolios]);
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pm/project-templates");
+      if (res.ok) setTemplates(await res.json());
+    } catch { /* */ }
+  }, []);
+
+  useEffect(() => { fetchProjects(); fetchPortfolios(); fetchTemplates(); }, [fetchProjects, fetchPortfolios, fetchTemplates]);
 
   // Create handlers
+  const openProjectCreate = () => {
+    setCreateType("project"); setCreateStep("template"); setSelectedTemplate(null);
+    setFormData({}); setFormError(""); setShowCreate(true);
+  };
+
+  const selectTemplate = (t: TemplateData) => {
+    setSelectedTemplate(t);
+    setFormData(d => ({ ...d, methodology: t.methodology, category: t.category }));
+    setCreateStep("form");
+  };
+
   const handleCreate = async () => {
     if (createType === "project" && (!formData.key?.trim() || !formData.name?.trim())) {
       setFormError("Anahtar ve ad zorunludur."); return;
@@ -133,22 +168,31 @@ export default function ProjectsPage() {
     }
     setFormSaving(true); setFormError("");
     try {
-      const url = createType === "project" ? "/api/pm/projects" : "/api/pm/portfolios";
-      const body = createType === "project" ? {
-        key: formData.key?.trim(), name: formData.name?.trim(),
-        description: formData.description?.trim() || null,
-        methodology: formData.methodology || "Kanban",
-        category: formData.category || "General",
-        portfolioId: formData.portfolioId || null,
-        startDate: formData.startDate || null,
-        targetEndDate: formData.targetEndDate || null,
-      } : {
-        name: formData.name?.trim(), code: formData.code?.trim(),
-        description: formData.description?.trim() || null,
-      };
+      let url: string; let body: Record<string, unknown>;
+      if (createType === "portfolio") {
+        url = "/api/pm/portfolios";
+        body = { name: formData.name?.trim(), code: formData.code?.trim(), description: formData.description?.trim() || null };
+      } else if (selectedTemplate) {
+        url = "/api/pm/projects/from-template";
+        body = {
+          templateId: selectedTemplate.id, key: formData.key?.trim(), name: formData.name?.trim(),
+          description: formData.description?.trim() || null,
+          portfolioId: formData.portfolioId || null,
+          startDate: formData.startDate || null, targetEndDate: formData.targetEndDate || null,
+        };
+      } else {
+        url = "/api/pm/projects";
+        body = {
+          key: formData.key?.trim(), name: formData.name?.trim(),
+          description: formData.description?.trim() || null,
+          methodology: formData.methodology || "Kanban", category: formData.category || "General",
+          portfolioId: formData.portfolioId || null,
+          startDate: formData.startDate || null, targetEndDate: formData.targetEndDate || null,
+        };
+      }
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (res.ok) {
-        setShowCreate(false); setFormData({}); setFormError("");
+        setShowCreate(false); setFormData({}); setFormError(""); setSelectedTemplate(null);
         fetchProjects(); fetchPortfolios();
       } else { setFormError(`Hata: ${res.status}`); }
     } catch { setFormError("Bağlantı hatası."); }
@@ -186,7 +230,7 @@ export default function ProjectsPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-border)]/50 transition-all">
             <Briefcase className="w-4 h-4" /> Yeni Portfolyo
           </button>
-          <button onClick={() => { setCreateType("project"); setShowCreate(true); setFormData({}); }}
+          <button onClick={openProjectCreate}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all">
             <Plus className="w-4 h-4" /> Yeni Proje
           </button>
@@ -273,7 +317,7 @@ export default function ProjectsPage() {
           <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-muted)]">
             <FolderKanban className="w-12 h-12 opacity-30 mb-3" />
             <p className="text-sm">Henüz proje oluşturulmamış</p>
-            <button onClick={() => { setCreateType("project"); setShowCreate(true); setFormData({}); }}
+            <button onClick={openProjectCreate}
               className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">+ Yeni Proje Oluştur</button>
           </div>
         ) : (
@@ -387,7 +431,7 @@ export default function ProjectsPage() {
       {/* ═══════════ Create Modal ═══════════ */}
       {showCreate && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); }} />
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); setSelectedTemplate(null); }} />
           <div className="fixed right-0 top-0 z-50 h-full w-full max-w-lg bg-[var(--color-card-bg)] border-l border-[var(--color-border)] shadow-2xl flex flex-col animate-slide-in-right">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
@@ -397,19 +441,50 @@ export default function ProjectsPage() {
                   {createType === "project" ? <FolderKanban className="w-5 h-5 text-white" /> : <Briefcase className="w-5 h-5 text-white" />}
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-[var(--color-text)]">{createType === "project" ? "Yeni Proje" : "Yeni Portfolyo"}</h2>
-                  <p className="text-xs text-[var(--color-text-muted)]">{createType === "project" ? "Proje bilgilerini girin" : "Portfolyo bilgilerini girin"}</p>
+                  <h2 className="text-lg font-semibold text-[var(--color-text)]">{createType === "project" ? (createStep === "template" ? "Şablon Seçin" : "Proje Bilgileri") : "Yeni Portfolyo"}</h2>
+                  <p className="text-xs text-[var(--color-text-muted)]">{createType === "project" ? (createStep === "template" ? "Bir proje şablonu seçerek başlayın" : (selectedTemplate ? `Şablon: ${selectedTemplate.icon} ${selectedTemplate.name}` : "Proje bilgilerini girin")) : "Portfolyo bilgilerini girin"}</p>
                 </div>
               </div>
-              <button onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); }} className="p-2 rounded-lg hover:bg-[var(--color-border)] transition-colors">
+              <button onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); setSelectedTemplate(null); }} className="p-2 rounded-lg hover:bg-[var(--color-border)] transition-colors">
                 <X className="w-5 h-5 text-[var(--color-text-muted)]" />
               </button>
             </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {createType === "project" ? (
+              {/* ── Template Selection Step ── */}
+              {createType === "project" && createStep === "template" ? (
+                <div className="space-y-3">
+                  {templates.map(t => {
+                    const methCfg = METHODOLOGY_CONFIG[t.methodology] || METHODOLOGY_CONFIG.Kanban;
+                    const catCfg = CATEGORY_CONFIG[t.category] || CATEGORY_CONFIG.General;
+                    return (
+                      <button key={t.id} onClick={() => selectTemplate(t)}
+                        className="w-full text-left p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]/50 hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 group">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl mt-0.5">{t.icon || "📁"}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-sm font-semibold text-[var(--color-text)] group-hover:text-indigo-400 transition-colors">{t.name}</h3>
+                              <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-medium border", methCfg.bg, methCfg.color)}>{methCfg.label}</span>
+                              <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-medium border", catCfg.bg, catCfg.color)}>{catCfg.label}</span>
+                            </div>
+                            {t.description && <p className="text-xs text-[var(--color-text-muted)] line-clamp-2">{t.description}</p>}
+                          </div>
+                          <GitBranch className="w-4 h-4 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : createType === "project" ? (
                 <>
+                  {selectedTemplate && (
+                    <button onClick={() => setCreateStep("template")}
+                      className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors mb-2">
+                      <RotateCcw className="w-3 h-3" /> Şablonu değiştir
+                    </button>
+                  )}
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Anahtar <span className="text-red-400">*</span></label>
@@ -501,9 +576,10 @@ export default function ProjectsPage() {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer — template step'te gizle */}
+            {!(createType === "project" && createStep === "template") && (
             <div className="px-6 py-4 border-t border-[var(--color-border)] flex justify-end gap-3">
-              <button onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); }}
+              <button onClick={() => { setShowCreate(false); setFormData({}); setFormError(""); setSelectedTemplate(null); }}
                 className="px-4 py-2.5 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]/50 transition-colors">İptal</button>
               <button onClick={handleCreate} disabled={formSaving}
                 className="px-6 py-2.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-2">
@@ -511,6 +587,7 @@ export default function ProjectsPage() {
                 Oluştur
               </button>
             </div>
+            )}
           </div>
         </>
       )}

@@ -265,3 +265,21 @@ public sealed record MilestoneDetailDto(
     DateTime DueDate, DateTime? CompletedDate,
     int SortOrder, int WorkItemCount, int SprintCount,
     DateTime CreatedAt, DateTime? UpdatedAt);
+
+// ── Project Template ────────────────────────────────────────
+public sealed record ListProjectTemplatesQuery(bool IncludeInactive = false) : IRequest<List<ProjectTemplateListDto>>;
+public sealed record GetProjectTemplateQuery(Guid Id) : IRequest<ProjectTemplateDetailDto?>;
+
+public sealed record ProjectTemplateListDto(
+    Guid Id, string Name, string? Description, string? Icon,
+    string Methodology, string Category, string EstimationMode,
+    bool IsBuiltIn, bool IsActive, int SortOrder,
+    DateTime CreatedAt);
+
+public sealed record ProjectTemplateDetailDto(
+    Guid Id, string Name, string? Description, string? Icon,
+    string Methodology, string Category, string EstimationMode,
+    bool IsBuiltIn, bool IsActive, int SortOrder,
+    string BoardColumnsJson, string? MilestonesJson, string? WorkItemsJson,
+    DateTime CreatedAt, DateTime? UpdatedAt);
+

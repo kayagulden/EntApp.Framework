@@ -181,3 +181,27 @@ public sealed record PromoteTicketToProjectCommand(
     string? Description = null) : IRequest<PromoteTicketResult>;
 
 public sealed record PromoteTicketResult(Guid ParentWorkItemId, int MovedTaskCount);
+
+// ── Project Template ────────────────────────────────────────
+public sealed record CreateProjectTemplateCommand(string Name, string? Description = null,
+    string? Icon = null, string? Methodology = null, string? Category = null,
+    string? EstimationMode = null, int SortOrder = 0,
+    string? BoardColumnsJson = null, string? MilestonesJson = null,
+    string? WorkItemsJson = null) : IRequest<Guid>;
+
+public sealed record UpdateProjectTemplateCommand(Guid TemplateId, string? Name = null,
+    string? Description = null, string? Icon = null,
+    string? Methodology = null, string? Category = null,
+    string? EstimationMode = null, int? SortOrder = null, bool? IsActive = null,
+    string? BoardColumnsJson = null, string? MilestonesJson = null,
+    string? WorkItemsJson = null) : IRequest<Guid>;
+
+public sealed record DeleteProjectTemplateCommand(Guid TemplateId) : IRequest;
+
+/// <summary>Şablondan yeni proje oluşturur — board kolonları, milestone'lar ve iş kalemleri otomatik oluşturulur.</summary>
+public sealed record CreateProjectFromTemplateCommand(Guid TemplateId,
+    string Key, string Name, string? Description = null,
+    DateTime? StartDate = null, DateTime? TargetEndDate = null,
+    Guid? ManagerUserId = null, Guid? OwnerUserId = null,
+    Guid? PortfolioId = null) : IRequest<Guid>;
+

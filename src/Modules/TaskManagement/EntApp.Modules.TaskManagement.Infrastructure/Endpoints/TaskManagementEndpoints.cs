@@ -378,6 +378,45 @@ public static class TaskManagementEndpoints
             Results.Ok(await mediator.Send(new GetMetricsSummaryQuery(projectId))))
             .WithName("GetMetricsSummary").WithSummary("Proje metrik özeti (dağılım, kanban metrikleri)");
 
+        // ── Project Template ──────────────────────────────────────
+        var templates = app.MapGroup("/api/pm/project-templates").WithTags("PM - Project Templates");
+        templates.MapGet("/", async (ISender mediator, bool includeInactive = false) =>
+            Results.Ok(await mediator.Send(new ListProjectTemplatesQuery(includeInactive))))
+            .WithName("ListProjectTemplates");
+        templates.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetProjectTemplateQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetProjectTemplate");
+        templates.MapPost("/", async (CreateProjectTemplateRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateProjectTemplateCommand(req.Name, req.Description,
+                req.Icon, req.Methodology, req.Category, req.EstimationMode, req.SortOrder,
+                req.BoardColumnsJson, req.MilestonesJson, req.WorkItemsJson));
+            return Results.Created($"/api/pm/project-templates/{id}", new { id });
+        }).WithName("CreateProjectTemplate");
+        templates.MapPut("/{id:guid}", async (Guid id, UpdateProjectTemplateRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateProjectTemplateCommand(id, req.Name, req.Description,
+                req.Icon, req.Methodology, req.Category, req.EstimationMode,
+                req.SortOrder, req.IsActive,
+                req.BoardColumnsJson, req.MilestonesJson, req.WorkItemsJson));
+            return Results.Ok(new { id });
+        }).WithName("UpdateProjectTemplate");
+        templates.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteProjectTemplateCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteProjectTemplate");
+
+        // Template'den proje oluştur
+        proj.MapPost("/from-template", async (CreateProjectFromTemplateRequest req, ISender mediator) =>
+        {
+            var id = await mediator.Send(new CreateProjectFromTemplateCommand(
+                req.TemplateId, req.Key, req.Name, req.Description,
+                req.StartDate, req.TargetEndDate,
+                req.ManagerUserId, req.OwnerUserId, req.PortfolioId));
+            return Results.Created($"/api/pm/projects/{id}", new { id });
+        }).WithName("CreateProjectFromTemplate").WithTags("PM - Projects");
+
         return app;
     }
 }
@@ -494,3 +533,19 @@ public sealed record UpdateMilestoneRequest(string? Name = null, string? Descrip
 // Ticket Promotion
 public sealed record PromoteTicketRequest(Guid TicketId, Guid ProjectId, string Title,
     string? WorkItemType = "Feature", string? Priority = "Medium", string? Description = null);
+
+// Project Template
+public sealed record CreateProjectTemplateRequest(string Name, string? Description = null,
+    string? Icon = null, string? Methodology = null, string? Category = null,
+    string? EstimationMode = null, int SortOrder = 0,
+    string? BoardColumnsJson = null, string? MilestonesJson = null,
+    string? WorkItemsJson = null);
+public sealed record UpdateProjectTemplateRequest(string? Name = null, string? Description = null,
+    string? Icon = null, string? Methodology = null, string? Category = null,
+    string? EstimationMode = null, int? SortOrder = null, bool? IsActive = null,
+    string? BoardColumnsJson = null, string? MilestonesJson = null,
+    string? WorkItemsJson = null);
+public sealed record CreateProjectFromTemplateRequest(Guid TemplateId,
+    string Key, string Name, string? Description = null,
+    DateTime? StartDate = null, DateTime? TargetEndDate = null,
+    Guid? ManagerUserId = null, Guid? OwnerUserId = null, Guid? PortfolioId = null);

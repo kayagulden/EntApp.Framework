@@ -29,6 +29,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<BoardColumn> BoardColumns => Set<BoardColumn>();
     public DbSet<BurndownSnapshot> BurndownSnapshots => Set<BurndownSnapshot>();
     public DbSet<MilestoneBase> Milestones => Set<MilestoneBase>();
+    public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -294,6 +295,24 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Description).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId);
+        });
+
+        // ── ProjectTemplate ─────────────────────────────────────
+        modelBuilder.Entity<ProjectTemplate>(e =>
+        {
+            e.ToTable("project_templates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ProjectTemplateId>());
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.Icon).HasMaxLength(10);
+            e.Property(x => x.Methodology).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.EstimationMode).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.BoardColumnsJson).HasColumnType("text").IsRequired();
+            e.Property(x => x.MilestonesJson).HasColumnType("text");
+            e.Property(x => x.WorkItemsJson).HasColumnType("text");
+            e.HasIndex(x => x.Name);
         });
     }
 }

@@ -10,6 +10,7 @@ using EntApp.Shared.Contracts.Common;
 using EntApp.Shared.Contracts.Messaging;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using WorkItemStatusEnum = EntApp.Modules.TaskManagement.Domain.Enums.WorkItemStatus;
 
 namespace EntApp.Modules.TaskManagement.Infrastructure.Handlers;
@@ -1638,4 +1639,165 @@ public sealed class PromoteTicketToProjectCommandHandler(TaskManagementDbContext
         // mevcut task taşıma adımı kaldırıldı.
         return new PromoteTicketResult(parent.Id.Value, 0);
     }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Project Template Handlers ────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+public sealed class ListProjectTemplatesQueryHandler(TaskManagementDbContext db) : IRequestHandler<ListProjectTemplatesQuery, List<ProjectTemplateListDto>>
+{
+    public async Task<List<ProjectTemplateListDto>> Handle(ListProjectTemplatesQuery request, CancellationToken ct)
+    {
+        var query = db.ProjectTemplates.AsNoTracking().AsQueryable();
+        if (!request.IncludeInactive)
+            query = query.Where(t => t.IsActive);
+        return await query.OrderBy(t => t.SortOrder).ThenBy(t => t.Name)
+            .Select(t => new ProjectTemplateListDto(
+                t.Id.Value, t.Name, t.Description, t.Icon,
+                t.Methodology.ToString(), t.Category.ToString(), t.EstimationMode.ToString(),
+                t.IsBuiltIn, t.IsActive, t.SortOrder, t.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetProjectTemplateQueryHandler(TaskManagementDbContext db) : IRequestHandler<GetProjectTemplateQuery, ProjectTemplateDetailDto?>
+{
+    public async Task<ProjectTemplateDetailDto?> Handle(GetProjectTemplateQuery request, CancellationToken ct)
+    {
+        return await db.ProjectTemplates.AsNoTracking()
+            .Where(t => t.Id == new ProjectTemplateId(request.Id))
+            .Select(t => new ProjectTemplateDetailDto(
+                t.Id.Value, t.Name, t.Description, t.Icon,
+                t.Methodology.ToString(), t.Category.ToString(), t.EstimationMode.ToString(),
+                t.IsBuiltIn, t.IsActive, t.SortOrder,
+                t.BoardColumnsJson, t.MilestonesJson, t.WorkItemsJson,
+                t.CreatedAt, t.UpdatedAt))
+            .FirstOrDefaultAsync(ct);
+    }
+}
+
+public sealed class CreateProjectTemplateCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateProjectTemplateCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateProjectTemplateCommand request, CancellationToken ct)
+    {
+        Enum.TryParse<ProjectMethodology>(request.Methodology, out var methodology);
+        Enum.TryParse<ProjectCategory>(request.Category, out var category);
+        Enum.TryParse<EstimationDisplayMode>(request.EstimationMode, out var estimation);
+        var template = ProjectTemplate.Create(request.Name, request.Description,
+            request.Icon, methodology, category, estimation,
+            sortOrder: request.SortOrder,
+            boardColumnsJson: request.BoardColumnsJson,
+            milestonesJson: request.MilestonesJson,
+            workItemsJson: request.WorkItemsJson);
+        db.ProjectTemplates.Add(template);
+        await db.SaveChangesAsync(ct);
+        return template.Id.Value;
+    }
+}
+
+public sealed class UpdateProjectTemplateCommandHandler(TaskManagementDbContext db) : IRequestHandler<UpdateProjectTemplateCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateProjectTemplateCommand request, CancellationToken ct)
+    {
+        var template = await db.ProjectTemplates.FindAsync([new ProjectTemplateId(request.TemplateId)], ct)
+            ?? throw new KeyNotFoundException($"Template {request.TemplateId} not found");
+        if (template.IsBuiltIn)
+            throw new InvalidOperationException("Yerleşik şablonlar düzenlenemez.");
+        Enum.TryParse<ProjectMethodology>(request.Methodology, out var methodology);
+        Enum.TryParse<ProjectCategory>(request.Category, out var category);
+        Enum.TryParse<EstimationDisplayMode>(request.EstimationMode, out var estimation);
+        template.Update(request.Name, request.Description, request.Icon,
+            request.Methodology is not null ? methodology : null,
+            request.Category is not null ? category : null,
+            request.EstimationMode is not null ? estimation : null,
+            request.SortOrder, request.IsActive,
+            request.BoardColumnsJson, request.MilestonesJson, request.WorkItemsJson);
+        await db.SaveChangesAsync(ct);
+        return template.Id.Value;
+    }
+}
+
+public sealed class DeleteProjectTemplateCommandHandler(TaskManagementDbContext db) : IRequestHandler<DeleteProjectTemplateCommand>
+{
+    public async Task Handle(DeleteProjectTemplateCommand request, CancellationToken ct)
+    {
+        var template = await db.ProjectTemplates.FindAsync([new ProjectTemplateId(request.TemplateId)], ct)
+            ?? throw new KeyNotFoundException($"Template {request.TemplateId} not found");
+        if (template.IsBuiltIn)
+            throw new InvalidOperationException("Yerleşik şablonlar silinemez.");
+        db.ProjectTemplates.Remove(template);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class CreateProjectFromTemplateCommandHandler(TaskManagementDbContext db) : IRequestHandler<CreateProjectFromTemplateCommand, Guid>
+{
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    public async Task<Guid> Handle(CreateProjectFromTemplateCommand request, CancellationToken ct)
+    {
+        // 1. Template'i oku
+        var template = await db.ProjectTemplates.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == new ProjectTemplateId(request.TemplateId), ct)
+            ?? throw new KeyNotFoundException($"Template {request.TemplateId} not found");
+
+        // 2. Proje oluştur
+        var project = ProjectBase.Create(
+            request.Key, request.Name, request.Description,
+            request.StartDate.HasValue ? DateTime.SpecifyKind(request.StartDate.Value, DateTimeKind.Utc) : null,
+            targetEndDate: request.TargetEndDate.HasValue ? DateTime.SpecifyKind(request.TargetEndDate.Value, DateTimeKind.Utc) : null,
+            managerUserId: request.ManagerUserId,
+            ownerUserId: request.OwnerUserId,
+            portfolioId: request.PortfolioId.HasValue ? new PortfolioId(request.PortfolioId.Value) : null,
+            methodology: template.Methodology,
+            category: template.Category);
+        db.Projects.Add(project);
+
+        // 3. Board kolonları oluştur
+        var columns = JsonSerializer.Deserialize<List<TemplateColumnDto>>(template.BoardColumnsJson, JsonOpts) ?? [];
+        foreach (var col in columns)
+        {
+            Enum.TryParse<WorkItemStatusEnum>(col.MappedStatus, out var mappedStatus);
+            var boardCol = BoardColumn.Create(project.Id, col.Name, col.Order, mappedStatus, col.WipLimit);
+            db.BoardColumns.Add(boardCol);
+        }
+
+        // 4. Milestone'lar oluştur (dayOffset → startDate + offset)
+        if (!string.IsNullOrEmpty(template.MilestonesJson))
+        {
+            var milestones = JsonSerializer.Deserialize<List<TemplateMilestoneDto>>(template.MilestonesJson, JsonOpts) ?? [];
+            var baseDate = request.StartDate ?? DateTime.UtcNow;
+            for (var i = 0; i < milestones.Count; i++)
+            {
+                var ms = milestones[i];
+                var dueDate = DateTime.SpecifyKind(baseDate.AddDays(ms.DayOffset), DateTimeKind.Utc);
+                var milestone = MilestoneBase.Create(project.Id, ms.Name, dueDate, ms.Description, i);
+                db.Milestones.Add(milestone);
+            }
+        }
+
+        // 5. Başlangıç iş kalemleri oluştur
+        if (!string.IsNullOrEmpty(template.WorkItemsJson))
+        {
+            var workItems = JsonSerializer.Deserialize<List<TemplateWorkItemDto>>(template.WorkItemsJson, JsonOpts) ?? [];
+            foreach (var wi in workItems)
+            {
+                Enum.TryParse<WorkItemType>(wi.Type, out var wiType);
+                Enum.TryParse<WorkItemPriority>(wi.Priority, out var wiPriority);
+                var taskNumber = project.NextWorkItemNumber();
+                var workItem = WorkItemBase.Create(project.Id, taskNumber, wi.Title,
+                    type: wiType, priority: wiPriority, description: wi.Description);
+                db.WorkItems.Add(workItem);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return project.Id.Value;
+    }
+
+    // ── Template JSON DTOs (internal) ───────────────────────
+    private sealed record TemplateColumnDto(string Name, int Order, string MappedStatus, int? WipLimit = null);
+    private sealed record TemplateMilestoneDto(string Name, int DayOffset, string? Description = null);
+    private sealed record TemplateWorkItemDto(string Title, string Type = "Task", string Priority = "Medium", string? Description = null);
 }
