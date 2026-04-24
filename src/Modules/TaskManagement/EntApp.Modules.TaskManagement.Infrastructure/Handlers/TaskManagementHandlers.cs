@@ -1960,3 +1960,449 @@ public sealed class GetRequirementQueryHandler(TaskManagementDbContext db)
             children, workItems);
     }
 }
+
+// ── Test Scenario Handlers ─────────────────────────────────────
+
+public sealed class CreateTestScenarioCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateTestScenarioCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateTestScenarioCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+            ?? throw new InvalidOperationException($"Project {request.ProjectId} not found");
+
+        var type = Enum.Parse<TestScenarioType>(request.Type, true);
+        var priority = Enum.Parse<TestScenarioPriority>(request.Priority, true);
+        RequirementId? requirementId = request.RequirementId.HasValue
+            ? new RequirementId(request.RequirementId.Value) : null;
+
+        var key = project.NextTestScenarioKey();
+        var maxSort = await db.TestScenarios
+            .Where(s => s.ProjectId == projectId)
+            .MaxAsync(s => (int?)s.SortOrder, ct) ?? 0;
+
+        TimeSpan? duration = request.EstimatedDurationMinutes.HasValue
+            ? TimeSpan.FromMinutes(request.EstimatedDurationMinutes.Value) : null;
+
+        var scenario = TestScenario.Create(
+            projectId, key, request.Title, type, priority,
+            request.Description, request.Preconditions,
+            requirementId, duration, request.Tags, maxSort + 1);
+
+        db.TestScenarios.Add(scenario);
+        await db.SaveChangesAsync(ct);
+        return scenario.Id.Value;
+    }
+}
+
+public sealed class UpdateTestScenarioCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateTestScenarioCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateTestScenarioCommand request, CancellationToken ct)
+    {
+        var id = new TestScenarioId(request.TestScenarioId);
+        var scenario = await db.TestScenarios.FirstOrDefaultAsync(s => s.Id == id, ct)
+            ?? throw new InvalidOperationException($"TestScenario {request.TestScenarioId} not found");
+
+        if (request.Status is not null)
+        {
+            var status = Enum.Parse<TestScenarioStatus>(request.Status, true);
+            scenario.UpdateStatus(status);
+        }
+
+        scenario.Update(
+            request.Title, request.Description,
+            request.Type is not null ? Enum.Parse<TestScenarioType>(request.Type, true) : null,
+            request.Priority is not null ? Enum.Parse<TestScenarioPriority>(request.Priority, true) : null,
+            request.Preconditions,
+            request.RequirementId.HasValue ? new RequirementId(request.RequirementId.Value) : null,
+            request.EstimatedDurationMinutes.HasValue ? TimeSpan.FromMinutes(request.EstimatedDurationMinutes.Value) : null,
+            request.Tags);
+
+        await db.SaveChangesAsync(ct);
+        return scenario.Id.Value;
+    }
+}
+
+public sealed class DeleteTestScenarioCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteTestScenarioCommand>
+{
+    public async Task Handle(DeleteTestScenarioCommand request, CancellationToken ct)
+    {
+        var id = new TestScenarioId(request.TestScenarioId);
+        var scenario = await db.TestScenarios
+            .Include(s => s.Steps)
+            .FirstOrDefaultAsync(s => s.Id == id, ct)
+            ?? throw new InvalidOperationException($"TestScenario {request.TestScenarioId} not found");
+        db.TestScenarios.Remove(scenario);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListTestScenariosQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListTestScenariosQuery, List<TestScenarioListDto>>
+{
+    public async Task<List<TestScenarioListDto>> Handle(ListTestScenariosQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.TestScenarios.Where(s => s.ProjectId == projectId);
+
+        if (request.Type is not null)
+            query = query.Where(s => s.Type == Enum.Parse<TestScenarioType>(request.Type, true));
+        if (request.Status is not null)
+            query = query.Where(s => s.Status == Enum.Parse<TestScenarioStatus>(request.Status, true));
+        if (request.Priority is not null)
+            query = query.Where(s => s.Priority == Enum.Parse<TestScenarioPriority>(request.Priority, true));
+        if (request.RequirementId.HasValue)
+            query = query.Where(s => s.RequirementId == new RequirementId(request.RequirementId.Value));
+
+        return await query.OrderBy(s => s.SortOrder)
+            .Select(s => new TestScenarioListDto(
+                s.Id.Value, s.Key, s.Title,
+                s.Type.ToString(), s.Priority.ToString(), s.Status.ToString(),
+                s.RequirementId.HasValue ? s.RequirementId.Value.Value : null,
+                s.Requirement != null ? s.Requirement.Key : null,
+                s.Steps.Count, 0,
+                s.Tags,
+                s.EstimatedDuration.HasValue ? (int?)s.EstimatedDuration.Value.TotalMinutes : null,
+                s.SortOrder, s.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetTestScenarioQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetTestScenarioQuery, TestScenarioDetailDto?>
+{
+    public async Task<TestScenarioDetailDto?> Handle(GetTestScenarioQuery request, CancellationToken ct)
+    {
+        var id = new TestScenarioId(request.TestScenarioId);
+        var s = await db.TestScenarios
+            .Include(x => x.Steps)
+            .Include(x => x.Requirement)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        if (s is null) return null;
+
+        var steps = s.Steps.OrderBy(st => st.StepNumber)
+            .Select(st => new TestStepListDto(
+                st.Id.Value, st.StepNumber, st.Action, st.ExpectedResult,
+                st.TestData, st.Notes))
+            .ToList();
+
+        return new TestScenarioDetailDto(
+            s.Id.Value, s.Key, s.Title,
+            s.Type.ToString(), s.Priority.ToString(), s.Status.ToString(),
+            s.Description, s.Preconditions,
+            s.RequirementId.HasValue ? s.RequirementId.Value.Value : null,
+            s.Requirement?.Key,
+            s.EstimatedDuration.HasValue ? (int?)s.EstimatedDuration.Value.TotalMinutes : null,
+            s.Tags, s.SortOrder, s.CreatedAt, steps);
+    }
+}
+
+// ── Test Step Handler ──────────────────────────────────────────
+
+public sealed class UpdateTestStepsCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateTestStepsCommand>
+{
+    public async Task Handle(UpdateTestStepsCommand request, CancellationToken ct)
+    {
+        var scenarioId = new TestScenarioId(request.TestScenarioId);
+        var scenario = await db.TestScenarios
+            .Include(s => s.Steps)
+            .FirstOrDefaultAsync(s => s.Id == scenarioId, ct)
+            ?? throw new InvalidOperationException($"TestScenario {request.TestScenarioId} not found");
+
+        // Mevcut adımları temizle
+        db.TestSteps.RemoveRange(scenario.Steps);
+
+        // Yeni adımları ekle
+        foreach (var stepDto in request.Steps.OrderBy(s => s.StepNumber))
+        {
+            var step = TestStep.Create(scenarioId, stepDto.StepNumber,
+                stepDto.Action, stepDto.ExpectedResult, stepDto.TestData, stepDto.Notes);
+            db.TestSteps.Add(step);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// ── Test Plan Handlers ─────────────────────────────────────────
+
+public sealed class CreateTestPlanCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateTestPlanCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateTestPlanCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+            ?? throw new InvalidOperationException($"Project {request.ProjectId} not found");
+
+        var key = project.NextTestPlanKey();
+
+        SprintId? sprintId = request.SprintId.HasValue ? new SprintId(request.SprintId.Value) : null;
+        MilestoneId? milestoneId = request.MilestoneId.HasValue ? new MilestoneId(request.MilestoneId.Value) : null;
+
+        DateOnly? startDate = request.StartDate is not null ? DateOnly.Parse(request.StartDate) : null;
+        DateOnly? endDate = request.EndDate is not null ? DateOnly.Parse(request.EndDate) : null;
+
+        var plan = TestPlan.Create(projectId, key, request.Title,
+            request.Description, sprintId, milestoneId, startDate, endDate,
+            request.AssignedTesterId);
+
+        db.TestPlans.Add(plan);
+        await db.SaveChangesAsync(ct);
+        return plan.Id.Value;
+    }
+}
+
+public sealed class UpdateTestPlanCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateTestPlanCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateTestPlanCommand request, CancellationToken ct)
+    {
+        var id = new TestPlanId(request.TestPlanId);
+        var plan = await db.TestPlans.FirstOrDefaultAsync(p => p.Id == id, ct)
+            ?? throw new InvalidOperationException($"TestPlan {request.TestPlanId} not found");
+
+        if (request.Status is not null)
+            plan.UpdateStatus(Enum.Parse<TestPlanStatus>(request.Status, true));
+
+        DateOnly? startDate = request.StartDate is not null ? DateOnly.Parse(request.StartDate) : null;
+        DateOnly? endDate = request.EndDate is not null ? DateOnly.Parse(request.EndDate) : null;
+
+        plan.Update(request.Title, request.Description, startDate, endDate, request.AssignedTesterId);
+        await db.SaveChangesAsync(ct);
+        return plan.Id.Value;
+    }
+}
+
+public sealed class DeleteTestPlanCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteTestPlanCommand>
+{
+    public async Task Handle(DeleteTestPlanCommand request, CancellationToken ct)
+    {
+        var id = new TestPlanId(request.TestPlanId);
+        var plan = await db.TestPlans.FirstOrDefaultAsync(p => p.Id == id, ct)
+            ?? throw new InvalidOperationException($"TestPlan {request.TestPlanId} not found");
+        db.TestPlans.Remove(plan);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListTestPlansQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListTestPlansQuery, List<TestPlanListDto>>
+{
+    public async Task<List<TestPlanListDto>> Handle(ListTestPlansQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.TestPlans.Where(p => p.ProjectId == projectId);
+
+        if (request.Status is not null)
+            query = query.Where(p => p.Status == Enum.Parse<TestPlanStatus>(request.Status, true));
+
+        return await query.OrderByDescending(p => p.CreatedAt)
+            .Select(p => new TestPlanListDto(
+                p.Id.Value, p.Key, p.Title, p.Status.ToString(),
+                p.SprintId.HasValue ? p.SprintId.Value.Value : null,
+                p.MilestoneId.HasValue ? p.MilestoneId.Value.Value : null,
+                p.StartDate.HasValue ? p.StartDate.Value.ToString("yyyy-MM-dd") : null,
+                p.EndDate.HasValue ? p.EndDate.Value.ToString("yyyy-MM-dd") : null,
+                p.AssignedTesterId,
+                p.Scenarios.Count,
+                p.Scenarios.Count(s => s.Executions.Any(e => e.Result == TestResult.Pass)),
+                p.Scenarios.Count(s => s.Executions.Any(e => e.Result == TestResult.Fail)),
+                p.Scenarios.Count(s => !s.Executions.Any()),
+                p.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetTestPlanQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetTestPlanQuery, TestPlanDetailDto?>
+{
+    public async Task<TestPlanDetailDto?> Handle(GetTestPlanQuery request, CancellationToken ct)
+    {
+        var id = new TestPlanId(request.TestPlanId);
+        var p = await db.TestPlans
+            .Include(x => x.Scenarios).ThenInclude(s => s.TestScenario)
+            .Include(x => x.Scenarios).ThenInclude(s => s.Executions)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        if (p is null) return null;
+
+        var scenarios = p.Scenarios.OrderBy(s => s.SortOrder)
+            .Select(s =>
+            {
+                var lastExec = s.Executions.OrderByDescending(e => e.ExecutedAt).FirstOrDefault();
+                return new TestPlanScenarioDto(
+                    s.Id,
+                    s.TestScenarioId.Value, s.TestScenario?.Key ?? "", s.TestScenario?.Title ?? "",
+                    s.TestScenario?.Type.ToString() ?? "", s.TestScenario?.Priority.ToString() ?? "",
+                    s.AssignedTesterId,
+                    lastExec?.Result.ToString(), lastExec?.ExecutedAt,
+                    s.SortOrder);
+            }).ToList();
+
+        return new TestPlanDetailDto(
+            p.Id.Value, p.Key, p.Title, p.Status.ToString(),
+            p.Description,
+            p.SprintId.HasValue ? p.SprintId.Value.Value : null,
+            p.MilestoneId.HasValue ? p.MilestoneId.Value.Value : null,
+            p.StartDate.HasValue ? p.StartDate.Value.ToString("yyyy-MM-dd") : null,
+            p.EndDate.HasValue ? p.EndDate.Value.ToString("yyyy-MM-dd") : null,
+            p.AssignedTesterId, p.CreatedAt, scenarios);
+    }
+}
+
+// ── Test Plan Scenario Handlers ────────────────────────────────
+
+public sealed class AddScenarioToTestPlanCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<AddScenarioToTestPlanCommand, Guid>
+{
+    public async Task<Guid> Handle(AddScenarioToTestPlanCommand request, CancellationToken ct)
+    {
+        var planId = new TestPlanId(request.TestPlanId);
+        var scenarioId = new TestScenarioId(request.TestScenarioId);
+
+        // Duplicate check
+        var exists = await db.TestPlanScenarios
+            .AnyAsync(ps => ps.TestPlanId == planId && ps.TestScenarioId == scenarioId, ct);
+        if (exists) throw new InvalidOperationException("Scenario already exists in this plan");
+
+        var maxSort = await db.TestPlanScenarios
+            .Where(ps => ps.TestPlanId == planId)
+            .MaxAsync(ps => (int?)ps.SortOrder, ct) ?? 0;
+
+        var planScenario = TestPlanScenario.Create(planId, scenarioId,
+            request.AssignedTesterId, maxSort + 1);
+
+        db.TestPlanScenarios.Add(planScenario);
+        await db.SaveChangesAsync(ct);
+        return planScenario.Id;
+    }
+}
+
+public sealed class RemoveScenarioFromTestPlanCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<RemoveScenarioFromTestPlanCommand>
+{
+    public async Task Handle(RemoveScenarioFromTestPlanCommand request, CancellationToken ct)
+    {
+        var planId = new TestPlanId(request.TestPlanId);
+        var scenarioId = new TestScenarioId(request.TestScenarioId);
+
+        var planScenario = await db.TestPlanScenarios
+            .FirstOrDefaultAsync(ps => ps.TestPlanId == planId && ps.TestScenarioId == scenarioId, ct)
+            ?? throw new InvalidOperationException("Scenario not found in this plan");
+
+        db.TestPlanScenarios.Remove(planScenario);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// ── Test Execution Handlers ────────────────────────────────────
+
+public sealed class RecordTestExecutionCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<RecordTestExecutionCommand, Guid>
+{
+    public async Task<Guid> Handle(RecordTestExecutionCommand request, CancellationToken ct)
+    {
+        var planId = new TestPlanId(request.TestPlanId);
+        var scenarioId = new TestScenarioId(request.TestScenarioId);
+
+        var planScenario = await db.TestPlanScenarios
+            .FirstOrDefaultAsync(ps => ps.TestPlanId == planId && ps.TestScenarioId == scenarioId, ct)
+            ?? throw new InvalidOperationException("Scenario not found in this plan");
+
+        var result = Enum.Parse<TestResult>(request.Result, true);
+        TimeSpan? duration = request.DurationMinutes.HasValue
+            ? TimeSpan.FromMinutes(request.DurationMinutes.Value) : null;
+
+        var execution = TestExecution.Create(
+            planScenario.Id, request.ExecutedBy ?? "system", result,
+            duration, request.Notes, request.Environment);
+
+        db.TestExecutions.Add(execution);
+
+        // Adım bazlı sonuçları kaydet
+        if (request.StepResults is { Count: > 0 })
+        {
+            foreach (var sr in request.StepResults)
+            {
+                var stepResult = TestStepResult.Create(
+                    execution.Id,
+                    new TestStepId(sr.TestStepId),
+                    Enum.Parse<TestResult>(sr.Result, true),
+                    sr.ActualResult, sr.Notes);
+                db.TestStepResults.Add(stepResult);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return execution.Id.Value;
+    }
+}
+
+public sealed class ListTestExecutionsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListTestExecutionsQuery, List<TestExecutionListDto>>
+{
+    public async Task<List<TestExecutionListDto>> Handle(ListTestExecutionsQuery request, CancellationToken ct)
+    {
+        var planId = new TestPlanId(request.TestPlanId);
+        var query = db.TestExecutions
+            .Include(e => e.TestPlanScenario).ThenInclude(ps => ps!.TestScenario)
+            .Include(e => e.TestPlanScenario).ThenInclude(ps => ps!.TestPlan)
+            .Include(e => e.StepResults).ThenInclude(sr => sr.TestStep)
+            .Where(e => e.TestPlanScenario!.TestPlanId == planId);
+
+        if (request.TestScenarioId.HasValue)
+        {
+            var scenarioId = new TestScenarioId(request.TestScenarioId.Value);
+            query = query.Where(e => e.TestPlanScenario!.TestScenarioId == scenarioId);
+        }
+
+        return await query.OrderByDescending(e => e.ExecutedAt)
+            .Select(e => new TestExecutionListDto(
+                e.Id.Value, e.Result.ToString(),
+                e.ExecutedBy, e.ExecutedAt,
+                e.Duration.HasValue ? (int?)e.Duration.Value.TotalMinutes : null,
+                e.Notes, e.Environment,
+                e.LinkedBugId.HasValue ? e.LinkedBugId.Value.Value : null,
+                e.TestPlanScenario!.TestScenario!.Key,
+                e.TestPlanScenario.TestPlan!.Key,
+                e.StepResults.OrderBy(sr => sr.TestStep!.StepNumber).Select(sr => new TestStepResultListDto(
+                    sr.TestStepId.Value, sr.TestStep!.StepNumber, sr.TestStep.Action,
+                    sr.Result.ToString(), sr.ActualResult, sr.Notes)).ToList()))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class ListScenarioExecutionsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListScenarioExecutionsQuery, List<TestExecutionListDto>>
+{
+    public async Task<List<TestExecutionListDto>> Handle(ListScenarioExecutionsQuery request, CancellationToken ct)
+    {
+        var scenarioId = new TestScenarioId(request.TestScenarioId);
+
+        return await db.TestExecutions
+            .Include(e => e.TestPlanScenario).ThenInclude(ps => ps!.TestScenario)
+            .Include(e => e.TestPlanScenario).ThenInclude(ps => ps!.TestPlan)
+            .Include(e => e.StepResults).ThenInclude(sr => sr.TestStep)
+            .Where(e => e.TestPlanScenario!.TestScenarioId == scenarioId)
+            .OrderByDescending(e => e.ExecutedAt)
+            .Select(e => new TestExecutionListDto(
+                e.Id.Value, e.Result.ToString(),
+                e.ExecutedBy, e.ExecutedAt,
+                e.Duration.HasValue ? (int?)e.Duration.Value.TotalMinutes : null,
+                e.Notes, e.Environment,
+                e.LinkedBugId.HasValue ? e.LinkedBugId.Value.Value : null,
+                e.TestPlanScenario!.TestScenario!.Key,
+                e.TestPlanScenario.TestPlan!.Key,
+                e.StepResults.OrderBy(sr => sr.TestStep!.StepNumber).Select(sr => new TestStepResultListDto(
+                    sr.TestStepId.Value, sr.TestStep!.StepNumber, sr.TestStep.Action,
+                    sr.Result.ToString(), sr.ActualResult, sr.Notes)).ToList()))
+            .ToListAsync(ct);
+    }
+}

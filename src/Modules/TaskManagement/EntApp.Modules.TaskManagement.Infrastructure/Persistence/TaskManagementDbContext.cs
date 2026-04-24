@@ -31,6 +31,12 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<MilestoneBase> Milestones => Set<MilestoneBase>();
     public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
     public DbSet<Requirement> Requirements => Set<Requirement>();
+    public DbSet<TestScenario> TestScenarios => Set<TestScenario>();
+    public DbSet<TestStep> TestSteps => Set<TestStep>();
+    public DbSet<TestPlan> TestPlans => Set<TestPlan>();
+    public DbSet<TestPlanScenario> TestPlanScenarios => Set<TestPlanScenario>();
+    public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
+    public DbSet<TestStepResult> TestStepResults => Set<TestStepResult>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -343,6 +349,112 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.ParentRequirement).WithMany(r => r.Children).HasForeignKey(x => x.ParentRequirementId).IsRequired(false);
             e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique().HasDatabaseName("ix_requirements_project_key");
+        });
+
+        // ── TestScenario ─────────────────────────────────────────
+        modelBuilder.Entity<TestScenario>(e =>
+        {
+            e.ToTable("test_scenarios");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TestScenarioId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.RequirementId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new RequirementId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.Key).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Preconditions).HasColumnType("text");
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Tags).HasMaxLength(500);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Requirement).WithMany().HasForeignKey(x => x.RequirementId).IsRequired(false);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique().HasDatabaseName("ix_test_scenarios_project_key");
+            e.HasIndex(x => x.RequirementId).HasDatabaseName("ix_test_scenarios_requirement");
+        });
+
+        // ── TestStep ─────────────────────────────────────────────
+        modelBuilder.Entity<TestStep>(e =>
+        {
+            e.ToTable("test_steps");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TestStepId>());
+            e.Property(x => x.TestScenarioId).HasConversion(new StronglyTypedIdValueConverter<TestScenarioId>());
+            e.Property(x => x.Action).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.ExpectedResult).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.TestData).HasMaxLength(2000);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.HasOne(x => x.TestScenario).WithMany(s => s.Steps).HasForeignKey(x => x.TestScenarioId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.TestScenarioId, x.StepNumber }).HasDatabaseName("ix_test_steps_scenario_number");
+        });
+
+        // ── TestPlan ─────────────────────────────────────────────
+        modelBuilder.Entity<TestPlan>(e =>
+        {
+            e.ToTable("test_plans");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TestPlanId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.SprintId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new SprintId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.MilestoneId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new MilestoneId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.Key).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.AssignedTesterId).HasMaxLength(100);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique().HasDatabaseName("ix_test_plans_project_key");
+        });
+
+        // ── TestPlanScenario ─────────────────────────────────────
+        modelBuilder.Entity<TestPlanScenario>(e =>
+        {
+            e.ToTable("test_plan_scenarios");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TestPlanId).HasConversion(new StronglyTypedIdValueConverter<TestPlanId>());
+            e.Property(x => x.TestScenarioId).HasConversion(new StronglyTypedIdValueConverter<TestScenarioId>());
+            e.Property(x => x.AssignedTesterId).HasMaxLength(100);
+            e.HasOne(x => x.TestPlan).WithMany(p => p.Scenarios).HasForeignKey(x => x.TestPlanId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.TestScenario).WithMany().HasForeignKey(x => x.TestScenarioId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.TestPlanId, x.TestScenarioId }).IsUnique().HasDatabaseName("ix_test_plan_scenarios_unique");
+        });
+
+        // ── TestExecution ────────────────────────────────────────
+        modelBuilder.Entity<TestExecution>(e =>
+        {
+            e.ToTable("test_executions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<TestExecutionId>());
+            e.Property(x => x.Result).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ExecutedBy).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Notes).HasColumnType("text");
+            e.Property(x => x.Environment).HasMaxLength(500);
+            e.Property(x => x.LinkedBugId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new WorkItemId(v.Value) : null).IsRequired(false);
+            e.HasOne(x => x.TestPlanScenario).WithMany(ps => ps.Executions).HasForeignKey(x => x.TestPlanScenarioId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.TestPlanScenarioId).HasDatabaseName("ix_test_executions_plan_scenario");
+        });
+
+        // ── TestStepResult ───────────────────────────────────────
+        modelBuilder.Entity<TestStepResult>(e =>
+        {
+            e.ToTable("test_step_results");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TestExecutionId).HasConversion(new StronglyTypedIdValueConverter<TestExecutionId>());
+            e.Property(x => x.TestStepId).HasConversion(new StronglyTypedIdValueConverter<TestStepId>());
+            e.Property(x => x.Result).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ActualResult).HasMaxLength(2000);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.HasOne(x => x.TestExecution).WithMany(ex => ex.StepResults).HasForeignKey(x => x.TestExecutionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.TestStep).WithMany().HasForeignKey(x => x.TestStepId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.TestExecutionId, x.TestStepId }).IsUnique().HasDatabaseName("ix_test_step_results_unique");
         });
     }
 }

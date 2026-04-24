@@ -260,3 +260,74 @@ public enum RequirementStatus
     /// <summary>Doğrulandı — test edildi ve kabul edildi.</summary>
     Verified = 4
 }
+
+// ── Test Management Enum'ları ────────────────────────────────
+
+/// <summary>Test senaryosu tipi.</summary>
+public enum TestScenarioType
+{
+    /// <summary>Fonksiyonel test.</summary>
+    Functional = 0,
+    /// <summary>Regresyon testi.</summary>
+    Regression = 1,
+    /// <summary>Smoke test — temel işlevsellik kontrolü.</summary>
+    Smoke = 2,
+    /// <summary>Entegrasyon testi.</summary>
+    Integration = 3,
+    /// <summary>Kullanıcı kabul testi.</summary>
+    UAT = 4,
+    /// <summary>Performans testi.</summary>
+    Performance = 5
+}
+
+/// <summary>Test senaryosu önceliği.</summary>
+public enum TestScenarioPriority
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3
+}
+
+/// <summary>Test senaryosu durumu.</summary>
+public enum TestScenarioStatus
+{
+    /// <summary>Taslak — henüz hazır değil.</summary>
+    Draft = 0,
+    /// <summary>Aktif — çalıştırılmaya hazır.</summary>
+    Active = 1,
+    /// <summary>Kullanımdan kaldırıldı.</summary>
+    Deprecated = 2,
+    /// <summary>Arşivlendi.</summary>
+    Archived = 3
+}
+
+/// <summary>Test planı durumu.</summary>
+public enum TestPlanStatus
+{
+    /// <summary>Taslak — plan hazırlanıyor.</summary>
+    Draft = 0,
+    /// <summary>Aktif — çalıştırma bekliyor.</summary>
+    Active = 1,
+    /// <summary>Çalıştırma devam ediyor.</summary>
+    InExecution = 2,
+    /// <summary>Tamamlandı — tüm senaryolar çalıştırıldı.</summary>
+    Completed = 3,
+    /// <summary>İptal edildi.</summary>
+    Cancelled = 4
+}
+
+/// <summary>Test çalıştırma sonucu.</summary>
+public enum TestResult
+{
+    /// <summary>Henüz çalıştırılmadı.</summary>
+    NotRun = 0,
+    /// <summary>Başarılı.</summary>
+    Pass = 1,
+    /// <summary>Başarısız.</summary>
+    Fail = 2,
+    /// <summary>Engellendi — ön koşul sağlanamadı.</summary>
+    Blocked = 3,
+    /// <summary>Atlandı.</summary>
+    Skipped = 4
+}

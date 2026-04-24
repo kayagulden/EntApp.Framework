@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import TestScenariosTab from "./TestScenariosTab";
+import TestPlansTab from "./TestPlansTab";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
@@ -9,7 +11,7 @@ import {
   Briefcase, Edit3, Save, X, ListTodo, Layout, Milestone, Archive,
   ChevronRight, ChevronDown, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
   Table2, TreePine, Filter, Search, RefreshCw, Timer, Play, Square, XCircle,
-  Settings, GripVertical, ClipboardList,
+  Settings, GripVertical, ClipboardList, FlaskConical, TestTube2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -100,7 +102,7 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config — kategori bazlı filtreleme
-type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "settings";
+type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "test-scenarios" | "test-plans" | "settings";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
   { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
@@ -109,6 +111,8 @@ const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ classN
   { key: "metrics", label: "Metrikler", icon: BarChart3, categories: ["all"] },
   { key: "milestones", label: "Milestones", icon: Milestone, categories: ["all"] },
   { key: "requirements", label: "Gereksinimler", icon: ClipboardList, categories: ["all"] },
+  { key: "test-scenarios", label: "Test Senaryoları", icon: FlaskConical, categories: ["all"] },
+  { key: "test-plans", label: "Test Planları", icon: TestTube2, categories: ["all"] },
   { key: "settings", label: "Ayarlar", icon: Settings, categories: ["all"] },
 ];
 
@@ -1450,6 +1454,16 @@ export default function ProjectDetailPage() {
       {/* Requirements Tab */}
       {activeTab === "requirements" && (
         <RequirementsTab projectId={projectId as string} projectKey={project?.key || ""} />
+      )}
+
+      {/* Test Senaryoları Tab */}
+      {activeTab === "test-scenarios" && (
+        <TestScenariosTab projectId={projectId as string} />
+      )}
+
+      {/* Test Planları Tab */}
+      {activeTab === "test-plans" && (
+        <TestPlansTab projectId={projectId as string} />
       )}
 
       {/* Settings Tab */}

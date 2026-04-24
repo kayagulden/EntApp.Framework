@@ -448,6 +448,103 @@ public static class TaskManagementEndpoints
             return Results.NoContent();
         }).WithName("DeleteRequirement");
 
+        // ── Test Scenario ──────────────────────────────────────
+        proj.MapGet("/{id:guid}/test-scenarios", async (Guid id, ISender mediator, string? type, string? status, string? priority, Guid? requirementId) =>
+            Results.Ok(await mediator.Send(new ListTestScenariosQuery(id, type, status, priority, requirementId))))
+            .WithName("ListProjectTestScenarios").WithTags("PM - Test Scenarios");
+
+        proj.MapPost("/{id:guid}/test-scenarios", async (Guid id, CreateTestScenarioRequest req, ISender mediator) =>
+        {
+            var sid = await mediator.Send(new CreateTestScenarioCommand(id, req.Title, req.Type, req.Priority,
+                req.Description, req.Preconditions, req.RequirementId, req.EstimatedDurationMinutes, req.Tags));
+            return Results.Created($"/api/pm/test-scenarios/{sid}", new { id = sid });
+        }).WithName("CreateTestScenario").WithTags("PM - Test Scenarios");
+
+        var testScenarios = app.MapGroup("/api/pm/test-scenarios").WithTags("PM - Test Scenarios");
+        testScenarios.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetTestScenarioQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetTestScenario");
+
+        testScenarios.MapPut("/{id:guid}", async (Guid id, UpdateTestScenarioRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateTestScenarioCommand(id, req.Title, req.Description,
+                req.Type, req.Priority, req.Status, req.Preconditions, req.RequirementId,
+                req.EstimatedDurationMinutes, req.Tags));
+            return Results.Ok(new { id });
+        }).WithName("UpdateTestScenario");
+
+        testScenarios.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteTestScenarioCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteTestScenario");
+
+        testScenarios.MapPut("/{id:guid}/steps", async (Guid id, UpdateTestStepsRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateTestStepsCommand(id, req.Steps));
+            return Results.Ok(new { id });
+        }).WithName("UpdateTestSteps");
+
+        testScenarios.MapGet("/{id:guid}/executions", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListScenarioExecutionsQuery(id))))
+            .WithName("ListScenarioExecutions");
+
+        // ── Test Plan ────────────────────────────────────────
+        proj.MapGet("/{id:guid}/test-plans", async (Guid id, ISender mediator, string? status) =>
+            Results.Ok(await mediator.Send(new ListTestPlansQuery(id, status))))
+            .WithName("ListProjectTestPlans").WithTags("PM - Test Plans");
+
+        proj.MapPost("/{id:guid}/test-plans", async (Guid id, CreateTestPlanRequest req, ISender mediator) =>
+        {
+            var pid = await mediator.Send(new CreateTestPlanCommand(id, req.Title,
+                req.Description, req.SprintId, req.MilestoneId,
+                req.StartDate, req.EndDate, req.AssignedTesterId));
+            return Results.Created($"/api/pm/test-plans/{pid}", new { id = pid });
+        }).WithName("CreateTestPlan").WithTags("PM - Test Plans");
+
+        var testPlans = app.MapGroup("/api/pm/test-plans").WithTags("PM - Test Plans");
+        testPlans.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetTestPlanQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetTestPlan");
+
+        testPlans.MapPut("/{id:guid}", async (Guid id, UpdateTestPlanRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateTestPlanCommand(id, req.Title, req.Description,
+                req.Status, req.StartDate, req.EndDate, req.AssignedTesterId));
+            return Results.Ok(new { id });
+        }).WithName("UpdateTestPlan");
+
+        testPlans.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteTestPlanCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteTestPlan");
+
+        // Plan-Senaryo atama
+        testPlans.MapPost("/{planId:guid}/scenarios", async (Guid planId, AddScenarioToTestPlanRequest req, ISender mediator) =>
+        {
+            var psId = await mediator.Send(new AddScenarioToTestPlanCommand(planId, req.TestScenarioId, req.AssignedTesterId));
+            return Results.Created($"/api/pm/test-plans/{planId}", new { id = psId });
+        }).WithName("AddScenarioToTestPlan");
+
+        testPlans.MapDelete("/{planId:guid}/scenarios/{scenarioId:guid}", async (Guid planId, Guid scenarioId, ISender mediator) =>
+        {
+            await mediator.Send(new RemoveScenarioFromTestPlanCommand(planId, scenarioId));
+            return Results.NoContent();
+        }).WithName("RemoveScenarioFromTestPlan");
+
+        // Test Execution
+        testPlans.MapPost("/{planId:guid}/scenarios/{scenarioId:guid}/execute", async (Guid planId, Guid scenarioId, RecordTestExecutionRequest req, ISender mediator) =>
+        {
+            var eid = await mediator.Send(new RecordTestExecutionCommand(planId, scenarioId,
+                req.Result, req.ExecutedBy, req.Notes, req.Environment, req.DurationMinutes, req.StepResults));
+            return Results.Created($"/api/pm/test-plans/{planId}", new { id = eid });
+        }).WithName("RecordTestExecution");
+
+        testPlans.MapGet("/{planId:guid}/executions", async (Guid planId, ISender mediator, Guid? scenarioId) =>
+            Results.Ok(await mediator.Send(new ListTestExecutionsQuery(planId, scenarioId))))
+            .WithName("ListTestPlanExecutions");
+
         return app;
     }
 }
@@ -591,3 +688,30 @@ public sealed record CreateRequirementRequest(string Title,
 public sealed record UpdateRequirementRequest(string? Title = null, string? Description = null,
     string? Type = null, string? Priority = null, string? Status = null,
     string? AcceptanceCriteria = null, string? ExternalDesignUrl = null);
+
+// Test Scenario
+public sealed record CreateTestScenarioRequest(string Title,
+    string Type = "Functional", string Priority = "Medium",
+    string? Description = null, string? Preconditions = null,
+    Guid? RequirementId = null, int? EstimatedDurationMinutes = null, string? Tags = null);
+public sealed record UpdateTestScenarioRequest(string? Title = null, string? Description = null,
+    string? Type = null, string? Priority = null, string? Status = null,
+    string? Preconditions = null, Guid? RequirementId = null,
+    int? EstimatedDurationMinutes = null, string? Tags = null);
+public sealed record UpdateTestStepsRequest(List<TestStepDto> Steps);
+
+// Test Plan
+public sealed record CreateTestPlanRequest(string Title,
+    string? Description = null, Guid? SprintId = null, Guid? MilestoneId = null,
+    string? StartDate = null, string? EndDate = null, string? AssignedTesterId = null);
+public sealed record UpdateTestPlanRequest(string? Title = null, string? Description = null,
+    string? Status = null, string? StartDate = null, string? EndDate = null,
+    string? AssignedTesterId = null);
+
+// Test Plan Scenario
+public sealed record AddScenarioToTestPlanRequest(Guid TestScenarioId, string? AssignedTesterId = null);
+
+// Test Execution
+public sealed record RecordTestExecutionRequest(string Result,
+    string? ExecutedBy = null, string? Notes = null, string? Environment = null,
+    int? DurationMinutes = null, List<TestStepResultDto>? StepResults = null);

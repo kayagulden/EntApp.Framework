@@ -111,4 +111,24 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
         RequirementSequence++;
         return $"{Key}-R{RequirementSequence}";
     }
+
+    /// <summary>Otomatik test senaryosu numaralandırma sayacı.</summary>
+    public int TestScenarioSequence { get; private set; }
+
+    /// <summary>Yeni test senaryosu numarası üretir: KEY-TC1, KEY-TC2, ...</summary>
+    public string NextTestScenarioKey()
+    {
+        TestScenarioSequence++;
+        return $"{Key}-TC{TestScenarioSequence}";
+    }
+
+    /// <summary>Otomatik test planı numaralandırma sayacı.</summary>
+    public int TestPlanSequence { get; private set; }
+
+    /// <summary>Yeni test planı numarası üretir: KEY-TP1, KEY-TP2, ...</summary>
+    public string NextTestPlanKey()
+    {
+        TestPlanSequence++;
+        return $"{Key}-TP{TestPlanSequence}";
+    }
 }

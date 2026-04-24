@@ -16,3 +16,7 @@ public readonly record struct BurndownSnapshotId(Guid Value) : IEntityId;
 public readonly record struct MilestoneId(Guid Value) : IEntityId;
 public readonly record struct ProjectTemplateId(Guid Value) : IEntityId;
 public readonly record struct RequirementId(Guid Value) : IEntityId;
+public readonly record struct TestScenarioId(Guid Value) : IEntityId;
+public readonly record struct TestStepId(Guid Value) : IEntityId;
+public readonly record struct TestPlanId(Guid Value) : IEntityId;
+public readonly record struct TestExecutionId(Guid Value) : IEntityId;

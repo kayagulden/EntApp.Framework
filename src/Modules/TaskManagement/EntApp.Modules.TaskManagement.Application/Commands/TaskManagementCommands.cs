@@ -220,3 +220,60 @@ public sealed record UpdateRequirementCommand(Guid RequirementId,
     string? AcceptanceCriteria = null, string? ExternalDesignUrl = null) : IRequest<Guid>;
 
 public sealed record DeleteRequirementCommand(Guid RequirementId) : IRequest;
+
+// ── Test Scenario ──────────────────────────────────────────
+
+public sealed record CreateTestScenarioCommand(Guid ProjectId, string Title,
+    string Type = "Functional", string Priority = "Medium",
+    string? Description = null, string? Preconditions = null,
+    Guid? RequirementId = null,
+    int? EstimatedDurationMinutes = null, string? Tags = null) : IRequest<Guid>;
+
+public sealed record UpdateTestScenarioCommand(Guid TestScenarioId,
+    string? Title = null, string? Description = null,
+    string? Type = null, string? Priority = null, string? Status = null,
+    string? Preconditions = null, Guid? RequirementId = null,
+    int? EstimatedDurationMinutes = null, string? Tags = null) : IRequest<Guid>;
+
+public sealed record DeleteTestScenarioCommand(Guid TestScenarioId) : IRequest;
+
+// ── Test Step ──────────────────────────────────────────────
+
+public sealed record UpdateTestStepsCommand(Guid TestScenarioId,
+    List<TestStepDto> Steps) : IRequest;
+
+public sealed record TestStepDto(string Action, string ExpectedResult,
+    int StepNumber, string? TestData = null, string? Notes = null, Guid? Id = null);
+
+// ── Test Plan ──────────────────────────────────────────────
+
+public sealed record CreateTestPlanCommand(Guid ProjectId, string Title,
+    string? Description = null,
+    Guid? SprintId = null, Guid? MilestoneId = null,
+    string? StartDate = null, string? EndDate = null,
+    string? AssignedTesterId = null) : IRequest<Guid>;
+
+public sealed record UpdateTestPlanCommand(Guid TestPlanId,
+    string? Title = null, string? Description = null,
+    string? Status = null,
+    string? StartDate = null, string? EndDate = null,
+    string? AssignedTesterId = null) : IRequest<Guid>;
+
+public sealed record DeleteTestPlanCommand(Guid TestPlanId) : IRequest;
+
+// ── Test Plan Scenario ─────────────────────────────────────
+
+public sealed record AddScenarioToTestPlanCommand(Guid TestPlanId, Guid TestScenarioId,
+    string? AssignedTesterId = null) : IRequest<Guid>;
+
+public sealed record RemoveScenarioFromTestPlanCommand(Guid TestPlanId, Guid TestScenarioId) : IRequest;
+
+// ── Test Execution ─────────────────────────────────────────
+
+public sealed record RecordTestExecutionCommand(Guid TestPlanId, Guid TestScenarioId,
+    string Result, string? ExecutedBy = null, string? Notes = null, string? Environment = null,
+    int? DurationMinutes = null,
+    List<TestStepResultDto>? StepResults = null) : IRequest<Guid>;
+
+public sealed record TestStepResultDto(Guid TestStepId, string Result,
+    string? ActualResult = null, string? Notes = null);

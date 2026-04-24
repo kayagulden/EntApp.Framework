@@ -314,3 +314,86 @@ public sealed record RequirementWorkItemDto(
     Guid Id, string WorkItemNumber, string Title,
     string Status, string Type, string Priority,
     Guid? AssigneeUserId);
+
+// ── Test Scenario ──────────────────────────────────────────
+
+public sealed record ListTestScenariosQuery(Guid ProjectId,
+    string? Type = null, string? Status = null, string? Priority = null,
+    Guid? RequirementId = null) : IRequest<List<TestScenarioListDto>>;
+
+public sealed record GetTestScenarioQuery(Guid TestScenarioId)
+    : IRequest<TestScenarioDetailDto?>;
+
+public sealed record TestScenarioListDto(
+    Guid Id, string Key, string Title,
+    string Type, string Priority, string Status,
+    Guid? RequirementId, string? RequirementKey,
+    int StepCount, int ExecutionCount,
+    string? Tags, int? EstimatedDurationMinutes,
+    int SortOrder, DateTime CreatedAt);
+
+public sealed record TestScenarioDetailDto(
+    Guid Id, string Key, string Title,
+    string Type, string Priority, string Status,
+    string? Description, string? Preconditions,
+    Guid? RequirementId, string? RequirementKey,
+    int? EstimatedDurationMinutes, string? Tags,
+    int SortOrder, DateTime CreatedAt,
+    List<TestStepListDto>? Steps = null);
+
+public sealed record TestStepListDto(
+    Guid Id, int StepNumber, string Action, string ExpectedResult,
+    string? TestData, string? Notes);
+
+// ── Test Plan ──────────────────────────────────────────────
+
+public sealed record ListTestPlansQuery(Guid ProjectId,
+    string? Status = null) : IRequest<List<TestPlanListDto>>;
+
+public sealed record GetTestPlanQuery(Guid TestPlanId)
+    : IRequest<TestPlanDetailDto?>;
+
+public sealed record TestPlanListDto(
+    Guid Id, string Key, string Title, string Status,
+    Guid? SprintId, Guid? MilestoneId,
+    string? StartDate, string? EndDate,
+    string? AssignedTesterId,
+    int ScenarioCount, int PassCount, int FailCount, int NotRunCount,
+    DateTime CreatedAt);
+
+public sealed record TestPlanDetailDto(
+    Guid Id, string Key, string Title, string Status,
+    string? Description,
+    Guid? SprintId, Guid? MilestoneId,
+    string? StartDate, string? EndDate,
+    string? AssignedTesterId,
+    DateTime CreatedAt,
+    List<TestPlanScenarioDto>? Scenarios = null);
+
+public sealed record TestPlanScenarioDto(
+    Guid TestPlanScenarioId,
+    Guid TestScenarioId, string TestScenarioKey, string TestScenarioTitle,
+    string TestScenarioType, string TestScenarioPriority,
+    string? AssignedTesterId,
+    string? LastResult, DateTime? LastExecutedAt,
+    int SortOrder);
+
+// ── Test Execution ─────────────────────────────────────────
+
+public sealed record ListTestExecutionsQuery(Guid TestPlanId,
+    Guid? TestScenarioId = null) : IRequest<List<TestExecutionListDto>>;
+
+public sealed record ListScenarioExecutionsQuery(Guid TestScenarioId)
+    : IRequest<List<TestExecutionListDto>>;
+
+public sealed record TestExecutionListDto(
+    Guid Id, string Result,
+    string ExecutedBy, DateTime ExecutedAt,
+    int? DurationMinutes, string? Notes, string? Environment,
+    Guid? LinkedBugId,
+    string? TestScenarioKey, string? TestPlanKey,
+    List<TestStepResultListDto>? StepResults = null);
+
+public sealed record TestStepResultListDto(
+    Guid TestStepId, int StepNumber, string Action,
+    string Result, string? ActualResult, string? Notes);
