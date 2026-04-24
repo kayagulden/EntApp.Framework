@@ -283,3 +283,34 @@ public sealed record ProjectTemplateDetailDto(
     string BoardColumnsJson, string? MilestonesJson, string? WorkItemsJson,
     DateTime CreatedAt, DateTime? UpdatedAt);
 
+// ── Requirement ────────────────────────────────────────────
+
+public sealed record ListRequirementsQuery(Guid ProjectId,
+    Guid? ParentId = null, string? Type = null, string? Status = null)
+    : IRequest<List<RequirementListDto>>;
+
+public sealed record GetRequirementQuery(Guid RequirementId)
+    : IRequest<RequirementDetailDto?>;
+
+public sealed record RequirementListDto(
+    Guid Id, string Key, string Title,
+    string Type, string Priority, string Status,
+    Guid? ParentRequirementId,
+    int ChildCount, int WorkItemCount,
+    int SortOrder, DateTime CreatedAt);
+
+public sealed record RequirementDetailDto(
+    Guid Id, string Key, string Title,
+    string Type, string Priority, string Status,
+    string? Description, string? AcceptanceCriteria,
+    Guid? ParentRequirementId,
+    Guid? SourceTicketId, string? SourceTicketNumber,
+    string? ExternalDesignUrl,
+    int SortOrder, DateTime CreatedAt,
+    List<RequirementListDto>? Children = null,
+    List<RequirementWorkItemDto>? WorkItems = null);
+
+public sealed record RequirementWorkItemDto(
+    Guid Id, string WorkItemNumber, string Title,
+    string Status, string Type, string Priority,
+    Guid? AssigneeUserId);

@@ -1801,3 +1801,162 @@ public sealed class CreateProjectFromTemplateCommandHandler(TaskManagementDbCont
     private sealed record TemplateMilestoneDto(string Name, int DayOffset, string? Description = null);
     private sealed record TemplateWorkItemDto(string Title, string Type = "Task", string Priority = "Medium", string? Description = null);
 }
+
+// ── Requirement Handlers ───────────────────────────────────────
+
+public sealed class CreateRequirementCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateRequirementCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateRequirementCommand request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct)
+            ?? throw new InvalidOperationException($"Project {request.ProjectId} not found");
+
+        var type = Enum.Parse<RequirementType>(request.Type, true);
+        var priority = Enum.Parse<RequirementPriority>(request.Priority, true);
+
+        RequirementId? parentId = request.ParentRequirementId.HasValue
+            ? new RequirementId(request.ParentRequirementId.Value) : null;
+
+        var key = project.NextRequirementKey();
+
+        // SortOrder: mevcut max + 1
+        var maxSort = await db.Requirements
+            .Where(r => r.ProjectId == projectId && r.ParentRequirementId == parentId)
+            .MaxAsync(r => (int?)r.SortOrder, ct) ?? 0;
+
+        var requirement = Requirement.Create(
+            projectId, key, request.Title, type, priority,
+            request.Description, request.AcceptanceCriteria,
+            parentId, request.SourceTicketId, request.SourceTicketNumber,
+            request.ExternalDesignUrl, maxSort + 1);
+
+        db.Requirements.Add(requirement);
+        await db.SaveChangesAsync(ct);
+        return requirement.Id.Value;
+    }
+}
+
+public sealed class UpdateRequirementCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateRequirementCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateRequirementCommand request, CancellationToken ct)
+    {
+        var reqId = new RequirementId(request.RequirementId);
+        var requirement = await db.Requirements.FirstOrDefaultAsync(r => r.Id == reqId, ct)
+            ?? throw new InvalidOperationException($"Requirement {request.RequirementId} not found");
+
+        if (request.Status is not null)
+        {
+            var status = Enum.Parse<RequirementStatus>(request.Status, true);
+            requirement.UpdateStatus(status);
+        }
+
+        requirement.Update(
+            request.Title, request.Description,
+            request.Type is not null ? Enum.Parse<RequirementType>(request.Type, true) : null,
+            request.Priority is not null ? Enum.Parse<RequirementPriority>(request.Priority, true) : null,
+            request.AcceptanceCriteria, request.ExternalDesignUrl);
+
+        await db.SaveChangesAsync(ct);
+        return requirement.Id.Value;
+    }
+}
+
+public sealed class DeleteRequirementCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteRequirementCommand>
+{
+    public async Task Handle(DeleteRequirementCommand request, CancellationToken ct)
+    {
+        var reqId = new RequirementId(request.RequirementId);
+
+        // Alt gereksinimleri de sil
+        var children = await db.Requirements
+            .Where(r => r.ParentRequirementId == reqId)
+            .ToListAsync(ct);
+        db.Requirements.RemoveRange(children);
+
+        var requirement = await db.Requirements.FirstOrDefaultAsync(r => r.Id == reqId, ct)
+            ?? throw new InvalidOperationException($"Requirement {request.RequirementId} not found");
+        db.Requirements.Remove(requirement);
+
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class ListRequirementsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListRequirementsQuery, List<RequirementListDto>>
+{
+    public async Task<List<RequirementListDto>> Handle(ListRequirementsQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.Requirements.Where(r => r.ProjectId == projectId);
+
+        // Filter by parent (null = top-level)
+        if (request.ParentId.HasValue)
+            query = query.Where(r => r.ParentRequirementId == new RequirementId(request.ParentId.Value));
+        else
+            query = query.Where(r => r.ParentRequirementId == null);
+
+        if (request.Type is not null)
+        {
+            var type = Enum.Parse<RequirementType>(request.Type, true);
+            query = query.Where(r => r.Type == type);
+        }
+        if (request.Status is not null)
+        {
+            var status = Enum.Parse<RequirementStatus>(request.Status, true);
+            query = query.Where(r => r.Status == status);
+        }
+
+        return await query.OrderBy(r => r.SortOrder)
+            .Select(r => new RequirementListDto(
+                r.Id.Value, r.Key, r.Title,
+                r.Type.ToString(), r.Priority.ToString(), r.Status.ToString(),
+                r.ParentRequirementId.HasValue ? r.ParentRequirementId.Value.Value : null,
+                r.Children.Count, r.WorkItems.Count,
+                r.SortOrder, r.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetRequirementQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetRequirementQuery, RequirementDetailDto?>
+{
+    public async Task<RequirementDetailDto?> Handle(GetRequirementQuery request, CancellationToken ct)
+    {
+        var reqId = new RequirementId(request.RequirementId);
+        var r = await db.Requirements
+            .Include(x => x.Children)
+            .Include(x => x.WorkItems)
+            .FirstOrDefaultAsync(x => x.Id == reqId, ct);
+
+        if (r is null) return null;
+
+        var children = r.Children.OrderBy(c => c.SortOrder)
+            .Select(c => new RequirementListDto(
+                c.Id.Value, c.Key, c.Title,
+                c.Type.ToString(), c.Priority.ToString(), c.Status.ToString(),
+                c.ParentRequirementId.HasValue ? c.ParentRequirementId.Value.Value : null,
+                0, 0, c.SortOrder, c.CreatedAt))
+            .ToList();
+
+        var workItems = r.WorkItems
+            .Select(w => new RequirementWorkItemDto(
+                w.Id.Value, w.WorkItemNumber, w.Title,
+                w.Status.ToString(), w.Type.ToString(), w.Priority.ToString(),
+                w.AssigneeUserId))
+            .ToList();
+
+        return new RequirementDetailDto(
+            r.Id.Value, r.Key, r.Title,
+            r.Type.ToString(), r.Priority.ToString(), r.Status.ToString(),
+            r.Description, r.AcceptanceCriteria,
+            r.ParentRequirementId.HasValue ? r.ParentRequirementId.Value.Value : null,
+            r.SourceTicketId, r.SourceTicketNumber,
+            r.ExternalDesignUrl,
+            r.SortOrder, r.CreatedAt,
+            children, workItems);
+    }
+}

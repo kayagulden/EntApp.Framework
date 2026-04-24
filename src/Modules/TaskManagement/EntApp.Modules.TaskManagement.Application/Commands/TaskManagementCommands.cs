@@ -205,3 +205,18 @@ public sealed record CreateProjectFromTemplateCommand(Guid TemplateId,
     Guid? ManagerUserId = null, Guid? OwnerUserId = null,
     Guid? PortfolioId = null) : IRequest<Guid>;
 
+// ── Requirement ────────────────────────────────────────────
+
+public sealed record CreateRequirementCommand(Guid ProjectId, string Title,
+    string Type = "Functional", string Priority = "Must",
+    string? Description = null, string? AcceptanceCriteria = null,
+    Guid? ParentRequirementId = null,
+    Guid? SourceTicketId = null, string? SourceTicketNumber = null,
+    string? ExternalDesignUrl = null) : IRequest<Guid>;
+
+public sealed record UpdateRequirementCommand(Guid RequirementId,
+    string? Title = null, string? Description = null,
+    string? Type = null, string? Priority = null, string? Status = null,
+    string? AcceptanceCriteria = null, string? ExternalDesignUrl = null) : IRequest<Guid>;
+
+public sealed record DeleteRequirementCommand(Guid RequirementId) : IRequest;

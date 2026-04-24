@@ -417,6 +417,37 @@ public static class TaskManagementEndpoints
             return Results.Created($"/api/pm/projects/{id}", new { id });
         }).WithName("CreateProjectFromTemplate").WithTags("PM - Projects");
 
+        // ── Requirement ──────────────────────────────────────────
+        proj.MapGet("/{id:guid}/requirements", async (Guid id, ISender mediator, string? type, string? status, Guid? parentId) =>
+            Results.Ok(await mediator.Send(new ListRequirementsQuery(id, parentId, type, status))))
+            .WithName("ListProjectRequirements").WithTags("PM - Requirements");
+
+        proj.MapPost("/{id:guid}/requirements", async (Guid id, CreateRequirementRequest req, ISender mediator) =>
+        {
+            var rid = await mediator.Send(new CreateRequirementCommand(id, req.Title, req.Type, req.Priority,
+                req.Description, req.AcceptanceCriteria, req.ParentRequirementId,
+                req.SourceTicketId, req.SourceTicketNumber, req.ExternalDesignUrl));
+            return Results.Created($"/api/pm/requirements/{rid}", new { id = rid });
+        }).WithName("CreateRequirement").WithTags("PM - Requirements");
+
+        var requirements = app.MapGroup("/api/pm/requirements").WithTags("PM - Requirements");
+        requirements.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetRequirementQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetRequirement");
+
+        requirements.MapPut("/{id:guid}", async (Guid id, UpdateRequirementRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateRequirementCommand(id, req.Title, req.Description,
+                req.Type, req.Priority, req.Status, req.AcceptanceCriteria, req.ExternalDesignUrl));
+            return Results.Ok(new { id });
+        }).WithName("UpdateRequirement");
+
+        requirements.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteRequirementCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteRequirement");
+
         return app;
     }
 }
@@ -549,3 +580,14 @@ public sealed record CreateProjectFromTemplateRequest(Guid TemplateId,
     string Key, string Name, string? Description = null,
     DateTime? StartDate = null, DateTime? TargetEndDate = null,
     Guid? ManagerUserId = null, Guid? OwnerUserId = null, Guid? PortfolioId = null);
+
+// Requirement
+public sealed record CreateRequirementRequest(string Title,
+    string Type = "Functional", string Priority = "Must",
+    string? Description = null, string? AcceptanceCriteria = null,
+    Guid? ParentRequirementId = null,
+    Guid? SourceTicketId = null, string? SourceTicketNumber = null,
+    string? ExternalDesignUrl = null);
+public sealed record UpdateRequirementRequest(string? Title = null, string? Description = null,
+    string? Type = null, string? Priority = null, string? Status = null,
+    string? AcceptanceCriteria = null, string? ExternalDesignUrl = null);

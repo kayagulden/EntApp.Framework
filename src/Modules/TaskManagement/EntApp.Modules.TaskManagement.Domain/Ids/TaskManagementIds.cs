@@ -15,3 +15,4 @@ public readonly record struct BoardColumnId(Guid Value) : IEntityId;
 public readonly record struct BurndownSnapshotId(Guid Value) : IEntityId;
 public readonly record struct MilestoneId(Guid Value) : IEntityId;
 public readonly record struct ProjectTemplateId(Guid Value) : IEntityId;
+public readonly record struct RequirementId(Guid Value) : IEntityId;

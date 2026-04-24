@@ -30,6 +30,7 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<BurndownSnapshot> BurndownSnapshots => Set<BurndownSnapshot>();
     public DbSet<MilestoneBase> Milestones => Set<MilestoneBase>();
     public DbSet<ProjectTemplate> ProjectTemplates => Set<ProjectTemplate>();
+    public DbSet<Requirement> Requirements => Set<Requirement>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -219,6 +220,11 @@ public sealed class TaskManagementDbContext : BaseDbContext
                 v => v.HasValue ? new MilestoneId(v.Value) : null).IsRequired(false);
             e.HasIndex(x => x.MilestoneId).HasDatabaseName("ix_tasks_milestone");
             e.HasOne(x => x.Milestone).WithMany(m => m.WorkItems).HasForeignKey(x => x.MilestoneId).IsRequired(false);
+            e.Property(x => x.RequirementId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new RequirementId(v.Value) : null).IsRequired(false);
+            e.HasIndex(x => x.RequirementId).HasDatabaseName("ix_tasks_requirement");
+            e.HasOne(x => x.Requirement).WithMany(r => r.WorkItems).HasForeignKey(x => x.RequirementId).IsRequired(false);
             e.Ignore(x => x.TotalLoggedHours);
         });
 
@@ -313,6 +319,30 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.MilestonesJson).HasColumnType("text");
             e.Property(x => x.WorkItemsJson).HasColumnType("text");
             e.HasIndex(x => x.Name);
+        });
+
+        // ── Requirement ───────────────────────────────────────────
+        modelBuilder.Entity<Requirement>(e =>
+        {
+            e.ToTable("requirements");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<RequirementId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.ParentRequirementId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new RequirementId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.Key).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.AcceptanceCriteria).HasColumnType("text");
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.SourceTicketNumber).HasMaxLength(20);
+            e.Property(x => x.ExternalDesignUrl).HasMaxLength(500);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ParentRequirement).WithMany(r => r.Children).HasForeignKey(x => x.ParentRequirementId).IsRequired(false);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique().HasDatabaseName("ix_requirements_project_key");
         });
     }
 }

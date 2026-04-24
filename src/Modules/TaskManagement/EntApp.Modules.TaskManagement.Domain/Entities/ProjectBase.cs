@@ -101,4 +101,14 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
         WorkItemSequence++;
         return $"{Key}-{WorkItemSequence}";
     }
+
+    /// <summary>Otomatik gereksinim numaralandırma sayacı.</summary>
+    public int RequirementSequence { get; private set; }
+
+    /// <summary>Yeni gereksinim numarası üretir: KEY-R1, KEY-R2, ...</summary>
+    public string NextRequirementKey()
+    {
+        RequirementSequence++;
+        return $"{Key}-R{RequirementSequence}";
+    }
 }

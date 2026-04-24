@@ -1,6 +1,6 @@
-# 16a — Request Management (Talep Yönetimi) — Detaylı Yol Haritası
+﻿# 16a — Request Management (Talep Yönetimi) — Detaylı Yol Haritası
 
-> **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
+> **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
 > **Backend tamamlanma:** 2026-04-05
 > **Workflow entegrasyonu:** 2026-04-17
 
@@ -94,8 +94,12 @@
 - [ ] Onaylayıcı çözümleme: `IAM.User.ManagerUserId` → talebi açanın yöneticisi dinamik olarak bulunur
 - [ ] Herhangi bir onaylayıcının onayı yeterli (tek onay mantığı)
 
-### Dinamik Form
-- [ ] Departman/kategori bazlı dinamik form (RequestCategory.FormSchema → Dynamic UI)
+### Dinamik Form & Talep Olgunlastirma (Intake)
+- [ ] Departman/kategori bazli dinamik form (RequestCategory.FormSchema -> Dynamic UI)
+- [ ] Talep olgunlastirma formu: Proje/Ozellik Talebi kategorilerinde kapsam, etki analizi, butce, sponsor onayi, is gerekcesi gibi yapisal alanlar
+- [ ] `Ticket.IntakeFormJson` -- kategori formuna gore doldurulan JSON veri (esnek yapi)
+- [ ] StateFlow'da 'Detaylandirma Bekliyor' durumu -- kullanicidan intake form doldurmasi istenir
+- [ ] 'Projeye Aktar' sirasinda intake bilgilerini Proje aciklamasina ve FeatureSpec gereksiniminin Description alanina otomatik Markdown donusumu
 
 ### Workflow Görev Oluşturma
 - [ ] `CreateTaskForAssignee` activity ile workflow'dan otomatik görev oluşturma (activity mevcut, workflow akışına eklenmedi)

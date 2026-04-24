@@ -70,6 +70,9 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     /// <summary>Milestone bağlantısı (nullable). Bu iş kalemi hangi milestone'a katkı sağlıyor?</summary>
     public MilestoneId? MilestoneId { get; private set; }
 
+    /// <summary>Gereksinim bağlantısı (nullable). Bu iş kalemi hangi gereksinimden doğuyor?</summary>
+    public RequirementId? RequirementId { get; private set; }
+
     // ── WSJF (Weighted Shortest Job First) ────────────────────
     /// <summary>İş değeri (1-13 Fibonacci). WSJF Cost of Delay bileşeni.</summary>
     public int? BusinessValue { get; private set; }
@@ -100,6 +103,7 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     public WorkItemBase? ParentTask { get; private set; }
     public SprintBase? Sprint { get; private set; }
     public MilestoneBase? Milestone { get; private set; }
+    public Requirement? Requirement { get; private set; }
     public ICollection<WorkItemBase> SubTasks { get; private set; } = [];
     public ICollection<CommentBase> Comments { get; private set; } = [];
     public ICollection<TimeEntryBase> TimeEntries { get; private set; } = [];
@@ -207,6 +211,7 @@ public sealed class WorkItemBase : AuditableEntity<WorkItemId>, ITenantEntity
     public void SetHierarchyLevel(int level) => HierarchyLevel = level;
     public void MoveToProject(ProjectId projectId) => ProjectId = projectId;
     public void SetParent(WorkItemId? parentId, int hierarchyLevel) { ParentTaskId = parentId; HierarchyLevel = hierarchyLevel; }
+    public void SetRequirement(RequirementId? requirementId) => RequirementId = requirementId;
 
     /// <summary>WSJF bileşenlerini ayarlar ve skoru otomatik hesaplar.</summary>
     public void SetWsjfComponents(int? businessValue, int? timeCriticality, int? riskReduction)

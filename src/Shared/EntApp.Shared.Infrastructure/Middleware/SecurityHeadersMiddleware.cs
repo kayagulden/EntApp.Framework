@@ -48,6 +48,7 @@ public sealed class SecurityHeadersMiddleware
             "img-src 'self' data: blob:; " +
             "font-src 'self' data:; " +
             "connect-src 'self' ws: wss: http://localhost:3000 http://localhost:5280; " +
+            "frame-src 'self' https://embed.figma.com https://*.balsamiq.cloud; " +
             "frame-ancestors 'self' http://localhost:3000 http://localhost:5280;";
 
         // HSTS — production'da HTTPS zorlaması

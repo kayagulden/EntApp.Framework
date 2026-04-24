@@ -215,3 +215,48 @@ public enum CIRelationType
     /// <summary>Server → Server ("yedek/DR").</summary>
     BackupOf = 5
 }
+
+// ── Requirement Enum'ları ────────────────────────────────────
+
+/// <summary>Gereksinim tipi.</summary>
+public enum RequirementType
+{
+    /// <summary>Üst-seviye fonksiyonel spec — Description alanı spec dokümanı yerine geçer.</summary>
+    FeatureSpec = 0,
+    /// <summary>Fonksiyonel gereksinim — sistem davranışı.</summary>
+    Functional = 1,
+    /// <summary>Fonksiyonel olmayan gereksinim — performans, güvenlik, ölçeklenebilirlik.</summary>
+    NonFunctional = 2,
+    /// <summary>Arayüz gereksinimi — entegrasyon, API, UI.</summary>
+    Interface = 3,
+    /// <summary>Kısıt — regülasyon, teknoloji, bütçe.</summary>
+    Constraint = 4
+}
+
+/// <summary>Gereksinim önceliği (MoSCoW).</summary>
+public enum RequirementPriority
+{
+    /// <summary>Olmazsa olmaz.</summary>
+    Must = 0,
+    /// <summary>Olması gerekir ama ertelenebilir.</summary>
+    Should = 1,
+    /// <summary>Olsa iyi olur.</summary>
+    Could = 2,
+    /// <summary>Bu sürümde olmayacak.</summary>
+    WontHave = 3
+}
+
+/// <summary>Gereksinim durumu.</summary>
+public enum RequirementStatus
+{
+    /// <summary>Taslak — henüz gözden geçirilmedi.</summary>
+    Draft = 0,
+    /// <summary>İnceleme/gözden geçirme aşamasında.</summary>
+    InReview = 1,
+    /// <summary>Onaylandı — implementasyona hazır.</summary>
+    Approved = 2,
+    /// <summary>İmplemente edildi — tüm iş kalemleri tamamlandı.</summary>
+    Implemented = 3,
+    /// <summary>Doğrulandı — test edildi ve kabul edildi.</summary>
+    Verified = 4
+}
