@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ───────────────────────────────────────────
 
 interface ProjectDetail {
   id: string;
@@ -63,14 +63,14 @@ interface ApplicationOption {
 
 interface PortfolioOption { id: string; name: string; code: string; }
 
-// â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Config ──────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; bg: string; label: string }> = {
   Planning: { icon: RotateCcw, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", label: "Planlama" },
   Active: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", label: "Aktif" },
   OnHold: { icon: PauseCircle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", label: "Beklemede" },
-  Completed: { icon: CheckCircle2, color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20", label: "TamamlandÄ±" },
-  Cancelled: { icon: AlertCircle, color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/20", label: "Ä°ptal" },
+  Completed: { icon: CheckCircle2, color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20", label: "Tamamlandı" },
+  Cancelled: { icon: AlertCircle, color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/20", label: "İptal" },
 };
 
 const METHODOLOGY_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
@@ -82,10 +82,10 @@ const METHODOLOGY_CONFIG: Record<string, { color: string; bg: string; label: str
 
 const CATEGORY_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; bg: string; label: string }> = {
   General: { icon: Tag, color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/20", label: "Genel" },
-  SoftwareDevelopment: { icon: FolderKanban, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20", label: "YazÄ±lÄ±m GeliÅŸtirme" },
-  Infrastructure: { icon: Monitor, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", label: "AltyapÄ±" },
+  SoftwareDevelopment: { icon: FolderKanban, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20", label: "Yazılım Geliştirme" },
+  Infrastructure: { icon: Monitor, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", label: "Altyapı" },
   Procurement: { icon: ShoppingCart, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", label: "Tedarik" },
-  Business: { icon: Building2, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20", label: "Ä°ÅŸ / Organizasyonel" },
+  Business: { icon: Building2, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20", label: "İş / Organizasyonel" },
 };
 
 const STATUS_FLOW: Record<string, string[]> = {
@@ -97,7 +97,7 @@ const STATUS_FLOW: Record<string, string[]> = {
 };
 
 function formatDate(dateStr?: string): string {
-  if (!dateStr) return "â€”";
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
@@ -106,18 +106,18 @@ function formatDateShort(dateStr?: string): string {
   return new Date(dateStr).toISOString().split("T")[0];
 }
 
-// Tab config â€” kategori bazlÄ± filtreleme
+// Tab config — kategori bazlı filtreleme
 type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "releases" | "test-scenarios" | "test-plans" | "settings";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
-  { key: "overview", label: "Genel BakÄ±ÅŸ", icon: FolderKanban, categories: ["all"] },
+  { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
   { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
   { key: "board", label: "Board", icon: Layout, categories: ["all"] },
   { key: "sprints", label: "Sprintler", icon: Timer, categories: ["all"] },
   { key: "metrics", label: "Metrikler", icon: BarChart3, categories: ["all"] },
   { key: "milestones", label: "Milestones", icon: Milestone, categories: ["all"] },
   { key: "requirements", label: "Gereksinimler", icon: ClipboardList, categories: ["all"] },
-  { key: "test-scenarios", label: "Test SenaryolarÄ±", icon: FlaskConical, categories: ["all"] },
-  { key: "test-plans", label: "Test PlanlarÄ±", icon: TestTube2, categories: ["all"] },
+  { key: "test-scenarios", label: "Test Senaryoları", icon: FlaskConical, categories: ["all"] },
+  { key: "test-plans", label: "Test Planları", icon: TestTube2, categories: ["all"] },
   { key: "releases", label: "Releases", icon: Rocket, categories: ["all"] },
   { key: "settings", label: "Ayarlar", icon: Settings, categories: ["all"] },
 ];
@@ -147,23 +147,23 @@ interface BacklogWorkItem {
 }
 
 const WORK_ITEM_TYPES = [
-  { value: "Epic", label: "Epic", icon: "ğŸ¯" },
-  { value: "Feature", label: "Feature", icon: "ğŸ—" },
-  { value: "UserStory", label: "User Story", icon: "ğŸ“–" },
-  { value: "Task", label: "Task", icon: "ğŸ“‹" },
-  { value: "Bug", label: "Bug", icon: "ğŸ›" },
-  { value: "TechDebt", label: "Tech Debt", icon: "ğŸ”§" },
-  { value: "Spike", label: "Spike", icon: "ğŸ”¬" },
-  { value: "Improvement", label: "Improvement", icon: "âš¡" },
+  { value: "Epic", label: "Epic", icon: "🏔️" },
+  { value: "Feature", label: "Feature", icon: "⭐" },
+  { value: "UserStory", label: "User Story", icon: "📖" },
+  { value: "Task", label: "Task", icon: "✅" },
+  { value: "Bug", label: "Bug", icon: "🐛" },
+  { value: "TechDebt", label: "Tech Debt", icon: "🔧" },
+  { value: "Spike", label: "Spike", icon: "💡" },
+  { value: "Improvement", label: "Improvement", icon: "a" },
 ];
 
 const STATUS_LABELS: Record<string,{label:string;color:string}> = {
   Backlog: { label: "Backlog", color: "bg-slate-500/20 text-slate-400" },
-  Todo: { label: "YapÄ±lacak", color: "bg-blue-500/20 text-blue-400" },
+  Todo: { label: "Yapılacak", color: "bg-blue-500/20 text-blue-400" },
   InProgress: { label: "Devam Ediyor", color: "bg-amber-500/20 text-amber-400" },
-  InReview: { label: "Ä°ncelemede", color: "bg-purple-500/20 text-purple-400" },
-  Done: { label: "TamamlandÄ±", color: "bg-emerald-500/20 text-emerald-400" },
-  Cancelled: { label: "Ä°ptal", color: "bg-red-500/20 text-red-400" },
+  InReview: { label: "İncelemede", color: "bg-purple-500/20 text-purple-400" },
+  Done: { label: "Tamamlandı", color: "bg-emerald-500/20 text-emerald-400" },
+  Cancelled: { label: "İptal", color: "bg-red-500/20 text-red-400" },
 };
 
 interface BoardColumnData { id: string; name: string; order: number; mappedStatus: string; wipLimit?: number | null; }
@@ -195,7 +195,7 @@ const RechartsLine = dynamic(() => import("recharts").then(m => {
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="ideal" stroke="#6366f1" strokeDasharray="5 5" name="Ä°deal" dot={false} strokeWidth={2} />
+          <Line type="monotone" dataKey="ideal" stroke="#6366f1" strokeDasharray="5 5" name="İdeal" dot={false} strokeWidth={2} />
           <Line type="monotone" dataKey="remaining" stroke="#f59e0b" name="Kalan SP" strokeWidth={2} dot={{ r: 3 }} connectNulls />
         </LineChart>
       </ResponsiveContainer>
@@ -223,10 +223,10 @@ const RechartsBar = dynamic(() => import("recharts").then(m => {
   };
 }), { ssr: false, loading: () => <div className="h-72 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div> });
 
-const TYPE_ICONS: Record<string,string> = { Task:"ğŸ“‹", Bug:"ğŸ›", Feature:"ğŸ—", Improvement:"âš¡", Epic:"ğŸ¯", UserStory:"ğŸ“–", TechDebt:"ğŸ”§", Spike:"ğŸ”¬" };
+const TYPE_ICONS: Record<string,string> = { Task:"✅", Bug:"🐛", Feature:"⭐", UserStory:"📖", Epic:"🏔️", TechDebt:"🔧", Spike:"💡", SubTask:"📌" };
 const PRIORITY_COLORS: Record<string,string> = { Critical:"bg-red-500", High:"bg-orange-500", Medium:"bg-yellow-500", Low:"bg-blue-500", None:"bg-gray-500" };
 
-// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Component ───────────────────────────────────────
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -296,7 +296,7 @@ export default function ProjectDetailPage() {
   // Sprints state (for backlog inline dropdown)
   const [backlogSprints, setBacklogSprints] = useState<{id:string;name:string;status:string}[]>([]);
 
-  // Milestones â€” now self-contained in MilestonesTab
+  // Milestones — now self-contained in MilestonesTab
 
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
@@ -387,7 +387,7 @@ export default function ProjectDetailPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     });
-    // "AtanmamÄ±ÅŸ" en sona
+    // "Atanmamıx" en sona
     if (boardSwimlane === "assignee" && map.has("unassigned")) {
       const u = map.get("unassigned")!;
       map.delete("unassigned");
@@ -398,10 +398,10 @@ export default function ProjectDetailPage() {
 
   const getSwimlaneLabel = (key: string) => {
     if (key === "all") return "";
-    if (key === "unassigned") return "AtanmamÄ±ÅŸ";
-    if (boardSwimlane === "priority") return ({ Critical:"ğŸ”´ Kritik", High:"ğŸŸ  YÃ¼ksek", Medium:"ğŸŸ¡ Orta", Low:"ğŸ”µ DÃ¼ÅŸÃ¼k" }[key] ?? key);
-    if (boardSwimlane === "type") return `${TYPE_ICONS[key] ?? "ğŸ“‹"} ${key}`;
-    return key.slice(0, 8) + "..."; // userId kÄ±salt
+    if (key === "unassigned") return "Atanmamıx";
+    if (boardSwimlane === "priority") return ({ Critical:"🔴 Kritik", High:"🟠 Yüksek", Medium:"🟡 Orta", Low:"🟢 Düşük" } as Record<string,string>)[key] || key;
+    if (boardSwimlane === "type") return `${TYPE_ICONS[key] ?? "✅"} ${key}`;
+    return key.slice(0, 8) + "..."; // userId kısalt
   };
 
   // Fetch metrics data
@@ -608,8 +608,8 @@ export default function ProjectDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-muted)]">
         <FolderKanban className="w-12 h-12 opacity-30 mb-3" />
-        <p className="text-sm">Proje bulunamadÄ±</p>
-        <button onClick={() => router.back()} className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">â† Geri</button>
+        <p className="text-sm">Proje bulunamadı</p>
+        <button onClick={() => router.back()} className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">  Geri</button>
       </div>
     );
   }
@@ -621,7 +621,7 @@ export default function ProjectDetailPage() {
   const CatIcon = catCfg.icon;
   const nextStatuses = STATUS_FLOW[project.status] || [];
 
-  // Kategori bazlÄ± tab filtreleme
+  // Kategori bazlı tab filtreleme
   const visibleTabs = ALL_TABS.filter(t =>
     t.categories.includes("all") || t.categories.includes(project.category)
   );
@@ -681,13 +681,13 @@ export default function ProjectDetailPage() {
           {!editing && (
             <button onClick={startEdit}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]/50 transition-all">
-              <Edit3 className="w-3.5 h-3.5" /> DÃ¼zenle
+              <Edit3 className="w-3.5 h-3.5" /> Düzenle
             </button>
           )}
         </div>
       </div>
 
-      {/* Tabs â€” kategori bazlÄ± */}
+      {/* Tabs  kategori bazlı */}
       <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
         {visibleTabs.map(tab => {
           const Icon = tab.icon;
@@ -704,7 +704,7 @@ export default function ProjectDetailPage() {
                     : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border)]"
               )}>
               <Icon className="w-4 h-4" /> {tab.label}
-              {tab.disabled && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-border)] text-[var(--color-text-muted)]">YakÄ±nda</span>}
+              {tab.disabled && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-border)] text-[var(--color-text-muted)]">Yakında</span>}
             </button>
           );
         })}
@@ -716,16 +716,16 @@ export default function ProjectDetailPage() {
           {/* Info Card */}
           <div className="lg:col-span-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
             {editing ? (
-              /* â”€â”€ Edit Mode â”€â”€â”€ */
+              /* ── Edit Mode ── */
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Proje Bilgileri</h3>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Proje AdÄ±</label>
+                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Proje Adı</label>
                   <input type="text" value={editData.name || ""} onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">AÃ§Ä±klama</label>
+                  <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Açıklama</label>
                   <textarea rows={3} value={editData.description || ""} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none" />
                 </div>
@@ -748,19 +748,19 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">BaÅŸlangÄ±Ã§ Tarihi</label>
+                    <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Başlangıç Tarihi</label>
                     <input type="date" value={editData.startDate || ""} onChange={e => setEditData(d => ({ ...d, startDate: e.target.value }))}
                       className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Hedef BitiÅŸ</label>
+                    <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Hedef Bitiş</label>
                     <input type="date" value={editData.targetEndDate || ""} onChange={e => setEditData(d => ({ ...d, targetEndDate: e.target.value }))}
                       className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]" />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]/50 transition-colors">
-                    <X className="w-4 h-4 inline-block mr-1" />Ä°ptal
+                    <X className="w-4 h-4 inline-block mr-1" />İptal
                   </button>
                   <button onClick={saveEdit} disabled={saving}
                     className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-2">
@@ -769,23 +769,23 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             ) : (
-              /* â”€â”€ View Mode â”€â”€â”€ */
+              /* ── View Mode ── */
               <div className="space-y-5">
                 <h3 className="text-sm font-semibold text-[var(--color-text)] mb-4">Proje Bilgileri</h3>
                 <div className="grid grid-cols-2 gap-y-4 gap-x-8">
                   <InfoRow icon={FolderKanban} label="Anahtar" value={project.key} mono />
-                  <InfoRow icon={Calendar} label="OluÅŸturma" value={formatDate(project.createdAt)} />
-                  <InfoRow icon={Calendar} label="BaÅŸlangÄ±Ã§" value={formatDate(project.startDate)} />
-                  <InfoRow icon={Calendar} label="Hedef BitiÅŸ" value={formatDate(project.targetEndDate)} />
+                  <InfoRow icon={Calendar} label="Oluşturma" value={formatDate(project.createdAt)} />
+                  <InfoRow icon={Calendar} label="Başlangıç" value={formatDate(project.startDate)} />
+                  <InfoRow icon={Calendar} label="Hedef Bitiş" value={formatDate(project.targetEndDate)} />
                   <InfoRow icon={GitBranch} label="Metodoloji" value={methodCfg.label} badgeColors={methodCfg} />
                   <InfoRow icon={CatIcon} label="Kategori" value={catCfg.label} badgeColors={catCfg} />
-                  <InfoRow icon={Briefcase} label="Portfolyo" value={project.portfolioName || "â€”"} />
-                  <InfoRow icon={BarChart3} label="Toplam GÃ¶rev" value={String(project.taskCount)} />
-                  <InfoRow icon={BarChart3} label="GÃ¶rev SayacÄ±" value={`#${project.taskSequence}`} />
+                  <InfoRow icon={Briefcase} label="Portfolyo" value={project.portfolioName || ""} />
+                  <InfoRow icon={BarChart3} label="Toplam Görev" value={String(project.taskCount)} />
+                  <InfoRow icon={BarChart3} label="Görev Sayacı" value={`#${project.taskSequence}`} />
                 </div>
                 {project.updatedAt && (
                   <p className="text-[10px] text-[var(--color-text-muted)] pt-3 border-t border-[var(--color-border)]">
-                    Son gÃ¼ncelleme: {formatDate(project.updatedAt)}
+                    Son güncelleme: {formatDate(project.updatedAt)}
                   </p>
                 )}
               </div>
@@ -796,10 +796,10 @@ export default function ProjectDetailPage() {
           <div className="space-y-4">
             {/* Quick Stats */}
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-[var(--color-text)]">HÄ±zlÄ± Ä°statistikler</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)]">Hızlı İstatistikler</h3>
               <div className="grid grid-cols-2 gap-3">
-                <StatBox icon={BarChart3} label="GÃ¶revler" value={project.taskCount} color="indigo" />
-                <StatBox icon={GitBranch} label="SÄ±ra" value={project.taskSequence} color="violet" />
+                <StatBox icon={BarChart3} label="Görevler" value={project.taskCount} color="indigo" />
+                <StatBox icon={GitBranch} label="Sıra" value={project.taskSequence} color="violet" />
               </div>
             </div>
 
@@ -825,7 +825,7 @@ export default function ProjectDetailPage() {
                       <button
                         onClick={() => removeDeliverable(d.configurationItemId)}
                         className="p-1 rounded text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                        title="KaldÄ±r"
+                        title="Kaldır"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -840,7 +840,7 @@ export default function ProjectDetailPage() {
                   onChange={(e) => setSelectedAppId(e.target.value)}
                   className="flex-1 px-2 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none"
                 >
-                  <option value="">Uygulama seÃ§in...</option>
+                  <option value="">Uygulama seçin...</option>
                   {applications
                     .filter(a => !project.deliverables?.some(d => d.configurationItemId === a.id))
                     .map(a => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}
@@ -864,16 +864,16 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            {/* Tamamlanan & YakÄ±nda */}
+            {/* Tamamlanan & Yakında */}
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Ã–zellikler</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Öözellikler</h3>
               <ul className="space-y-3">
                 {[
-                  { icon: ListTodo, label: "Ä°ÅŸ Kalemleri", desc: "Tablo & aÄŸaÃ§ gÃ¶rÃ¼nÃ¼m", done: true },
-                  { icon: Layout, label: "Kanban Board", desc: "SÃ¼rÃ¼kle-bÄ±rak, swimlane, filtre", done: true },
-                  { icon: Milestone, label: "Milestones", desc: "Timeline gÃ¶rÃ¼nÃ¼mÃ¼", done: true },
+                  { icon: ListTodo, label: "İş Kalemleri", desc: "Tablo & ağaç görünüm", done: true },
+                  { icon: Layout, label: "Kanban Board", desc: "Sürükle-bırak, swimlane, filtre", done: true },
+                  { icon: Milestone, label: "Milestones", desc: "Timeline görünümü", done: true },
                   { icon: BarChart3, label: "Metrikler", desc: "Velocity, Burndown", done: true },
-                  { icon: GitBranch, label: "AÄŸaÃ§ GÃ¶rÃ¼nÃ¼m", desc: "HiyerarÅŸik drag & drop sÄ±ralama", done: false },
+                  { icon: GitBranch, label: "Ağaç Görünüm", desc: "Hiyerarşik drag & drop sıralama", done: false },
                 ].map(item => (
                   <li key={item.label} className="flex items-start gap-3">
                     <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 shrink-0",
@@ -907,7 +907,7 @@ export default function ProjectDetailPage() {
               <button onClick={() => setWorkItemView("tree")}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-l border-[var(--color-border)]",
                   workItemView === "tree" ? "bg-indigo-500/20 text-indigo-400" : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]")}>
-                <TreePine className="w-3.5 h-3.5" /> AÄŸaÃ§
+                <TreePine className="w-3.5 h-3.5" /> Ağaç
               </button>
             </div>
 
@@ -921,13 +921,13 @@ export default function ProjectDetailPage() {
             {/* Filters */}
             <select value={wiTypeFilter} onChange={e => setWiTypeFilter(e.target.value)}
               className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-              <option value="">TÃ¼m Tipler</option>
+              <option value="">Tüm Tipler</option>
               {WORK_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
             </select>
 
             <select value={wiStatusFilter} onChange={e => setWiStatusFilter(e.target.value)}
               className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-              <option value="">TÃ¼m Durumlar</option>
+              <option value="">Tüm Durumlar</option>
               {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
 
@@ -939,7 +939,7 @@ export default function ProjectDetailPage() {
             </button>
             <button onClick={() => setShowCreateForm(!showCreateForm)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Yeni Ä°ÅŸ Kalemi
+              <Plus className="w-3.5 h-3.5" /> Yeni İş Kalemi
             </button>
           </div>
 
@@ -947,13 +947,13 @@ export default function ProjectDetailPage() {
           {showCreateForm && (
             <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
               <h4 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
-                <Plus className="w-4 h-4 text-indigo-400" /> Yeni Ä°ÅŸ Kalemi OluÅŸtur
+                <Plus className="w-4 h-4 text-indigo-400" /> Yeni İş Kalemi Oluştur
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="lg:col-span-2">
-                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">BaÅŸlÄ±k *</label>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Baxlık *</label>
                   <input type="text" value={newItem.title} onChange={e => setNewItem(d => ({ ...d, title: e.target.value }))}
-                    placeholder="Ä°ÅŸ kalemi baÅŸlÄ±ÄŸÄ±..." autoFocus
+                    placeholder="İş kalemi baxlıxı..." autoFocus
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
                 </div>
                 <div>
@@ -964,17 +964,17 @@ export default function ProjectDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Ã–ncelik</label>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">ncelik</label>
                   <select value={newItem.priority} onChange={e => setNewItem(d => ({ ...d, priority: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-                    <option value="Low">DÃ¼ÅŸÃ¼k</option><option value="Medium">Orta</option>
-                    <option value="High">YÃ¼ksek</option><option value="Critical">Kritik</option>
+                    <option value="Low">Düşük</option><option value="Medium">Orta</option>
+                    <option value="High">Yüksek</option><option value="Critical">Kritik</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">AÃ§Ä±klama</label>
+                  <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Açıklama</label>
                   <textarea rows={2} value={newItem.description} onChange={e => setNewItem(d => ({ ...d, description: e.target.value }))}
                     placeholder="Detaylar..."
                     className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none" />
@@ -983,13 +983,13 @@ export default function ProjectDetailPage() {
                   <div className="w-24">
                     <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Story Points</label>
                     <input type="number" min="0" max="100" value={newItem.storyPoints} onChange={e => setNewItem(d => ({ ...d, storyPoints: e.target.value }))}
-                      placeholder="â€”"
+                      placeholder="—"
                       className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-indigo-500/40" />
                   </div>
                   <div className="flex gap-2 pb-0.5">
                     <button onClick={createWorkItem} disabled={creating || !newItem.title.trim()}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-                      {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} OluÅŸtur
+                      {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Oluştur
                     </button>
                     <button onClick={() => setShowCreateForm(false)}
                       className="px-3 py-2 rounded-lg text-sm font-medium border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]/50 transition-colors">
@@ -1007,20 +1007,20 @@ export default function ProjectDetailPage() {
           ) : workItems.length === 0 ? (
             <div className="text-center py-16 text-[var(--color-text-muted)]">
               <ListTodo className="w-12 h-12 mx-auto opacity-20 mb-3" />
-              <p className="text-sm font-medium">HenÃ¼z iÅŸ kalemi yok</p>
-              <p className="text-[11px] mt-1">"Yeni Ä°ÅŸ Kalemi" ile baÅŸlayÄ±n</p>
+              <p className="text-sm font-medium">Henüz ix kalemi yok</p>
+              <p className="text-[11px] mt-1">"Yeni İş Kalemi" ile başlayın</p>
             </div>
           ) : workItemView === "table" ? (
-            /* â”€â”€ Table View â”€â”€â”€ */
+            /* ── Table View ── */
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Numara</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">BaÅŸlÄ±k</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Baxlık</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tip</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Durum</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Ã–ncelik</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">ncelik</th>
                     <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">SP</th>
                     <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">WSJF</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Sprint</th>
@@ -1043,7 +1043,7 @@ export default function ProjectDetailPage() {
                           <span className="text-xs text-[var(--color-text)]">{item.title}</span>
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-xs">{TYPE_ICONS[item.type] ?? "ğŸ“‹"} {item.type}</span>
+                          <span className="text-xs">{TYPE_ICONS[item.type] ?? "x9"} {item.type}</span>
                         </td>
                         <td className="px-4 py-2.5">
                           <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium", stl.color)}>{stl.label}</span>
@@ -1057,12 +1057,12 @@ export default function ProjectDetailPage() {
                         <td className="px-4 py-2.5 text-center">
                           {item.storyPoints != null && item.storyPoints > 0 ? (
                             <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints}</span>
-                          ) : <span className="text-[10px] text-[var(--color-text-muted)]">â€”</span>}
+                          ) : <span className="text-[10px] text-[var(--color-text-muted)]"></span>}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           {item.wsjfScore != null && item.wsjfScore > 0 ? (
                             <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">{item.wsjfScore.toFixed(1)}</span>
-                          ) : <span className="text-[10px] text-[var(--color-text-muted)]">â€”</span>}
+                          ) : <span className="text-[10px] text-[var(--color-text-muted)]"></span>}
                         </td>
                         <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                           <select
@@ -1070,7 +1070,7 @@ export default function ProjectDetailPage() {
                             value={item.sprintId || ""}
                             onChange={e => handleSprintAssign(itemId, e.target.value || null)}
                           >
-                            <option value="">â€”</option>
+                            <option value="">—</option>
                             {backlogSprints.filter(s => s.status !== "Completed" && s.status !== "Cancelled").map(s => (
                               <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
@@ -1082,18 +1082,18 @@ export default function ProjectDetailPage() {
                 </tbody>
               </table>
               <div className="px-4 py-2 border-t border-[var(--color-border)] bg-[var(--color-bg)]">
-                <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} iÅŸ kalemi</span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} ix kalemi</span>
               </div>
             </div>
           ) : (
-            /* â”€â”€ Tree View â”€â”€â”€ */
+            /* ── Tree View ── */
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 space-y-1">
               {workItems
                 .filter(item => !wiSearch || item.title.toLowerCase().includes(wiSearch.toLowerCase()) || item.workItemNumber.toLowerCase().includes(wiSearch.toLowerCase()))
                 .map(item => <TreeNode key={getItemId(item)} item={item} depth={0} getItemId={getItemId} expandedNodes={expandedNodes} toggleNode={toggleNode} router={router} />)}
               {workItems.length > 0 && (
                 <div className="pt-2 border-t border-[var(--color-border)] mt-3">
-                  <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} kÃ¶k iÅŸ kalemi</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">Toplam: {workItems.length} kök ix kalemi</span>
                 </div>
               )}
             </div>
@@ -1116,7 +1116,7 @@ export default function ProjectDetailPage() {
             {/* Type filter */}
             <select value={boardTypeFilter} onChange={e => setBoardTypeFilter(e.target.value)}
               className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-              <option value="">TÃ¼m Tipler</option>
+              <option value="">Tüm Tipler</option>
               {WORK_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
             </select>
 
@@ -1124,7 +1124,7 @@ export default function ProjectDetailPage() {
             {boardSprints.length > 0 && (
               <select value={boardSprintFilter} onChange={e => setBoardSprintFilter(e.target.value)}
                 className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-                <option value="">TÃ¼m Sprintler</option>
+                <option value="">Tüm Sprintler</option>
                 {boardSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}
@@ -1132,10 +1132,10 @@ export default function ProjectDetailPage() {
             {/* Swimlane */}
             <select value={boardSwimlane} onChange={e => setBoardSwimlane(e.target.value as typeof boardSwimlane)}
               className="px-2.5 py-1.5 rounded-lg text-xs bg-[var(--color-input-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
-              <option value="none">Swimlane: KapalÄ±</option>
-              <option value="assignee">ğŸ‘¤ KiÅŸiye GÃ¶re</option>
-              <option value="priority">ğŸ¯ Ã–nceliÄŸe GÃ¶re</option>
-              <option value="type">ğŸ“‹ Tipe GÃ¶re</option>
+              <option value="none">Swimlane: Kapalı</option>
+              <option value="assignee">👤 Kişiye Göre</option>
+              <option value="priority">x ncelixe Göre</option>
+              <option value="type">x9 Tipe Göre</option>
             </select>
 
             <div className="flex-1" />
@@ -1159,7 +1159,7 @@ export default function ProjectDetailPage() {
           ) : boardColumns.length === 0 ? (
             <div className="text-center py-12 text-[var(--color-text-muted)]">
               <Layout className="w-10 h-10 mx-auto opacity-30 mb-2" />
-              <p className="text-sm">Board kolonlarÄ± henÃ¼z oluÅŸturulmadÄ±</p>
+              <p className="text-sm">Board kolonları henüz oluşturulmadı</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -1214,7 +1214,7 @@ export default function ProjectDetailPage() {
                                   draggedItem?.id === item.id && "opacity-40 scale-95"
                                 )}>
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="text-xs">{TYPE_ICONS[item.type] ?? "ğŸ“‹"}</span>
+                                  <span className="text-xs">{TYPE_ICONS[item.type] ?? "x9"}</span>
                                   <span className="text-[10px] font-mono text-[var(--color-text-muted)]">{item.workItemNumber}</span>
                                   {item.storyPoints != null && item.storyPoints > 0 && (
                                     <span className="ml-auto text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded-full">{item.storyPoints} SP</span>
@@ -1232,7 +1232,7 @@ export default function ProjectDetailPage() {
                                 "text-center py-6 text-[10px] text-[var(--color-text-muted)] rounded-lg transition-colors",
                                 isDragOver ? "bg-indigo-500/10 text-indigo-400" : "opacity-50"
                               )}>
-                                {isDragOver ? "Buraya bÄ±rak" : "BoÅŸ"}
+                                {isDragOver ? "Buraya bırak" : "Box"}
                               </div>
                             )}
                           </div>
@@ -1254,13 +1254,13 @@ export default function ProjectDetailPage() {
             <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /></div>
           ) : (
             <>
-              {/* â”€â”€ Ã–zet KartlarÄ± â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/*  zet Kartları  */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Toplam SP", value: metricsSummary?.totalStoryPoints ?? 0, icon: "âš¡", color: "from-indigo-500/20 to-indigo-600/5 border-indigo-500/20" },
-                  { label: "Tamamlanan SP", value: metricsSummary?.completedStoryPoints ?? 0, icon: "âœ…", color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20" },
-                  { label: "Ort. Velocity", value: `${(metricsSummary?.averageVelocity ?? 0).toFixed(1)} SP`, icon: "ğŸš€", color: "from-violet-500/20 to-violet-600/5 border-violet-500/20" },
-                  { label: "Aktif Ä°ÅŸ Kalemi", value: metricsSummary?.activeWorkItems ?? 0, icon: "ğŸ”„", color: "from-amber-500/20 to-amber-600/5 border-amber-500/20" },
+                  { label: "Toplam SP", value: metricsSummary?.totalStoryPoints ?? 0, icon: "a", color: "from-indigo-500/20 to-indigo-600/5 border-indigo-500/20" },
+                  { label: "Tamamlanan SP", value: metricsSummary?.completedStoryPoints ?? 0, icon: "S&", color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20" },
+                  { label: "Ort. Velocity", value: `${(metricsSummary?.averageVelocity ?? 0).toFixed(1)} SP`, icon: "xa", color: "from-violet-500/20 to-violet-600/5 border-violet-500/20" },
+                  { label: "Aktif İş Kalemi", value: metricsSummary?.activeWorkItems ?? 0, icon: "x", color: "from-amber-500/20 to-amber-600/5 border-amber-500/20" },
                 ].map(card => (
                   <div key={card.label} className={`rounded-xl border bg-gradient-to-br ${card.color} p-5 flex items-start gap-3`}>
                     <span className="text-2xl">{card.icon}</span>
@@ -1272,33 +1272,33 @@ export default function ProjectDetailPage() {
                 ))}
               </div>
 
-              {/* â”€â”€ Kanban Metrikleri (Lead Time & Cycle Time) â”€â”€â”€ */}
+              {/*  Kanban Metrikleri (Lead Time & Cycle Time)  */}
               {(metricsSummary?.averageLeadTimeDays !== null || metricsSummary?.averageCycleTimeDays !== null) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-transparent p-5">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">ğŸ“Š</span>
+                      <span className="text-lg">x`</span>
                       <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400">Ort. Lead Time</span>
                     </div>
                     <p className="text-3xl font-bold text-[var(--color-text)]">
-                      {metricsSummary?.averageLeadTimeDays != null ? `${metricsSummary.averageLeadTimeDays.toFixed(1)} gÃ¼n` : "â€”"}
+                      {metricsSummary?.averageLeadTimeDays != null ? `${metricsSummary.averageLeadTimeDays.toFixed(1)} gün` : ""}
                     </p>
-                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">OluÅŸturma â†’ Tamamlanma arasÄ± ortalama sÃ¼re</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Oluşturma   Tamamlanma arası ortalama süre</p>
                   </div>
                   <div className="rounded-xl border border-teal-500/20 bg-gradient-to-br from-teal-500/10 to-transparent p-5">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">â±ï¸</span>
+                      <span className="text-lg">⏱️</span>
                       <span className="text-xs font-semibold uppercase tracking-wider text-teal-400">Ort. Cycle Time</span>
                     </div>
                     <p className="text-3xl font-bold text-[var(--color-text)]">
-                      {metricsSummary?.averageCycleTimeDays != null ? `${metricsSummary.averageCycleTimeDays.toFixed(1)} gÃ¼n` : "â€”"}
+                      {metricsSummary?.averageCycleTimeDays != null ? `${metricsSummary.averageCycleTimeDays.toFixed(1)} gün` : ""}
                     </p>
-                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Ä°lk baÅŸlama â†’ Tamamlanma arasÄ± ortalama sÃ¼re</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">İlk başlama   Tamamlanma arası ortalama süre</p>
                   </div>
                 </div>
               )}
 
-              {/* â”€â”€ Velocity Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* ── Velocity Chart ── */}
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
                 <h3 className="text-sm font-semibold text-[var(--color-text)] mb-4 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-indigo-400" /> Velocity Chart
@@ -1306,8 +1306,8 @@ export default function ProjectDetailPage() {
                 {velocity.length === 0 ? (
                   <div className="text-center py-10 text-[var(--color-text-muted)]">
                     <BarChart3 className="w-8 h-8 mx-auto opacity-20 mb-2" />
-                    <p className="text-xs">TamamlanmÄ±ÅŸ sprint bulunamadÄ±</p>
-                    <p className="text-[10px] mt-1">Sprint tamamlandÄ±ÄŸÄ±nda velocity verileri burada gÃ¶rÃ¼necek</p>
+                    <p className="text-xs">Tamamlanmıx sprint bulunamadı</p>
+                    <p className="text-[10px] mt-1">Sprint tamamlandıxında velocity verileri burada görünecek</p>
                   </div>
                 ) : (
                   <RechartsBar
@@ -1317,7 +1317,7 @@ export default function ProjectDetailPage() {
                 )}
               </div>
 
-              {/* â”€â”€ Burndown Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* ── Burndown Chart ── */}
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
@@ -1328,9 +1328,9 @@ export default function ProjectDetailPage() {
                     value={selectedSprintId}
                     onChange={e => setSelectedSprintId(e.target.value)}
                   >
-                    <option value="">Sprint seÃ§in...</option>
+                    <option value="">Sprint seçin...</option>
                     {metricsSprints.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.status === "Active" ? "Aktif" : s.status === "Completed" ? "TamamlandÄ±" : s.status})</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.status === "Active" ? "Aktif" : s.status === "Completed" ? "Tamamlandı" : s.status})</option>
                     ))}
                   </select>
                 </div>
@@ -1339,7 +1339,7 @@ export default function ProjectDetailPage() {
                 ) : !burndown || burndown.dataPoints.length === 0 ? (
                   <div className="text-center py-10 text-[var(--color-text-muted)]">
                     <GitBranch className="w-8 h-8 mx-auto opacity-20 mb-2" />
-                    <p className="text-xs">{selectedSprintId ? "Bu sprint iÃ§in burndown verisi yok" : "Sprint seÃ§erek burndown grafiÄŸini gÃ¶rÃ¼ntÃ¼leyin"}</p>
+                    <p className="text-xs">{selectedSprintId ? "Bu sprint için burndown verisi yok" : "Sprint seçerek burndown grafixini görüntüleyin"}</p>
                   </div>
                 ) : (() => {
                   const start = new Date(burndown.startDate);
@@ -1357,18 +1357,18 @@ export default function ProjectDetailPage() {
                 })()}
               </div>
 
-              {/* â”€â”€ DaÄŸÄ±lÄ±m Grafikleri â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/*  Dağılım Grafikleri  */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Tip DaÄŸÄ±lÄ±mÄ± */}
+                {/* Tip Dağılımı */}
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Tip DaÄŸÄ±lÄ±mÄ±</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Tip Dağılımı</h4>
                   {metricsSummary && Object.entries(metricsSummary.byType).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
                     const total = metricsSummary.totalWorkItems || 1;
                     const pct = (count / total) * 100;
                     return (
                       <div key={type} className="mb-3">
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="text-[var(--color-text)]">{TYPE_ICONS[type] || "ğŸ“‹"} {type}</span>
+                          <span className="text-[var(--color-text)]">{TYPE_ICONS[type] || "x9"} {type}</span>
                           <span className="text-[var(--color-text-muted)]">{count} ({pct.toFixed(0)}%)</span>
                         </div>
                         <div className="h-2 rounded-full bg-[var(--color-bg)] overflow-hidden">
@@ -1378,9 +1378,9 @@ export default function ProjectDetailPage() {
                     );
                   })}
                 </div>
-                {/* Durum DaÄŸÄ±lÄ±mÄ± */}
+                {/* Durum Dağılımı */}
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Durum DaÄŸÄ±lÄ±mÄ±</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Durum Dağılımı</h4>
                   {metricsSummary && Object.entries(metricsSummary.byStatus).sort((a, b) => b[1] - a[1]).map(([status, count]) => {
                     const total = metricsSummary.totalWorkItems || 1;
                     const pct = (count / total) * 100;
@@ -1398,9 +1398,9 @@ export default function ProjectDetailPage() {
                     );
                   })}
                 </div>
-                {/* Ã–ncelik DaÄŸÄ±lÄ±mÄ± */}
+                {/* ncelik Dağılımı */}
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Ã–ncelik DaÄŸÄ±lÄ±mÄ±</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">ncelik Dağılımı</h4>
                   {metricsSummary && Object.entries(metricsSummary.byPriority).sort((a, b) => b[1] - a[1]).map(([priority, count]) => {
                     const total = metricsSummary.totalWorkItems || 1;
                     const pct = (count / total) * 100;
@@ -1441,12 +1441,12 @@ export default function ProjectDetailPage() {
         <RequirementsTab projectId={projectId as string} projectKey={project?.key || ""} />
       )}
 
-      {/* Test SenaryolarÄ± Tab */}
+      {/* Test Senaryoları Tab */}
       {activeTab === "test-scenarios" && (
         <TestScenariosTab projectId={projectId as string} />
       )}
 
-      {/* Test PlanlarÄ± Tab */}
+      {/* Test Planları Tab */}
       {activeTab === "test-plans" && (
         <TestPlansTab projectId={projectId as string} />
       )}
@@ -1464,7 +1464,7 @@ export default function ProjectDetailPage() {
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────
+// ── Sub-components ──────────────────────────────────
 
 function InfoRow({ icon: Icon, label, value, mono, badgeColors }: {
   icon: React.ComponentType<{ className?: string }>; label: string; value: string;
@@ -1538,12 +1538,12 @@ function TreeNode({ item, depth, getItemId, expandedNodes, toggleNode, router }:
         </button>
 
         {/* Type icon */}
-        <span className="text-sm shrink-0">{TYPE_ICONS[item.type] ?? "ğŸ“‹"}</span>
+        <span className="text-sm shrink-0">{TYPE_ICONS[item.type] ?? "x9"}</span>
 
         {/* Number */}
         <span className="text-[10px] font-mono text-[var(--color-text-muted)] shrink-0">{item.workItemNumber}</span>
 
-        {/* Title â€” clickable */}
+        {/* Title  clickable */}
         <button
           onClick={() => router.push(`/dashboard/tasks/${itemId}`)}
           className="text-xs text-[var(--color-text)] hover:text-indigo-400 transition-colors truncate text-left flex-1 min-w-0"
