@@ -2781,17 +2781,22 @@ function DesignPreview({ url }: { url: string }) {
   if (url.includes("figma.com")) {
     let embedUrl = url;
 
-    // figma.com/file/KEY/... → embed.figma.com/design/KEY/...
-    if (url.includes("figma.com/file/")) {
-      embedUrl = url.replace("www.figma.com/file/", "embed.figma.com/design/").replace("figma.com/file/", "embed.figma.com/design/");
-    }
-    // figma.com/design/KEY/... → embed.figma.com/design/KEY/...
-    else if (url.includes("figma.com/design/")) {
-      embedUrl = url.replace("www.figma.com/design/", "embed.figma.com/design/").replace("figma.com/design/", "embed.figma.com/design/");
-    }
-    // figma.com/proto/KEY/... → embed.figma.com/proto/KEY/...
-    else if (url.includes("figma.com/proto/")) {
-      embedUrl = url.replace("www.figma.com/proto/", "embed.figma.com/proto/").replace("figma.com/proto/", "embed.figma.com/proto/");
+    // URL'den hostname ve path'i parse et, embed URL'ine dönüştür
+    try {
+      const parsed = new URL(url.startsWith("http") ? url : "https://" + url);
+      const path = parsed.pathname + parsed.search + parsed.hash;
+
+      if (path.startsWith("/file/")) {
+        embedUrl = `https://embed.figma.com/design${path.slice(5)}`;
+      } else if (path.startsWith("/design/")) {
+        embedUrl = `https://embed.figma.com/design${path.slice(7)}`;
+      } else if (path.startsWith("/proto/")) {
+        embedUrl = `https://embed.figma.com/proto${path.slice(6)}`;
+      } else {
+        embedUrl = `https://embed.figma.com${path}`;
+      }
+    } catch {
+      embedUrl = url; // Parse başarısızsa orijinal URL
     }
 
     // https:// prefix garanti
