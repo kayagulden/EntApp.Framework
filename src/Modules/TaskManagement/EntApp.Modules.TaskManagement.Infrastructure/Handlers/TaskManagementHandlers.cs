@@ -2417,23 +2417,22 @@ public sealed class ListReleasesQueryHandler(TaskManagementDbContext db)
 {
     public async Task<List<ReleaseListDto>> Handle(ListReleasesQuery request, CancellationToken ct)
     {
-        var query = db.Releases.Where(r => r.ProjectId.Value == request.ProjectId);
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.Releases.Include(r => r.Items).Where(r => r.ProjectId == projectId);
         if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<ReleaseStatus>(request.Status, out var s))
             query = query.Where(r => r.Status == s);
         if (!string.IsNullOrEmpty(request.Type) && Enum.TryParse<ReleaseType>(request.Type, out var t))
             query = query.Where(r => r.Type == t);
-        return await query.OrderByDescending(r => r.CreatedAt)
-            .Select(r => new ReleaseListDto(
-                r.Id.Value, r.Key, r.Version, r.Title,
-                r.Status.ToString(), r.Type.ToString(),
-                r.PlannedDate.HasValue ? r.PlannedDate.Value.ToString("yyyy-MM-dd") : null,
-                r.ActualDate.HasValue ? r.ActualDate.Value.ToString("yyyy-MM-dd") : null,
-                r.ReleaseManagerId, r.TargetEnvironment,
-                r.SprintId.HasValue ? r.SprintId.Value.Value : null,
-                r.MilestoneId.HasValue ? r.MilestoneId.Value.Value : null,
-                r.Items.Count, r.Tags,
-                r.SortOrder, r.CreatedAt))
-            .ToListAsync(ct);
+        var releases = await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+        return releases.Select(r => new ReleaseListDto(
+            r.Id.Value, r.Key, r.Version, r.Title,
+            r.Status.ToString(), r.Type.ToString(),
+            r.PlannedDate?.ToString("yyyy-MM-dd"),
+            r.ActualDate?.ToString("yyyy-MM-dd"),
+            r.ReleaseManagerId, r.TargetEnvironment,
+            r.SprintId?.Value, r.MilestoneId?.Value,
+            r.Items.Count, r.Tags,
+            r.SortOrder, r.CreatedAt)).ToList();
     }
 }
 

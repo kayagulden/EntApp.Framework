@@ -1,4 +1,4 @@
--- Release Management MVP — Migration
+-- Release Management MVP — Migration (Fixed)
 -- Schema: pm
 -- Tarih: 2026-04-24
 
@@ -25,8 +25,9 @@ CREATE TABLE IF NOT EXISTS pm.releases (
     "CreatedAt"         timestamp with time zone NOT NULL DEFAULT now(),
     "CreatedBy"         text,
     "UpdatedAt"         timestamp with time zone,
-    "UpdatedBy"         text,
-    "RowVersion"        bytea
+    "ModifiedBy"        text,
+    "IsDeleted"         boolean NOT NULL DEFAULT false,
+    "RowVersion"        bigint NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_releases_project_key ON pm.releases ("ProjectId", "Key");
@@ -44,8 +45,9 @@ CREATE TABLE IF NOT EXISTS pm.release_items (
     "CreatedAt"     timestamp with time zone NOT NULL DEFAULT now(),
     "CreatedBy"     text,
     "UpdatedAt"     timestamp with time zone,
-    "UpdatedBy"     text,
-    "RowVersion"    bytea
+    "ModifiedBy"    text,
+    "IsDeleted"     boolean NOT NULL DEFAULT false,
+    "RowVersion"    bigint NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_release_items_unique ON pm.release_items ("ReleaseId", "WorkItemId");
@@ -62,8 +64,9 @@ CREATE TABLE IF NOT EXISTS pm.go_no_go_checklists (
     "CreatedAt"     timestamp with time zone NOT NULL DEFAULT now(),
     "CreatedBy"     text,
     "UpdatedAt"     timestamp with time zone,
-    "UpdatedBy"     text,
-    "RowVersion"    bytea
+    "ModifiedBy"    text,
+    "IsDeleted"     boolean NOT NULL DEFAULT false,
+    "RowVersion"    bigint NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_go_no_go_checklists_release ON pm.go_no_go_checklists ("ReleaseId");
@@ -80,7 +83,11 @@ CREATE TABLE IF NOT EXISTS pm.go_no_go_items (
     "ReviewedAt"    timestamp with time zone,
     "Notes"         text,
     "SortOrder"     integer NOT NULL DEFAULT 0,
-    "IsRequired"    boolean NOT NULL DEFAULT true
+    "IsRequired"    boolean NOT NULL DEFAULT true,
+    "CreatedAt"     timestamp with time zone NOT NULL DEFAULT now(),
+    "UpdatedAt"     timestamp with time zone,
+    "IsDeleted"     boolean NOT NULL DEFAULT false,
+    "RowVersion"    bigint NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS ix_go_no_go_items_checklist ON pm.go_no_go_items ("ChecklistId");
@@ -97,11 +104,12 @@ CREATE TABLE IF NOT EXISTS pm.release_notes (
     "CreatedAt"         timestamp with time zone NOT NULL DEFAULT now(),
     "CreatedBy"         text,
     "UpdatedAt"         timestamp with time zone,
-    "UpdatedBy"         text,
-    "RowVersion"        bytea
+    "ModifiedBy"        text,
+    "IsDeleted"         boolean NOT NULL DEFAULT false,
+    "RowVersion"        bigint NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_release_notes_release ON pm.release_notes ("ReleaseId");
 
--- 6. projects tablosuna ReleaseSequence kolonu
+-- 6. projects tablosuna ReleaseSequence kolonu (idempotent)
 ALTER TABLE pm.projects ADD COLUMN IF NOT EXISTS "ReleaseSequence" integer NOT NULL DEFAULT 0;

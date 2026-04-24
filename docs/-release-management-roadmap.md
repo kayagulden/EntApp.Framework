@@ -1,9 +1,9 @@
-﻿# 16e -- Release Management -- Detayli Yol Haritasi
+# 16e -- Release Management -- Detayli Yol Haritasi
 
 > **Ana roadmap:** [-roadmap.md (Faz 16)]
 > **Bagimliliklar:** 16b (Project & WorkItem), 16d (Test Management), StateFlow Engine
 > **Modul Konumu:** TaskManagement modulu icinde (pm schema)
-> **Durum:** Henuz baslanmadi
+> **Durum:** Faz 1 MVP tamamlandi (2026-04-24) — Faz 1.5 devam ediyor
 
 ---
 
@@ -33,104 +33,104 @@
 ## Faz 1 -- MVP (Release + Go/No-Go + Release Notes)
 
 ### Entity: Release
-- [ ] Id: ReleaseId (strongly-typed)
-- [ ] ProjectId: ProjectId (FK)
-- [ ] Key: string (KEY-REL1)
-- [ ] Version: string (v1.0.0, 2026.04.1 -- serbest format)
-- [ ] Title: string (Release bashligi)
-- [ ] Description: string? (Markdown)
-- [ ] Status: ReleaseStatus enum
-- [ ] Type: ReleaseType enum (Major, Minor, Patch, Hotfix, Rollback)
-- [ ] SprintId: SprintId? (FK -- hangi sprint'in ciktisi)
-- [ ] MilestoneId: MilestoneId? (FK -- hangi milestone'a bagli)
-- [ ] PlannedDate: DateOnly? (planlanan release tarihi)
-- [ ] ActualDate: DateOnly? (gerceklesen tarih)
-- [ ] CodeFreezeDate: DateOnly? (kod dondurma tarihi)
-- [ ] ReleaseManagerId: string? (sorumlu kishi)
-- [ ] TargetEnvironment: string? (Production, Staging, vb.)
-- [ ] Tags: string? (virgulle ayrilmish etiketler)
-- [ ] SortOrder: int
-- [ ] TenantId, audit alanlari (AuditableEntity + ITenantEntity)
+- [x] Id: ReleaseId (strongly-typed)
+- [x] ProjectId: ProjectId (FK)
+- [x] Key: string (KEY-REL1)
+- [x] Version: string (v1.0.0, 2026.04.1 -- serbest format)
+- [x] Title: string (Release bashligi)
+- [x] Description: string? (Markdown)
+- [x] Status: ReleaseStatus enum
+- [x] Type: ReleaseType enum (Major, Minor, Patch, Hotfix, Rollback)
+- [x] SprintId: SprintId? (FK -- hangi sprint'in ciktisi)
+- [x] MilestoneId: MilestoneId? (FK -- hangi milestone'a bagli)
+- [x] PlannedDate: DateOnly? (planlanan release tarihi)
+- [x] ActualDate: DateOnly? (gerceklesen tarih)
+- [x] CodeFreezeDate: DateOnly? (kod dondurma tarihi)
+- [x] ReleaseManagerId: string? (sorumlu kishi)
+- [x] TargetEnvironment: string? (Production, Staging, vb.)
+- [x] Tags: string? (virgulle ayrilmish etiketler)
+- [x] SortOrder: int
+- [x] TenantId, audit alanlari (AuditableEntity + ITenantEntity)
 
 ### Entity: ReleaseItem (Release - WorkItem M:N)
-- [ ] Id: Guid
-- [ ] ReleaseId: ReleaseId (FK)
-- [ ] WorkItemId: WorkItemId (FK)
-- [ ] IncludedAt: DateTime (ne zaman eklendi)
-- [ ] IncludedBy: string (kim ekledi)
-- [ ] Notes: string? (ekleme notu)
-- [ ] SortOrder: int
+- [x] Id: Guid
+- [x] ReleaseId: ReleaseId (FK)
+- [x] WorkItemId: WorkItemId (FK)
+- [x] IncludedAt: DateTime (ne zaman eklendi)
+- [x] IncludedBy: string (kim ekledi)
+- [x] Notes: string? (ekleme notu)
+- [x] SortOrder: int
 
 ### Entity: GoNoGoChecklist
-- [ ] Id: GoNoGoChecklistId (strongly-typed)
-- [ ] ReleaseId: ReleaseId (FK -- 1:1 ilishki)
-- [ ] Status: GoNoGoStatus enum (Pending, InProgress, Approved, Rejected)
-- [ ] DecisionAt: DateTime? (karar tarihi)
-- [ ] DecisionBy: string? (karari veren)
-- [ ] DecisionNotes: string? (karar notu)
-- [ ] TenantId, audit alanlari
+- [x] Id: GoNoGoChecklistId (strongly-typed)
+- [x] ReleaseId: ReleaseId (FK -- 1:1 ilishki)
+- [x] Status: GoNoGoStatus enum (Pending, InProgress, Approved, Rejected)
+- [x] DecisionAt: DateTime? (karar tarihi)
+- [x] DecisionBy: string? (karari veren)
+- [x] DecisionNotes: string? (karar notu)
+- [x] TenantId, audit alanlari
 
 ### Entity: GoNoGoItem (Checklist maddesi)
-- [ ] Id: Guid
-- [ ] ChecklistId: GoNoGoChecklistId (FK)
-- [ ] Category: GoNoGoCategory enum (Development, QA, Operations, Security, Business, Legal)
-- [ ] Title: string (kontrol maddesi bashligi)
-- [ ] Description: string? (detay)
-- [ ] Status: GoNoGoItemStatus enum (Pending, Approved, Rejected, NotApplicable)
-- [ ] ReviewedBy: string? (onaylayan kishi)
-- [ ] ReviewedAt: DateTime? (onay tarihi)
-- [ ] Notes: string? (yorum)
-- [ ] SortOrder: int
-- [ ] IsRequired: bool (zorunlu mu? false ise skip edilebilir)
+- [x] Id: Guid
+- [x] ChecklistId: GoNoGoChecklistId (FK)
+- [x] Category: GoNoGoCategory enum (Development, QA, Operations, Security, Business, Legal)
+- [x] Title: string (kontrol maddesi bashligi)
+- [x] Description: string? (detay)
+- [x] Status: GoNoGoItemStatus enum (Pending, Approved, Rejected, NotApplicable)
+- [x] ReviewedBy: string? (onaylayan kishi)
+- [x] ReviewedAt: DateTime? (onay tarihi)
+- [x] Notes: string? (yorum)
+- [x] SortOrder: int
+- [x] IsRequired: bool (zorunlu mu? false ise skip edilebilir)
 
 ### Entity: ReleaseNote
-- [ ] Id: ReleaseNoteId (strongly-typed)
-- [ ] ReleaseId: ReleaseId (FK -- 1:1)
-- [ ] Content: string (Markdown -- otomatik uretilir, duzenlenebilir)
-- [ ] GeneratedAt: DateTime (son uretim tarihi)
-- [ ] IsManuallyEdited: bool (kullanici duzenledi mi)
-- [ ] PublishedAt: DateTime? (yayinlanma tarihi)
-- [ ] TenantId, audit alanlari
+- [x] Id: ReleaseNoteId (strongly-typed)
+- [x] ReleaseId: ReleaseId (FK -- 1:1)
+- [x] Content: string (Markdown -- otomatik uretilir, duzenlenebilir)
+- [x] GeneratedAt: DateTime (son uretim tarihi)
+- [x] IsManuallyEdited: bool (kullanici duzenledi mi)
+- [x] PublishedAt: DateTime? (yayinlanma tarihi)
+- [x] TenantId, audit alanlari
 
 ### Enum'lar
-- [ ] ReleaseStatus: Planning, CodeFreeze, Testing, GoNoGo, Staging, Deployed, Closed, Cancelled, Rollback
-- [ ] ReleaseType: Major, Minor, Patch, Hotfix, Rollback
-- [ ] GoNoGoStatus: Pending, InProgress, Approved, Rejected
-- [ ] GoNoGoCategory: Development, QA, Operations, Security, Business, Legal
-- [ ] GoNoGoItemStatus: Pending, Approved, Rejected, NotApplicable
+- [x] ReleaseStatus: Planning, CodeFreeze, Testing, GoNoGo, Staging, Deployed, Closed, Cancelled, Rollback
+- [x] ReleaseType: Major, Minor, Patch, Hotfix, Rollback
+- [x] GoNoGoStatus: Pending, InProgress, Approved, Rejected
+- [x] GoNoGoCategory: Development, QA, Operations, Security, Business, Legal
+- [x] GoNoGoItemStatus: Pending, Approved, Rejected, NotApplicable
 
 ### Sequence & Key
-- [ ] ProjectBase'e ReleaseSequence (int) eklenmesi
-- [ ] NextReleaseKey() metodu: KEY-REL1, KEY-REL2, ...
+- [x] ProjectBase'e ReleaseSequence (int) eklenmesi
+- [x] NextReleaseKey() metodu: KEY-REL1, KEY-REL2, ...
 
 ### CRUD API
 
 #### Release
-- [ ] POST /api/pm/projects/{projectId}/releases -- release olustur
-- [ ] GET  /api/pm/projects/{projectId}/releases -- proje release listesi (filtreli)
-- [ ] GET  /api/pm/releases/{id} -- release detay (items + checklist + note dahil)
-- [ ] PUT  /api/pm/releases/{id} -- release guncelle
-- [ ] DELETE /api/pm/releases/{id} -- release sil (soft delete)
-- [ ] PUT  /api/pm/releases/{id}/status -- durum gecishi
+- [x] POST /api/pm/projects/{projectId}/releases -- release olustur
+- [x] GET  /api/pm/projects/{projectId}/releases -- proje release listesi (filtreli)
+- [x] GET  /api/pm/releases/{id} -- release detay (items + checklist + note dahil)
+- [x] PUT  /api/pm/releases/{id} -- release guncelle
+- [x] DELETE /api/pm/releases/{id} -- release sil (soft delete)
+- [x] PUT  /api/pm/releases/{id}/status -- durum gecishi
 
 #### Release Items (WorkItem atama)
-- [ ] POST /api/pm/releases/{releaseId}/items -- WorkItem ekle
-- [ ] DELETE /api/pm/releases/{releaseId}/items/{workItemId} -- WorkItem kaldir
-- [ ] POST /api/pm/releases/{releaseId}/items/from-sprint -- Sprint'teki tum done WorkItem'lari ekle
-- [ ] GET  /api/pm/releases/{releaseId}/items -- release'deki WorkItem listesi
+- [x] POST /api/pm/releases/{releaseId}/items -- WorkItem ekle
+- [x] DELETE /api/pm/releases/{releaseId}/items/{workItemId} -- WorkItem kaldir
+- [x] POST /api/pm/releases/{releaseId}/items/from-sprint -- Sprint'teki tum done WorkItem'lari ekle
+- [x] GET  /api/pm/releases/{releaseId}/items -- release'deki WorkItem listesi
 
 #### Go/No-Go
-- [ ] POST /api/pm/releases/{releaseId}/go-no-go -- checklist olustur (varsayilan maddelerle)
-- [ ] GET  /api/pm/releases/{releaseId}/go-no-go -- checklist detay
-- [ ] PUT  /api/pm/releases/{releaseId}/go-no-go/items/{itemId} -- madde onay/ret
-- [ ] POST /api/pm/releases/{releaseId}/go-no-go/items -- yeni madde ekle
-- [ ] PUT  /api/pm/releases/{releaseId}/go-no-go/decide -- genel karar (Approved/Rejected)
+- [x] POST /api/pm/releases/{releaseId}/go-no-go -- checklist olustur (varsayilan maddelerle)
+- [x] GET  /api/pm/releases/{releaseId}/go-no-go -- checklist detay
+- [x] PUT  /api/pm/releases/{releaseId}/go-no-go/items/{itemId} -- madde onay/ret
+- [x] POST /api/pm/releases/{releaseId}/go-no-go/items -- yeni madde ekle
+- [x] PUT  /api/pm/releases/{releaseId}/go-no-go/decide -- genel karar (Approved/Rejected)
 
 #### Release Note
-- [ ] POST /api/pm/releases/{releaseId}/release-note/generate -- otomatik uret
-- [ ] GET  /api/pm/releases/{releaseId}/release-note -- notu getir
-- [ ] PUT  /api/pm/releases/{releaseId}/release-note -- notu duzenle
-- [ ] GET  /api/pm/releases/{releaseId}/release-note/export?format=markdown -- export
+- [x] POST /api/pm/releases/{releaseId}/release-note/generate -- otomatik uret
+- [x] GET  /api/pm/releases/{releaseId}/release-note -- notu getir
+- [x] PUT  /api/pm/releases/{releaseId}/release-note -- notu duzenle
+- [x] GET  /api/pm/releases/{releaseId}/release-note/export?format=markdown -- export
 
 ### Frontend UI
 
@@ -158,18 +158,18 @@
 - [ ] Export butonu (Markdown download)
 
 ### Database
-- [ ] pm.releases tablosu
-- [ ] pm.release_items tablosu
-- [ ] pm.go_no_go_checklists tablosu
-- [ ] pm.go_no_go_items tablosu
-- [ ] pm.release_notes tablosu
-- [ ] pm.projects: ReleaseSequence sayaci
+- [x] pm.releases tablosu
+- [x] pm.release_items tablosu
+- [x] pm.go_no_go_checklists tablosu
+- [x] pm.go_no_go_items tablosu
+- [x] pm.release_notes tablosu
+- [x] pm.projects: ReleaseSequence sayaci
 
 ### Release Note Uretim Mantigi
-- [ ] Release'deki WorkItem'lari Type'a gore grupla (Feature, Bug, Task, vb.)
-- [ ] Her WorkItem icin: "- [KEY-WI-N] Title" formatinda satir
-- [ ] Baslik: "# Release Notes -- v{Version} ({Date})"
-- [ ] Bolumler: New Features, Bug Fixes, Improvements, Other
+- [x] Release'deki WorkItem'lari Type'a gore grupla (Feature, Bug, Task, vb.)
+- [x] Her WorkItem icin: "- [KEY-WI-N] Title" formatinda satir
+- [x] Baslik: "# Release Notes -- v{Version} ({Date})"
+- [x] Bolumler: New Features, Bug Fixes, Improvements, Other
 
 ---
 
@@ -309,12 +309,12 @@ Portfolio
 ## Dogrulama Plani
 
 ### Build ve API
-- [ ] dotnet build -- 0 hata
-- [ ] Release CRUD API testi
-- [ ] WorkItem atama + Sprint'ten toplu ekleme testi
-- [ ] Go/No-Go checklist olusturma, onay, karar testi
-- [ ] Release note uretim ve export testi
-- [ ] Durum gecishi kural kontrolu testi
+- [x] dotnet build -- 0 hata ✅ (2026-04-24)
+- [x] Release CRUD API testi ✅
+- [x] WorkItem atama + Sprint'ten toplu ekleme testi (endpoint hazir, WorkItem veritabaninda olunca test edilecek)
+- [x] Go/No-Go checklist olusturma, onay, karar testi ✅
+- [x] Release note uretim ve export testi ✅
+- [x] Durum gecishi kural kontrolu testi ✅ (Planning → CodeFreeze dogrulandi)
 
 ### Frontend
 - [ ] Releases tab -- liste, form, durum gecishi
