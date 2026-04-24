@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
@@ -8,6 +8,7 @@ import MilestonesTab from "./MilestonesTab";
 import SprintsTab from "./SprintsTab";
 import BoardColumnSettings from "./BoardColumnSettings";
 import RequirementsTab from "./RequirementsTab";
+import ReleasesTab from "./ReleasesTab";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Calendar, BarChart3, User, GitBranch,
@@ -15,7 +16,7 @@ import {
   Briefcase, Edit3, Save, X, ListTodo, Layout, Milestone, Archive,
   ChevronRight, ChevronDown, Monitor, ShoppingCart, Building2, Tag, AppWindow, Plus, Trash2,
   Table2, TreePine, Filter, Search, RefreshCw, Timer, Play, Square, XCircle,
-  Settings, GripVertical, ClipboardList, FlaskConical, TestTube2,
+  Settings, GripVertical, ClipboardList, FlaskConical, TestTube2, Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +107,7 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config â€” kategori bazlÄ± filtreleme
-type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "test-scenarios" | "test-plans" | "settings";
+type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "releases" | "test-scenarios" | "test-plans" | "settings";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel BakÄ±ÅŸ", icon: FolderKanban, categories: ["all"] },
   { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
@@ -117,6 +118,7 @@ const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ classN
   { key: "requirements", label: "Gereksinimler", icon: ClipboardList, categories: ["all"] },
   { key: "test-scenarios", label: "Test SenaryolarÄ±", icon: FlaskConical, categories: ["all"] },
   { key: "test-plans", label: "Test PlanlarÄ±", icon: TestTube2, categories: ["all"] },
+  { key: "releases", label: "Releases", icon: Rocket, categories: ["all"] },
   { key: "settings", label: "Ayarlar", icon: Settings, categories: ["all"] },
 ];
 
@@ -1452,6 +1454,11 @@ export default function ProjectDetailPage() {
       {/* Settings Tab */}
       {activeTab === "settings" && (
         <BoardColumnSettings projectId={projectId as string} />
+      )}
+
+      {/* Releases Tab */}
+      {activeTab === "releases" && (
+        <ReleasesTab projectId={projectId as string} />
       )}
     </div>
   );

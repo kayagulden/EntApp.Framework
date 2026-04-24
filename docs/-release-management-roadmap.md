@@ -3,7 +3,7 @@
 > **Ana roadmap:** [-roadmap.md (Faz 16)]
 > **Bagimliliklar:** 16b (Project & WorkItem), 16d (Test Management), StateFlow Engine
 > **Modul Konumu:** TaskManagement modulu icinde (pm schema)
-> **Durum:** Faz 1 MVP tamamlandi (2026-04-24) — Faz 1.5 devam ediyor
+> **Durum:** Faz 1 MVP tamamlandi (Backend: 2026-04-24, Frontend: 2026-04-24) — Faz 1.5 devam ediyor
 
 ---
 
@@ -132,30 +132,43 @@
 - [x] PUT  /api/pm/releases/{releaseId}/release-note -- notu duzenle
 - [x] GET  /api/pm/releases/{releaseId}/release-note/export?format=markdown -- export
 
-### Frontend UI
+### Frontend UI (2026-04-24 tamamlandi)
 
-#### Releases Tab (Proje Detay)
-- [ ] Release listesi (versiyon, tip badge, durum badge, tarih, ilerleme)
-- [ ] Release olusturma/duzenleme formu
-- [ ] Release durum gecishi butonlari (status pipeline gorsel)
-- [ ] Sprint'ten otomatik WorkItem ekleme
+> [!NOTE]
+> Proje detay sayfasi oncelikle refaktor edildi (page.tsx 2885 → 1580 satir).
+> MilestonesTab, SprintsTab, RequirementsTab, BoardColumnSettings ayri dosyalara cikarildi.
+> Ardindan ReleasesTab.tsx ve ReleaseDetailPanel.tsx olusturuldu.
 
-#### Release Detay Paneli
-- [ ] Release bilgileri (versiyon, tarihler, sorumlu)
-- [ ] Dahil edilen WorkItem'lar listesi (tip/durum badge)
-- [ ] WorkItem ekleme/kaldirma
-- [ ] Ilerleme ozeti (Feature/Bug/Task dagilimi)
+#### Releases Tab (Proje Detay) — ReleasesTab.tsx (266 satir)
+- [x] Release listesi (versiyon, tip badge, durum badge, tarih, ilerleme)
+- [x] Release olusturma/duzenleme formu (versiyon, baslik, tip, tarihler, hedef ortam, etiketler)
+- [x] Release durum gecishi butonlari (7 adimli status pipeline gorsel)
+- [x] Status/Type filtreleme
+- [ ] Sprint'ten otomatik WorkItem ekleme (backend hazir, UI entegrasyonu Faz 1.5'e tasindi)
+
+#### Release Detay Paneli — ReleaseDetailPanel.tsx (307 satir)
+- [x] Release bilgileri (versiyon, tarihler, ortam, aciklama)
+- [x] Status degistirme dropdown
+- [x] 3 alt-tab yapisi (Is Kalemleri, Go/No-Go, Release Note)
+
+#### Is Kalemleri Tab
+- [x] Dahil edilen WorkItem'lar listesi (numara, baslik, tip, durum badge)
+- [x] WorkItem kaldirma
+- [ ] Ilerleme ozeti / Feature/Bug/Task dagilimi grafigi (Faz 1.5)
 
 #### Go/No-Go Checklist UI
-- [ ] Kategori bazli gruplanmish checklist
-- [ ] Her madde icin Approved/Rejected/NotApplicable butonlari
-- [ ] Kategori bazli ilerleme cubugu
-- [ ] Genel karar butonu (tum zorunlu maddeler onaylandiginda aktif)
+- [x] Varsayilan maddelerle checklist olusturma
+- [x] Her madde icin Approved/Rejected/NotApplicable dropdown
+- [x] Kategori etiketleri ve zorunluluk isareti
+- [x] Ozet bar (onaylanan/reddedilen/bekleyen sayilari)
+- [x] Genel Go/No-Go karar butonlari (Go — Onayla / No-Go — Reddet)
+- [ ] Kategori bazli ilerleme cubugu (Faz 1.5)
 
 #### Release Note UI
-- [ ] Otomatik uretilen Markdown onizleme
-- [ ] Markdown editor (duzenleme modu)
-- [ ] Export butonu (Markdown download)
+- [x] Otomatik uretim (WorkItem'lardan Markdown)
+- [x] Markdown editor (duzenleme modu, kaydet/iptal)
+- [x] Yeniden uretim butonu
+- [ ] Export butonu (Markdown download) (Faz 1.5 — backend endpoint hazir)
 
 ### Database
 - [x] pm.releases tablosu
@@ -173,7 +186,7 @@
 
 ---
 
-## Faz 1.5 -- MVP Iyilestirmeler
+## Faz 1.5 -- MVP Iyilestirmeler (Siradaki)
 
 ### Release Akish Iyilestirmeleri
 - [ ] Release durum gecishi kural kontrolu (GoNoGo onaylanmadan Deployed'a gecilemez)
@@ -317,7 +330,22 @@ Portfolio
 - [x] Durum gecishi kural kontrolu testi ✅ (Planning → CodeFreeze dogrulandi)
 
 ### Frontend
-- [ ] Releases tab -- liste, form, durum gecishi
-- [ ] Release detay -- WorkItem listesi, ekleme/kaldirma
-- [ ] Go/No-Go checklist UI -- onay akishi
-- [ ] Release note -- uretim, duzenleme, export
+- [x] Releases tab — liste, form, durum gecishi, pipeline gorsel ✅ (2026-04-24)
+- [x] Release detay — WorkItem listesi, kaldirma ✅ (2026-04-24)
+- [x] Go/No-Go checklist UI — olustur, madde onay/ret, genel karar ✅ (2026-04-24)
+- [x] Release note — otomatik uretim, Markdown duzenleme ✅ (2026-04-24)
+- [ ] Tarayicide fonksiyonel test (backend + frontend birlikte)
+
+### Dosya Yapisi
+```
+src/Frontend/entapp-web/src/app/dashboard/projects/[id]/
+├── page.tsx              (1580 satir — ana sayfa)
+├── ReleasesTab.tsx        (266 satir — release listesi + pipeline)
+├── ReleaseDetailPanel.tsx (307 satir — detay + 3 alt-tab)
+├── MilestonesTab.tsx      (203 satir)
+├── SprintsTab.tsx         (275 satir)
+├── RequirementsTab.tsx    (309 satir)
+├── BoardColumnSettings.tsx(132 satir)
+├── TestScenariosTab.tsx   (208 satir)
+└── TestPlansTab.tsx       (232 satir)
+```
