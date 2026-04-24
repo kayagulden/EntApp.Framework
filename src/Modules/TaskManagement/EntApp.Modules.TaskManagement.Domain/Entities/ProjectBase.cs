@@ -131,4 +131,14 @@ public sealed class ProjectBase : AuditableEntity<ProjectId>, ITenantEntity
         TestPlanSequence++;
         return $"{Key}-TP{TestPlanSequence}";
     }
+
+    /// <summary>Otomatik release numaralandırma sayacı.</summary>
+    public int ReleaseSequence { get; private set; }
+
+    /// <summary>Yeni release numarası üretir: KEY-REL1, KEY-REL2, ...</summary>
+    public string NextReleaseKey()
+    {
+        ReleaseSequence++;
+        return $"{Key}-REL{ReleaseSequence}";
+    }
 }

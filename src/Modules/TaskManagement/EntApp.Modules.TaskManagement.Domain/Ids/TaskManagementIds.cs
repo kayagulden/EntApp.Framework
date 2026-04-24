@@ -20,3 +20,6 @@ public readonly record struct TestScenarioId(Guid Value) : IEntityId;
 public readonly record struct TestStepId(Guid Value) : IEntityId;
 public readonly record struct TestPlanId(Guid Value) : IEntityId;
 public readonly record struct TestExecutionId(Guid Value) : IEntityId;
+public readonly record struct ReleaseId(Guid Value) : IEntityId;
+public readonly record struct GoNoGoChecklistId(Guid Value) : IEntityId;
+public readonly record struct ReleaseNoteId(Guid Value) : IEntityId;

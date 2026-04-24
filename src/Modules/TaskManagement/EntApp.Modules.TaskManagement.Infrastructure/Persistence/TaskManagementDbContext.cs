@@ -37,6 +37,11 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<TestPlanScenario> TestPlanScenarios => Set<TestPlanScenario>();
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<TestStepResult> TestStepResults => Set<TestStepResult>();
+    public DbSet<Release> Releases => Set<Release>();
+    public DbSet<ReleaseItem> ReleaseItems => Set<ReleaseItem>();
+    public DbSet<GoNoGoChecklist> GoNoGoChecklists => Set<GoNoGoChecklist>();
+    public DbSet<GoNoGoItem> GoNoGoItems => Set<GoNoGoItem>();
+    public DbSet<ReleaseNote> ReleaseNotes => Set<ReleaseNote>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -455,6 +460,89 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.HasOne(x => x.TestExecution).WithMany(ex => ex.StepResults).HasForeignKey(x => x.TestExecutionId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.TestStep).WithMany().HasForeignKey(x => x.TestStepId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.TestExecutionId, x.TestStepId }).IsUnique().HasDatabaseName("ix_test_step_results_unique");
+        });
+
+        // ── Release ──────────────────────────────────────────────
+        modelBuilder.Entity<Release>(e =>
+        {
+            e.ToTable("releases");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ReleaseId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.Property(x => x.SprintId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new SprintId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.MilestoneId).HasConversion(
+                v => v.HasValue ? v.Value.Value : (Guid?)null,
+                v => v.HasValue ? new MilestoneId(v.Value) : null).IsRequired(false);
+            e.Property(x => x.Key).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Version).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ReleaseManagerId).HasMaxLength(100);
+            e.Property(x => x.TargetEnvironment).HasMaxLength(100);
+            e.Property(x => x.Tags).HasMaxLength(500);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ProjectId, x.Key }).IsUnique().HasDatabaseName("ix_releases_project_key");
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_releases_status");
+        });
+
+        // ── ReleaseItem ──────────────────────────────────────────
+        modelBuilder.Entity<ReleaseItem>(e =>
+        {
+            e.ToTable("release_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ReleaseId).HasConversion(new StronglyTypedIdValueConverter<ReleaseId>());
+            e.Property(x => x.WorkItemId).HasConversion(new StronglyTypedIdValueConverter<WorkItemId>());
+            e.Property(x => x.IncludedBy).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasOne(x => x.Release).WithMany(r => r.Items).HasForeignKey(x => x.ReleaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.WorkItem).WithMany().HasForeignKey(x => x.WorkItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ReleaseId, x.WorkItemId }).IsUnique().HasDatabaseName("ix_release_items_unique");
+        });
+
+        // ── GoNoGoChecklist ──────────────────────────────────────
+        modelBuilder.Entity<GoNoGoChecklist>(e =>
+        {
+            e.ToTable("go_no_go_checklists");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<GoNoGoChecklistId>());
+            e.Property(x => x.ReleaseId).HasConversion(new StronglyTypedIdValueConverter<ReleaseId>());
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.DecisionBy).HasMaxLength(100);
+            e.Property(x => x.DecisionNotes).HasColumnType("text");
+            e.HasOne(x => x.Release).WithOne(r => r.GoNoGoChecklist).HasForeignKey<GoNoGoChecklist>(x => x.ReleaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ReleaseId).IsUnique().HasDatabaseName("ix_go_no_go_checklists_release");
+        });
+
+        // ── GoNoGoItem ───────────────────────────────────────────
+        modelBuilder.Entity<GoNoGoItem>(e =>
+        {
+            e.ToTable("go_no_go_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ChecklistId).HasConversion(new StronglyTypedIdValueConverter<GoNoGoChecklistId>());
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ReviewedBy).HasMaxLength(100);
+            e.Property(x => x.Notes).HasColumnType("text");
+            e.HasOne(x => x.Checklist).WithMany(c => c.Items).HasForeignKey(x => x.ChecklistId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ChecklistId).HasDatabaseName("ix_go_no_go_items_checklist");
+        });
+
+        // ── ReleaseNote ──────────────────────────────────────────
+        modelBuilder.Entity<ReleaseNote>(e =>
+        {
+            e.ToTable("release_notes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<ReleaseNoteId>());
+            e.Property(x => x.ReleaseId).HasConversion(new StronglyTypedIdValueConverter<ReleaseId>());
+            e.Property(x => x.Content).HasColumnType("text").IsRequired();
+            e.HasOne(x => x.Release).WithOne(r => r.ReleaseNote).HasForeignKey<ReleaseNote>(x => x.ReleaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ReleaseId).IsUnique().HasDatabaseName("ix_release_notes_release");
         });
     }
 }

@@ -331,3 +331,86 @@ public enum TestResult
     /// <summary>Atlandı.</summary>
     Skipped = 4
 }
+
+// ── Release Management Enum'ları ─────────────────────────────
+
+/// <summary>Release durumu — MVP'de sabit akış.</summary>
+public enum ReleaseStatus
+{
+    /// <summary>Planlama aşaması.</summary>
+    Planning = 0,
+    /// <summary>Kod dondurma — yeni özellik eklenmez.</summary>
+    CodeFreeze = 1,
+    /// <summary>Test aşaması.</summary>
+    Testing = 2,
+    /// <summary>Go/No-Go karar aşaması.</summary>
+    GoNoGo = 3,
+    /// <summary>Staging ortamında.</summary>
+    Staging = 4,
+    /// <summary>Production'a deploy edildi.</summary>
+    Deployed = 5,
+    /// <summary>Release kapatıldı.</summary>
+    Closed = 6,
+    /// <summary>İptal edildi.</summary>
+    Cancelled = 7,
+    /// <summary>Geri alındı.</summary>
+    Rollback = 8
+}
+
+/// <summary>Release tipi.</summary>
+public enum ReleaseType
+{
+    /// <summary>Büyük sürüm — breaking change içerebilir.</summary>
+    Major = 0,
+    /// <summary>Küçük sürüm — yeni özellikler.</summary>
+    Minor = 1,
+    /// <summary>Yama — hata düzeltmeleri.</summary>
+    Patch = 2,
+    /// <summary>Acil düzeltme.</summary>
+    Hotfix = 3,
+    /// <summary>Geri alma sürümü.</summary>
+    Rollback = 4
+}
+
+/// <summary>Go/No-Go checklist genel durumu.</summary>
+public enum GoNoGoStatus
+{
+    /// <summary>Beklemede — henüz başlanmadı.</summary>
+    Pending = 0,
+    /// <summary>İnceleme devam ediyor.</summary>
+    InProgress = 1,
+    /// <summary>Onaylandı — release deploy edilebilir.</summary>
+    Approved = 2,
+    /// <summary>Reddedildi — release deploy edilemez.</summary>
+    Rejected = 3
+}
+
+/// <summary>Go/No-Go kontrol maddesi kategorisi.</summary>
+public enum GoNoGoCategory
+{
+    /// <summary>Geliştirme kontrolü.</summary>
+    Development = 0,
+    /// <summary>Kalite güvence kontrolü.</summary>
+    QA = 1,
+    /// <summary>Operasyon kontrolü.</summary>
+    Operations = 2,
+    /// <summary>Güvenlik kontrolü.</summary>
+    Security = 3,
+    /// <summary>İş birimi kontrolü.</summary>
+    Business = 4,
+    /// <summary>Yasal/uyumluluk kontrolü.</summary>
+    Legal = 5
+}
+
+/// <summary>Go/No-Go kontrol maddesi durumu.</summary>
+public enum GoNoGoItemStatus
+{
+    /// <summary>Beklemede — henüz değerlendirilmedi.</summary>
+    Pending = 0,
+    /// <summary>Onaylandı.</summary>
+    Approved = 1,
+    /// <summary>Reddedildi.</summary>
+    Rejected = 2,
+    /// <summary>Uygulanamaz — bu release için geçerli değil.</summary>
+    NotApplicable = 3
+}

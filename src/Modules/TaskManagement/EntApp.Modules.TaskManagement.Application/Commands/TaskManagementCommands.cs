@@ -277,3 +277,55 @@ public sealed record RecordTestExecutionCommand(Guid TestPlanId, Guid TestScenar
 
 public sealed record TestStepResultDto(Guid TestStepId, string Result,
     string? ActualResult = null, string? Notes = null);
+
+// ── Release ────────────────────────────────────────────────
+
+public sealed record CreateReleaseCommand(Guid ProjectId, string Version, string Title,
+    string Type = "Minor", string? Description = null,
+    Guid? SprintId = null, Guid? MilestoneId = null,
+    string? PlannedDate = null, string? CodeFreezeDate = null,
+    string? ReleaseManagerId = null, string? TargetEnvironment = null,
+    string? Tags = null) : IRequest<Guid>;
+
+public sealed record UpdateReleaseCommand(Guid ReleaseId,
+    string? Version = null, string? Title = null, string? Description = null,
+    string? Type = null,
+    string? PlannedDate = null, string? ActualDate = null, string? CodeFreezeDate = null,
+    string? ReleaseManagerId = null, string? TargetEnvironment = null,
+    string? Tags = null) : IRequest<Guid>;
+
+public sealed record DeleteReleaseCommand(Guid ReleaseId) : IRequest;
+
+public sealed record UpdateReleaseStatusCommand(Guid ReleaseId, string Status) : IRequest<Guid>;
+
+// ── Release Item ───────────────────────────────────────────
+
+public sealed record AddReleaseItemCommand(Guid ReleaseId, Guid WorkItemId,
+    string? Notes = null) : IRequest<Guid>;
+
+public sealed record RemoveReleaseItemCommand(Guid ReleaseId, Guid WorkItemId) : IRequest;
+
+public sealed record AddReleaseItemsFromSprintCommand(Guid ReleaseId, Guid SprintId) : IRequest<int>;
+
+// ── Go/No-Go ──────────────────────────────────────────────
+
+/// <summary>Varsayılan maddelerle checklist oluşturur.</summary>
+public sealed record CreateGoNoGoChecklistCommand(Guid ReleaseId) : IRequest<Guid>;
+
+public sealed record AddGoNoGoItemCommand(Guid ReleaseId,
+    string Category, string Title, string? Description = null,
+    bool IsRequired = true) : IRequest<Guid>;
+
+public sealed record UpdateGoNoGoItemCommand(Guid ReleaseId, Guid ItemId,
+    string Status, string? ReviewedBy = null, string? Notes = null) : IRequest<Guid>;
+
+public sealed record DecideGoNoGoCommand(Guid ReleaseId,
+    string Status, string? DecisionBy = null, string? DecisionNotes = null) : IRequest<Guid>;
+
+// ── Release Note ──────────────────────────────────────────
+
+/// <summary>Release'deki WorkItem'lardan otomatik release note üretir.</summary>
+public sealed record GenerateReleaseNoteCommand(Guid ReleaseId) : IRequest<Guid>;
+
+public sealed record UpdateReleaseNoteCommand(Guid ReleaseId, string Content) : IRequest<Guid>;
+

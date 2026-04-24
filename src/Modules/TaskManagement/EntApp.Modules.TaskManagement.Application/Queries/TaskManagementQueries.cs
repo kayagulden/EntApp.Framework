@@ -397,3 +397,71 @@ public sealed record TestExecutionListDto(
 public sealed record TestStepResultListDto(
     Guid TestStepId, int StepNumber, string Action,
     string Result, string? ActualResult, string? Notes);
+
+// ── Release ────────────────────────────────────────────────
+
+public sealed record ListReleasesQuery(Guid ProjectId,
+    string? Status = null, string? Type = null) : IRequest<List<ReleaseListDto>>;
+
+public sealed record GetReleaseQuery(Guid ReleaseId) : IRequest<ReleaseDetailDto?>;
+
+public sealed record ReleaseListDto(
+    Guid Id, string Key, string Version, string Title,
+    string Status, string Type,
+    string? PlannedDate, string? ActualDate,
+    string? ReleaseManagerId, string? TargetEnvironment,
+    Guid? SprintId, Guid? MilestoneId,
+    int ItemCount, string? Tags,
+    int SortOrder, DateTime CreatedAt);
+
+public sealed record ReleaseDetailDto(
+    Guid Id, string Key, string Version, string Title,
+    string Status, string Type,
+    string? Description,
+    string? PlannedDate, string? ActualDate, string? CodeFreezeDate,
+    string? ReleaseManagerId, string? TargetEnvironment,
+    Guid? SprintId, Guid? MilestoneId,
+    string? Tags, int SortOrder,
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<ReleaseItemDto>? Items = null,
+    GoNoGoChecklistSummaryDto? GoNoGoChecklist = null,
+    ReleaseNoteDto? ReleaseNote = null);
+
+// ── Release Item ───────────────────────────────────────────
+
+public sealed record ListReleaseItemsQuery(Guid ReleaseId) : IRequest<List<ReleaseItemDto>>;
+
+public sealed record ReleaseItemDto(
+    Guid Id, Guid WorkItemId, string WorkItemNumber, string WorkItemTitle,
+    string WorkItemType, string WorkItemStatus,
+    DateTime IncludedAt, string IncludedBy, string? Notes,
+    int SortOrder);
+
+// ── Go/No-Go ──────────────────────────────────────────────
+
+public sealed record GetGoNoGoChecklistQuery(Guid ReleaseId) : IRequest<GoNoGoChecklistDetailDto?>;
+
+public sealed record GoNoGoChecklistSummaryDto(
+    Guid Id, string Status, int TotalItems,
+    int ApprovedCount, int RejectedCount, int PendingCount,
+    string? DecisionBy, DateTime? DecisionAt);
+
+public sealed record GoNoGoChecklistDetailDto(
+    Guid Id, Guid ReleaseId, string Status,
+    string? DecisionBy, DateTime? DecisionAt, string? DecisionNotes,
+    DateTime CreatedAt,
+    List<GoNoGoItemDto> Items);
+
+public sealed record GoNoGoItemDto(
+    Guid Id, string Category, string Title, string? Description,
+    string Status, string? ReviewedBy, DateTime? ReviewedAt,
+    string? Notes, int SortOrder, bool IsRequired);
+
+// ── Release Note ──────────────────────────────────────────
+
+public sealed record GetReleaseNoteQuery(Guid ReleaseId) : IRequest<ReleaseNoteDto?>;
+
+public sealed record ReleaseNoteDto(
+    Guid Id, Guid ReleaseId, string Content,
+    DateTime GeneratedAt, bool IsManuallyEdited, DateTime? PublishedAt);
+

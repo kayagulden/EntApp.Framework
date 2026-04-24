@@ -2406,3 +2406,426 @@ public sealed class ListScenarioExecutionsQueryHandler(TaskManagementDbContext d
             .ToListAsync(ct);
     }
 }
+
+// ══════════════════════════════════════════════════════════════
+// RELEASE MANAGEMENT HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+// ── Release Queries ─────────────────────────────────────────
+public sealed class ListReleasesQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListReleasesQuery, List<ReleaseListDto>>
+{
+    public async Task<List<ReleaseListDto>> Handle(ListReleasesQuery request, CancellationToken ct)
+    {
+        var query = db.Releases.Where(r => r.ProjectId.Value == request.ProjectId);
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<ReleaseStatus>(request.Status, out var s))
+            query = query.Where(r => r.Status == s);
+        if (!string.IsNullOrEmpty(request.Type) && Enum.TryParse<ReleaseType>(request.Type, out var t))
+            query = query.Where(r => r.Type == t);
+        return await query.OrderByDescending(r => r.CreatedAt)
+            .Select(r => new ReleaseListDto(
+                r.Id.Value, r.Key, r.Version, r.Title,
+                r.Status.ToString(), r.Type.ToString(),
+                r.PlannedDate.HasValue ? r.PlannedDate.Value.ToString("yyyy-MM-dd") : null,
+                r.ActualDate.HasValue ? r.ActualDate.Value.ToString("yyyy-MM-dd") : null,
+                r.ReleaseManagerId, r.TargetEnvironment,
+                r.SprintId.HasValue ? r.SprintId.Value.Value : null,
+                r.MilestoneId.HasValue ? r.MilestoneId.Value.Value : null,
+                r.Items.Count, r.Tags,
+                r.SortOrder, r.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetReleaseQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetReleaseQuery, ReleaseDetailDto?>
+{
+    public async Task<ReleaseDetailDto?> Handle(GetReleaseQuery request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var r = await db.Releases
+            .Include(x => x.Items).ThenInclude(i => i.WorkItem)
+            .Include(x => x.GoNoGoChecklist).ThenInclude(c => c!.Items)
+            .Include(x => x.ReleaseNote)
+            .FirstOrDefaultAsync(x => x.Id == releaseId, ct);
+        if (r is null) return null;
+
+        var items = r.Items.OrderBy(i => i.SortOrder).Select(i => new ReleaseItemDto(
+            i.Id, i.WorkItemId.Value,
+            i.WorkItem?.WorkItemNumber ?? "", i.WorkItem?.Title ?? "",
+            i.WorkItem?.Type.ToString() ?? "", i.WorkItem?.Status.ToString() ?? "",
+            i.IncludedAt, i.IncludedBy, i.Notes, i.SortOrder)).ToList();
+
+        GoNoGoChecklistSummaryDto? checklistSummary = null;
+        if (r.GoNoGoChecklist is not null)
+        {
+            var c = r.GoNoGoChecklist;
+            checklistSummary = new GoNoGoChecklistSummaryDto(
+                c.Id.Value, c.Status.ToString(), c.Items.Count,
+                c.Items.Count(i => i.Status == GoNoGoItemStatus.Approved),
+                c.Items.Count(i => i.Status == GoNoGoItemStatus.Rejected),
+                c.Items.Count(i => i.Status == GoNoGoItemStatus.Pending),
+                c.DecisionBy, c.DecisionAt);
+        }
+
+        ReleaseNoteDto? noteDto = null;
+        if (r.ReleaseNote is not null)
+        {
+            var n = r.ReleaseNote;
+            noteDto = new ReleaseNoteDto(n.Id.Value, n.ReleaseId.Value,
+                n.Content, n.GeneratedAt, n.IsManuallyEdited, n.PublishedAt);
+        }
+
+        return new ReleaseDetailDto(
+            r.Id.Value, r.Key, r.Version, r.Title,
+            r.Status.ToString(), r.Type.ToString(), r.Description,
+            r.PlannedDate?.ToString("yyyy-MM-dd"), r.ActualDate?.ToString("yyyy-MM-dd"),
+            r.CodeFreezeDate?.ToString("yyyy-MM-dd"),
+            r.ReleaseManagerId, r.TargetEnvironment,
+            r.SprintId?.Value, r.MilestoneId?.Value,
+            r.Tags, r.SortOrder,
+            r.CreatedAt, r.UpdatedAt, items, checklistSummary, noteDto);
+    }
+}
+
+// ── Release Commands ────────────────────────────────────────
+public sealed class CreateReleaseCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateReleaseCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateReleaseCommand request, CancellationToken ct)
+    {
+        var project = await db.Projects.FindAsync([new ProjectId(request.ProjectId)], ct)
+            ?? throw new KeyNotFoundException($"Project {request.ProjectId} not found");
+        Enum.TryParse<ReleaseType>(request.Type, out var type);
+        var key = project.NextReleaseKey();
+        var release = Release.Create(
+            project.Id, key, request.Version, request.Title, type,
+            request.Description,
+            request.SprintId.HasValue ? new SprintId(request.SprintId.Value) : null,
+            request.MilestoneId.HasValue ? new MilestoneId(request.MilestoneId.Value) : null,
+            request.PlannedDate is not null ? DateOnly.Parse(request.PlannedDate) : null,
+            request.CodeFreezeDate is not null ? DateOnly.Parse(request.CodeFreezeDate) : null,
+            request.ReleaseManagerId, request.TargetEnvironment, request.Tags);
+        db.Releases.Add(release);
+        await db.SaveChangesAsync(ct);
+        return release.Id.Value;
+    }
+}
+
+public sealed class UpdateReleaseCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateReleaseCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateReleaseCommand request, CancellationToken ct)
+    {
+        var release = await db.Releases.FindAsync([new ReleaseId(request.ReleaseId)], ct)
+            ?? throw new KeyNotFoundException($"Release {request.ReleaseId} not found");
+        Enum.TryParse<ReleaseType>(request.Type, out var type);
+        release.Update(request.Version, request.Title, request.Description,
+            request.Type is not null ? type : null,
+            request.PlannedDate is not null ? DateOnly.Parse(request.PlannedDate) : null,
+            request.ActualDate is not null ? DateOnly.Parse(request.ActualDate) : null,
+            request.CodeFreezeDate is not null ? DateOnly.Parse(request.CodeFreezeDate) : null,
+            request.ReleaseManagerId, request.TargetEnvironment, request.Tags);
+        await db.SaveChangesAsync(ct);
+        return release.Id.Value;
+    }
+}
+
+public sealed class DeleteReleaseCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteReleaseCommand>
+{
+    public async Task Handle(DeleteReleaseCommand request, CancellationToken ct)
+    {
+        var release = await db.Releases.FindAsync([new ReleaseId(request.ReleaseId)], ct)
+            ?? throw new KeyNotFoundException($"Release {request.ReleaseId} not found");
+        db.Releases.Remove(release);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class UpdateReleaseStatusCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateReleaseStatusCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateReleaseStatusCommand request, CancellationToken ct)
+    {
+        var release = await db.Releases.FindAsync([new ReleaseId(request.ReleaseId)], ct)
+            ?? throw new KeyNotFoundException($"Release {request.ReleaseId} not found");
+        if (!Enum.TryParse<ReleaseStatus>(request.Status, out var status))
+            throw new ArgumentException($"Invalid status: {request.Status}");
+        release.UpdateStatus(status);
+        await db.SaveChangesAsync(ct);
+        return release.Id.Value;
+    }
+}
+
+// ── Release Item Handlers ───────────────────────────────────
+public sealed class ListReleaseItemsQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListReleaseItemsQuery, List<ReleaseItemDto>>
+{
+    public async Task<List<ReleaseItemDto>> Handle(ListReleaseItemsQuery request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        return await db.ReleaseItems
+            .Include(i => i.WorkItem)
+            .Where(i => i.ReleaseId == releaseId)
+            .OrderBy(i => i.SortOrder)
+            .Select(i => new ReleaseItemDto(
+                i.Id, i.WorkItemId.Value,
+                i.WorkItem!.WorkItemNumber, i.WorkItem.Title,
+                i.WorkItem.Type.ToString(), i.WorkItem.Status.ToString(),
+                i.IncludedAt, i.IncludedBy, i.Notes, i.SortOrder))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class AddReleaseItemCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<AddReleaseItemCommand, Guid>
+{
+    public async Task<Guid> Handle(AddReleaseItemCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var workItemId = new WorkItemId(request.WorkItemId);
+        var exists = await db.ReleaseItems
+            .AnyAsync(i => i.ReleaseId == releaseId && i.WorkItemId == workItemId, ct);
+        if (exists) throw new InvalidOperationException("WorkItem already in release.");
+        var maxSort = await db.ReleaseItems
+            .Where(i => i.ReleaseId == releaseId).MaxAsync(i => (int?)i.SortOrder, ct) ?? 0;
+        var item = ReleaseItem.Create(releaseId, workItemId, "system", request.Notes, maxSort + 1);
+        db.ReleaseItems.Add(item);
+        await db.SaveChangesAsync(ct);
+        return item.Id;
+    }
+}
+
+public sealed class RemoveReleaseItemCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<RemoveReleaseItemCommand>
+{
+    public async Task Handle(RemoveReleaseItemCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var workItemId = new WorkItemId(request.WorkItemId);
+        var item = await db.ReleaseItems
+            .FirstOrDefaultAsync(i => i.ReleaseId == releaseId && i.WorkItemId == workItemId, ct)
+            ?? throw new KeyNotFoundException("ReleaseItem not found.");
+        db.ReleaseItems.Remove(item);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+public sealed class AddReleaseItemsFromSprintCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<AddReleaseItemsFromSprintCommand, int>
+{
+    public async Task<int> Handle(AddReleaseItemsFromSprintCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var sprintId = new SprintId(request.SprintId);
+        var doneItems = await db.WorkItems
+            .Where(w => w.SprintId == sprintId && w.Status == WorkItemStatusEnum.Done)
+            .Select(w => w.Id).ToListAsync(ct);
+        var existingIds = await db.ReleaseItems
+            .Where(i => i.ReleaseId == releaseId).Select(i => i.WorkItemId).ToListAsync(ct);
+        var maxSort = await db.ReleaseItems
+            .Where(i => i.ReleaseId == releaseId).MaxAsync(i => (int?)i.SortOrder, ct) ?? 0;
+        int added = 0;
+        foreach (var wid in doneItems.Where(w => !existingIds.Contains(w)))
+        {
+            maxSort++;
+            db.ReleaseItems.Add(ReleaseItem.Create(releaseId, wid, "system", "Sprint'ten eklendi", maxSort));
+            added++;
+        }
+        if (added > 0) await db.SaveChangesAsync(ct);
+        return added;
+    }
+}
+
+// ── Go/No-Go Handlers ──────────────────────────────────────
+public sealed class GetGoNoGoChecklistQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetGoNoGoChecklistQuery, GoNoGoChecklistDetailDto?>
+{
+    public async Task<GoNoGoChecklistDetailDto?> Handle(GetGoNoGoChecklistQuery request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var c = await db.GoNoGoChecklists
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.ReleaseId == releaseId, ct);
+        if (c is null) return null;
+        return new GoNoGoChecklistDetailDto(
+            c.Id.Value, c.ReleaseId.Value, c.Status.ToString(),
+            c.DecisionBy, c.DecisionAt, c.DecisionNotes, c.CreatedAt,
+            c.Items.OrderBy(i => i.SortOrder).Select(i => new GoNoGoItemDto(
+                i.Id, i.Category.ToString(), i.Title, i.Description,
+                i.Status.ToString(), i.ReviewedBy, i.ReviewedAt,
+                i.Notes, i.SortOrder, i.IsRequired)).ToList());
+    }
+}
+
+public sealed class CreateGoNoGoChecklistCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateGoNoGoChecklistCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateGoNoGoChecklistCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var exists = await db.GoNoGoChecklists.AnyAsync(c => c.ReleaseId == releaseId, ct);
+        if (exists) throw new InvalidOperationException("Go/No-Go checklist already exists for this release.");
+        var checklist = GoNoGoChecklist.Create(releaseId);
+        db.GoNoGoChecklists.Add(checklist);
+        // Varsayılan maddeler
+        var defaults = new (GoNoGoCategory cat, string title)[]
+        {
+            (GoNoGoCategory.Development, "Tüm kodlar merge edildi ve build başarılı"),
+            (GoNoGoCategory.Development, "Kod review tamamlandı"),
+            (GoNoGoCategory.QA, "Tüm test senaryoları çalıştırıldı"),
+            (GoNoGoCategory.QA, "Kritik bug bulunmuyor"),
+            (GoNoGoCategory.Operations, "Deployment planı hazır"),
+            (GoNoGoCategory.Operations, "Rollback planı hazır"),
+            (GoNoGoCategory.Security, "Güvenlik taraması yapıldı"),
+            (GoNoGoCategory.Business, "İş birimi onayı alındı"),
+        };
+        for (int i = 0; i < defaults.Length; i++)
+        {
+            db.GoNoGoItems.Add(GoNoGoItem.Create(
+                checklist.Id, defaults[i].cat, defaults[i].title, sortOrder: i + 1));
+        }
+        await db.SaveChangesAsync(ct);
+        return checklist.Id.Value;
+    }
+}
+
+public sealed class AddGoNoGoItemCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<AddGoNoGoItemCommand, Guid>
+{
+    public async Task<Guid> Handle(AddGoNoGoItemCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var checklist = await db.GoNoGoChecklists
+            .FirstOrDefaultAsync(c => c.ReleaseId == releaseId, ct)
+            ?? throw new KeyNotFoundException("Go/No-Go checklist not found.");
+        Enum.TryParse<GoNoGoCategory>(request.Category, out var cat);
+        var maxSort = await db.GoNoGoItems
+            .Where(i => i.ChecklistId == checklist.Id).MaxAsync(i => (int?)i.SortOrder, ct) ?? 0;
+        var item = GoNoGoItem.Create(checklist.Id, cat, request.Title,
+            request.Description, request.IsRequired, maxSort + 1);
+        db.GoNoGoItems.Add(item);
+        checklist.MarkInProgress();
+        await db.SaveChangesAsync(ct);
+        return item.Id;
+    }
+}
+
+public sealed class UpdateGoNoGoItemCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateGoNoGoItemCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateGoNoGoItemCommand request, CancellationToken ct)
+    {
+        var item = await db.GoNoGoItems.FindAsync([request.ItemId], ct)
+            ?? throw new KeyNotFoundException($"Go/No-Go item {request.ItemId} not found");
+        if (!Enum.TryParse<GoNoGoItemStatus>(request.Status, out var status))
+            throw new ArgumentException($"Invalid status: {request.Status}");
+        item.Review(status, request.ReviewedBy ?? "system", request.Notes);
+        // Checklist'i InProgress yap
+        var checklist = await db.GoNoGoChecklists.FindAsync([item.ChecklistId], ct);
+        checklist?.MarkInProgress();
+        await db.SaveChangesAsync(ct);
+        return item.Id;
+    }
+}
+
+public sealed class DecideGoNoGoCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DecideGoNoGoCommand, Guid>
+{
+    public async Task<Guid> Handle(DecideGoNoGoCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var checklist = await db.GoNoGoChecklists
+            .Include(c => c.Items)
+            .FirstOrDefaultAsync(c => c.ReleaseId == releaseId, ct)
+            ?? throw new KeyNotFoundException("Go/No-Go checklist not found.");
+        if (!Enum.TryParse<GoNoGoStatus>(request.Status, out var status))
+            throw new ArgumentException($"Invalid status: {request.Status}");
+        checklist.Decide(status, request.DecisionBy ?? "system", request.DecisionNotes);
+        await db.SaveChangesAsync(ct);
+        return checklist.Id.Value;
+    }
+}
+
+// ── Release Note Handlers ───────────────────────────────────
+public sealed class GetReleaseNoteQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetReleaseNoteQuery, ReleaseNoteDto?>
+{
+    public async Task<ReleaseNoteDto?> Handle(GetReleaseNoteQuery request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var n = await db.ReleaseNotes.FirstOrDefaultAsync(x => x.ReleaseId == releaseId, ct);
+        if (n is null) return null;
+        return new ReleaseNoteDto(n.Id.Value, n.ReleaseId.Value,
+            n.Content, n.GeneratedAt, n.IsManuallyEdited, n.PublishedAt);
+    }
+}
+
+public sealed class GenerateReleaseNoteCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<GenerateReleaseNoteCommand, Guid>
+{
+    public async Task<Guid> Handle(GenerateReleaseNoteCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var release = await db.Releases.FindAsync([releaseId], ct)
+            ?? throw new KeyNotFoundException($"Release {request.ReleaseId} not found");
+        var items = await db.ReleaseItems
+            .Include(i => i.WorkItem)
+            .Where(i => i.ReleaseId == releaseId)
+            .OrderBy(i => i.WorkItem!.Type).ThenBy(i => i.SortOrder)
+            .ToListAsync(ct);
+
+        // Markdown üret
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"# Release Notes — {release.Version} ({DateTime.UtcNow:yyyy-MM-dd})");
+        sb.AppendLine();
+        var grouped = items.GroupBy(i => i.WorkItem!.Type);
+        foreach (var group in grouped)
+        {
+            var sectionTitle = group.Key switch
+            {
+                WorkItemType.Feature => "## 🚀 New Features",
+                WorkItemType.Bug => "## 🐛 Bug Fixes",
+                WorkItemType.Improvement or WorkItemType.TechDebt => "## ⚡ Improvements",
+                WorkItemType.Epic => "## 📦 Epics",
+                WorkItemType.UserStory => "## 📖 User Stories",
+                _ => "## 📋 Other"
+            };
+            sb.AppendLine(sectionTitle);
+            sb.AppendLine();
+            foreach (var item in group)
+                sb.AppendLine($"- [{item.WorkItem!.WorkItemNumber}] {item.WorkItem.Title}");
+            sb.AppendLine();
+        }
+        var content = sb.ToString().TrimEnd();
+
+        // Mevcut notu güncelle veya yeni oluştur
+        var existing = await db.ReleaseNotes.FirstOrDefaultAsync(n => n.ReleaseId == releaseId, ct);
+        if (existing is not null)
+        {
+            existing.Regenerate(content);
+            await db.SaveChangesAsync(ct);
+            return existing.Id.Value;
+        }
+        var note = ReleaseNote.Create(releaseId, content);
+        db.ReleaseNotes.Add(note);
+        await db.SaveChangesAsync(ct);
+        return note.Id.Value;
+    }
+}
+
+public sealed class UpdateReleaseNoteCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateReleaseNoteCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateReleaseNoteCommand request, CancellationToken ct)
+    {
+        var releaseId = new ReleaseId(request.ReleaseId);
+        var note = await db.ReleaseNotes.FirstOrDefaultAsync(n => n.ReleaseId == releaseId, ct)
+            ?? throw new KeyNotFoundException("Release note not found. Generate first.");
+        note.UpdateContent(request.Content);
+        await db.SaveChangesAsync(ct);
+        return note.Id.Value;
+    }
+}
+

@@ -545,6 +545,122 @@ public static class TaskManagementEndpoints
             Results.Ok(await mediator.Send(new ListTestExecutionsQuery(planId, scenarioId))))
             .WithName("ListTestPlanExecutions");
 
+        // ── Release ──────────────────────────────────────────
+        proj.MapGet("/{id:guid}/releases", async (Guid id, ISender mediator, string? status, string? type) =>
+            Results.Ok(await mediator.Send(new ListReleasesQuery(id, status, type))))
+            .WithName("ListProjectReleases").WithTags("PM - Releases");
+
+        proj.MapPost("/{id:guid}/releases", async (Guid id, CreateReleaseRequest req, ISender mediator) =>
+        {
+            var rid = await mediator.Send(new CreateReleaseCommand(id, req.Version, req.Title,
+                req.Type, req.Description, req.SprintId, req.MilestoneId,
+                req.PlannedDate, req.CodeFreezeDate,
+                req.ReleaseManagerId, req.TargetEnvironment, req.Tags));
+            return Results.Created($"/api/pm/releases/{rid}", new { id = rid });
+        }).WithName("CreateRelease").WithTags("PM - Releases");
+
+        var releases = app.MapGroup("/api/pm/releases").WithTags("PM - Releases");
+        releases.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetReleaseQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetRelease");
+
+        releases.MapPut("/{id:guid}", async (Guid id, UpdateReleaseRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateReleaseCommand(id, req.Version, req.Title, req.Description,
+                req.Type, req.PlannedDate, req.ActualDate, req.CodeFreezeDate,
+                req.ReleaseManagerId, req.TargetEnvironment, req.Tags));
+            return Results.Ok(new { id });
+        }).WithName("UpdateRelease");
+
+        releases.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteReleaseCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteRelease");
+
+        releases.MapPut("/{id:guid}/status", async (Guid id, UpdateReleaseStatusRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateReleaseStatusCommand(id, req.Status));
+            return Results.Ok(new { id });
+        }).WithName("UpdateReleaseStatus");
+
+        // Release Items
+        releases.MapGet("/{releaseId:guid}/items", async (Guid releaseId, ISender mediator) =>
+            Results.Ok(await mediator.Send(new ListReleaseItemsQuery(releaseId))))
+            .WithName("ListReleaseItems");
+
+        releases.MapPost("/{releaseId:guid}/items", async (Guid releaseId, AddReleaseItemRequest req, ISender mediator) =>
+        {
+            var itemId = await mediator.Send(new AddReleaseItemCommand(releaseId, req.WorkItemId, req.Notes));
+            return Results.Created($"/api/pm/releases/{releaseId}/items", new { id = itemId });
+        }).WithName("AddReleaseItem");
+
+        releases.MapDelete("/{releaseId:guid}/items/{workItemId:guid}", async (Guid releaseId, Guid workItemId, ISender mediator) =>
+        {
+            await mediator.Send(new RemoveReleaseItemCommand(releaseId, workItemId));
+            return Results.NoContent();
+        }).WithName("RemoveReleaseItem");
+
+        releases.MapPost("/{releaseId:guid}/items/from-sprint", async (Guid releaseId, AddItemsFromSprintRequest req, ISender mediator) =>
+        {
+            var count = await mediator.Send(new AddReleaseItemsFromSprintCommand(releaseId, req.SprintId));
+            return Results.Ok(new { addedCount = count });
+        }).WithName("AddReleaseItemsFromSprint").WithSummary("Sprint'teki Done WorkItem'ları release'e ekler");
+
+        // Go/No-Go
+        releases.MapGet("/{releaseId:guid}/go-no-go", async (Guid releaseId, ISender mediator) =>
+        { var r = await mediator.Send(new GetGoNoGoChecklistQuery(releaseId)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetGoNoGoChecklist");
+
+        releases.MapPost("/{releaseId:guid}/go-no-go", async (Guid releaseId, ISender mediator) =>
+        {
+            var cid = await mediator.Send(new CreateGoNoGoChecklistCommand(releaseId));
+            return Results.Created($"/api/pm/releases/{releaseId}/go-no-go", new { id = cid });
+        }).WithName("CreateGoNoGoChecklist").WithSummary("Varsayılan maddelerle checklist oluşturur");
+
+        releases.MapPost("/{releaseId:guid}/go-no-go/items", async (Guid releaseId, AddGoNoGoItemRequest req, ISender mediator) =>
+        {
+            var itemId = await mediator.Send(new AddGoNoGoItemCommand(releaseId,
+                req.Category, req.Title, req.Description, req.IsRequired));
+            return Results.Created($"/api/pm/releases/{releaseId}/go-no-go", new { id = itemId });
+        }).WithName("AddGoNoGoItem");
+
+        releases.MapPut("/{releaseId:guid}/go-no-go/items/{itemId:guid}", async (Guid releaseId, Guid itemId, UpdateGoNoGoItemRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateGoNoGoItemCommand(releaseId, itemId, req.Status, req.ReviewedBy, req.Notes));
+            return Results.Ok(new { id = itemId });
+        }).WithName("UpdateGoNoGoItem");
+
+        releases.MapPut("/{releaseId:guid}/go-no-go/decide", async (Guid releaseId, DecideGoNoGoRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new DecideGoNoGoCommand(releaseId, req.Status, req.DecisionBy, req.DecisionNotes));
+            return Results.Ok(new { releaseId });
+        }).WithName("DecideGoNoGo").WithSummary("Genel Go/No-Go kararı (Approved/Rejected)");
+
+        // Release Note
+        releases.MapGet("/{releaseId:guid}/release-note", async (Guid releaseId, ISender mediator) =>
+        { var r = await mediator.Send(new GetReleaseNoteQuery(releaseId)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetReleaseNote");
+
+        releases.MapPost("/{releaseId:guid}/release-note/generate", async (Guid releaseId, ISender mediator) =>
+        {
+            var nid = await mediator.Send(new GenerateReleaseNoteCommand(releaseId));
+            return Results.Ok(new { id = nid });
+        }).WithName("GenerateReleaseNote").WithSummary("WorkItem'lardan otomatik release note üretir");
+
+        releases.MapPut("/{releaseId:guid}/release-note", async (Guid releaseId, UpdateReleaseNoteRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateReleaseNoteCommand(releaseId, req.Content));
+            return Results.Ok(new { releaseId });
+        }).WithName("UpdateReleaseNote");
+
+        releases.MapGet("/{releaseId:guid}/release-note/export", async (Guid releaseId, ISender mediator, string format = "markdown") =>
+        {
+            var note = await mediator.Send(new GetReleaseNoteQuery(releaseId));
+            if (note is null) return Results.NotFound();
+            return Results.Text(note.Content, "text/markdown");
+        }).WithName("ExportReleaseNote").WithSummary("Release note'u Markdown olarak export eder");
+
         return app;
     }
 }
@@ -715,3 +831,34 @@ public sealed record AddScenarioToTestPlanRequest(Guid TestScenarioId, string? A
 public sealed record RecordTestExecutionRequest(string Result,
     string? ExecutedBy = null, string? Notes = null, string? Environment = null,
     int? DurationMinutes = null, List<TestStepResultDto>? StepResults = null);
+
+// ── Release Request DTOs ────────────────────────────────────
+public sealed record CreateReleaseRequest(string Version, string Title,
+    string Type = "Minor", string? Description = null,
+    Guid? SprintId = null, Guid? MilestoneId = null,
+    string? PlannedDate = null, string? CodeFreezeDate = null,
+    string? ReleaseManagerId = null, string? TargetEnvironment = null,
+    string? Tags = null);
+
+public sealed record UpdateReleaseRequest(
+    string? Version = null, string? Title = null, string? Description = null,
+    string? Type = null,
+    string? PlannedDate = null, string? ActualDate = null, string? CodeFreezeDate = null,
+    string? ReleaseManagerId = null, string? TargetEnvironment = null,
+    string? Tags = null);
+
+public sealed record UpdateReleaseStatusRequest(string Status);
+public sealed record AddReleaseItemRequest(Guid WorkItemId, string? Notes = null);
+public sealed record AddItemsFromSprintRequest(Guid SprintId);
+
+public sealed record AddGoNoGoItemRequest(string Category, string Title,
+    string? Description = null, bool IsRequired = true);
+
+public sealed record UpdateGoNoGoItemRequest(string Status,
+    string? ReviewedBy = null, string? Notes = null);
+
+public sealed record DecideGoNoGoRequest(string Status,
+    string? DecisionBy = null, string? DecisionNotes = null);
+
+public sealed record UpdateReleaseNoteRequest(string Content);
+
