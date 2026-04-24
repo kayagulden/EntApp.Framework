@@ -80,6 +80,11 @@
 - [x] Quick filter: arama, tip bazli, sprint bazli, "Tamamlananlar" toggle
 - [x] Backend filtreleme: Done/Cancelled varsayılan hariç, sprint/assignee query parametreleri
 
+### Board Column Ayarları
+- [x] Proje detay sayfasında "Ayarlar" tab'ı
+- [x] Board kolon listesi (sıralı, durum eşleştirmesi badge'leri, WIP limitleri)
+- [x] Kolon ekleme / düzenleme / silme (inline form)
+
 ### Metrik Gorsellestirme
 - [x] Frontend burndown line chart gorsellestirme (recharts, sprint selector, ideal/actual çizgileri)
 - [x] Kanban metrikleri: Lead Time, Cycle Time (StartedAt/CompletedAt timestamps, özet kartlar)
@@ -96,10 +101,16 @@
 - [x] Ticket -> Proje bağlantısı: **"Projeye Aktar" modalı** (proje/tip/öncelik seçimi, mevcut task'ları taşıma, aktarıldıktan sonra kilitli durum)
 
 ### Proje Template Sistemi
-- [ ] Kategori bazli varsayilan ayarlar: hangi sekmeler/ozellikler aktif, hangi WorkItemType'lar gecerli, varsayilan BoardColumn'lar
+- [x] `ProjectTemplate` entity (JSON-based: BoardColumnsJson, MilestonesJson, WorkItemsJson)
+- [x] Template CRUD API: 5 endpoint (`/api/pm/project-templates`)
+- [x] Template'den proje oluşturma API (`POST /api/pm/projects/from-template`)
+- [x] 5 built-in template seed data (Scrum, Kanban, Altyapı, İş/Organizasyonel, Boş)
+- [x] Frontend: 2 adımlı "Yeni Proje" modalı (şablon seçim kartları → form)
+- [x] Template seçiminde metodoloji/kategori ön-doldurma
+- [x] Template DB tabanlı, runtime konfigürabl
+- [ ] Kategori bazli varsayilan ayarlar: hangi sekmeler/ozellikler aktif, hangi WorkItemType'lar gecerli
 - [ ] UI label eslemeleri (Epic->Asama, Story->Is Paketi)
 - [ ] Metodoloji kisitlamalari
-- [ ] Template DB veya JSON tabanlı, runtime konfigürabl
 
 ### State Flow Engine Entegrasyonu
 > **Detaylar:** [-state-flow-engine-roadmap.md](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-state-flow-engine-roadmap.md)
