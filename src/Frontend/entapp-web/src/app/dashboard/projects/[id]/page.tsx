@@ -866,7 +866,7 @@ export default function ProjectDetailPage() {
 
             {/* Tamamlanan & Yakında */}
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5">
-              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Öözellikler</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Özellikler</h3>
               <ul className="space-y-3">
                 {[
                   { icon: ListTodo, label: "İş Kalemleri", desc: "Tablo & ağaç görünüm", done: true },
