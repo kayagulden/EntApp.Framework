@@ -21,6 +21,7 @@ using EntApp.Modules.Procurement.Infrastructure.Endpoints;
 using EntApp.Modules.TaskManagement.Infrastructure.Endpoints;
 using EntApp.Modules.RequestManagement.Infrastructure.Endpoints;
 using EntApp.Modules.StateFlow.Infrastructure.Endpoints;
+using EntApp.Modules.KnowledgeBase.Infrastructure.Endpoints;
 using EntApp.WebAPI.Endpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -219,7 +220,8 @@ try
         typeof(EntApp.Modules.Localization.Infrastructure.LocalizationModuleInstaller).Assembly,
         typeof(EntApp.Modules.FileManagement.Infrastructure.FileModuleInstaller).Assembly,
         typeof(EntApp.Modules.RequestManagement.Infrastructure.RequestManagementModuleInstaller).Assembly,
-        typeof(EntApp.Modules.StateFlow.Infrastructure.StateFlowModuleInstaller).Assembly
+        typeof(EntApp.Modules.StateFlow.Infrastructure.StateFlowModuleInstaller).Assembly,
+        typeof(EntApp.Modules.KnowledgeBase.Infrastructure.KnowledgeBaseModuleInstaller).Assembly
     );
 
     // ── Dynamic CRUD Engine ──────────────────────────────────
@@ -328,6 +330,7 @@ try
         await EnsureModuleTables<EntApp.Modules.FileManagement.Infrastructure.Persistence.FileDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.RequestManagement.Infrastructure.Persistence.RequestManagementDbContext>(sp);
         await EnsureModuleTables<EntApp.Modules.StateFlow.Infrastructure.Persistence.StateFlowDbContext>(sp);
+        await EnsureModuleTables<EntApp.Modules.KnowledgeBase.Infrastructure.Persistence.KnowledgeBaseDbContext>(sp);
 
 
 
@@ -416,6 +419,7 @@ try
     app.MapRequestManagementEndpoints();
     app.MapServiceQueueEndpoints();
     app.MapStateFlowEndpoints();
+    app.MapKnowledgeBaseEndpoints();
     app.MapOrganizationEndpoints();
     app.MapAdminEndpoints();
     app.MapTenantManageEndpoints();

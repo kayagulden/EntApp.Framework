@@ -19,6 +19,7 @@ import {
   TicketIcon,
   ListTodo,
   FolderKanban,
+  BookOpen,
   AppWindow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ const STATIC_SECTIONS: SidebarSection[] = [
       { href: "/dashboard/tickets", label: "Talepler", icon: TicketIcon, matchPrefix: true },
       { href: "/dashboard/tasks", label: "Görevler", icon: ListTodo, matchPrefix: true },
       { href: "/dashboard/projects", label: "Projeler", icon: FolderKanban, matchPrefix: true },
+      { href: "/dashboard/wiki", label: "Bilgi Bankası", icon: BookOpen, matchPrefix: true },
     ],
   },
   {

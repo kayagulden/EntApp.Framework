@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit3, Save, Trash2, Loader2, X, ChevronDown, ChevronRight, ClipboardList } from "lucide-react";
+import { Plus, Edit3, Save, Trash2, Loader2, X, ChevronDown, ChevronRight, ClipboardList, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RequirementItem {
@@ -86,6 +86,7 @@ export default function RequirementsTab({ projectId, projectKey }: { projectId: 
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", type: "Functional", priority: "Must", description: "", acceptanceCriteria: "", externalDesignUrl: "" });
+  const [generatingWiki, setGeneratingWiki] = useState(false);
   const API = `http://localhost:5212`;
 
   const fetchRequirements = useCallback(async () => {
@@ -153,6 +154,26 @@ export default function RequirementsTab({ projectId, projectKey }: { projectId: 
   const startAddChild = (parentId: string) => {
     setFormParentId(parentId); setEditingId(null);
     setForm({ title: "", type: "Functional", priority: "Must", description: "", acceptanceCriteria: "", externalDesignUrl: "" }); setShowForm(true);
+  };
+
+  const handleGenerateWiki = async (reqId: string) => {
+    if (!confirm("Bu gereksinimden Wiki spec dokümanı oluşturulsun mu?")) return;
+    setGeneratingWiki(true);
+    try {
+      const res = await fetch(`${API}/api/v1/wiki/generate-from-requirement/${reqId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Wiki sayfası oluşturuldu! (ID: ${data.id})`);
+      } else {
+        alert("Wiki oluşturulurken hata oluştu.");
+      }
+    } catch {
+      alert("Wiki oluşturulurken bir hata oluştu.");
+    } finally { setGeneratingWiki(false); }
   };
 
   const renderReqRow = (req: RequirementItem, indent: number = 0) => {
@@ -241,6 +262,12 @@ export default function RequirementsTab({ projectId, projectKey }: { projectId: 
               </span>
             </div>
             <div className="flex gap-1">
+              {selectedReq.type === "FeatureSpec" && (
+                <button onClick={() => handleGenerateWiki(selectedReq.id)} disabled={generatingWiki}
+                  className="p-1.5 rounded-lg hover:bg-indigo-500/10 text-indigo-400 transition-colors disabled:opacity-50" title="Wiki'ye Yayınla">
+                  {generatingWiki ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+                </button>
+              )}
               <button onClick={() => startEdit(selectedReq)} className="p-1.5 rounded-lg hover:bg-[var(--color-bg-secondary)]"><Edit3 className="w-4 h-4" /></button>
               <button onClick={() => setSelectedReq(null)} className="p-1.5 rounded-lg hover:bg-[var(--color-bg-secondary)]"><X className="w-4 h-4" /></button>
             </div>
