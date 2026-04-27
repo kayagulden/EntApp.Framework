@@ -241,7 +241,6 @@ export function RichTextEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3, 4] },
-        codeBlock: false, // use lowlight version in future
       }),
       Highlight,
       Underline,

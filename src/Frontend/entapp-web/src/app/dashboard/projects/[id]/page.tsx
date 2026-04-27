@@ -690,7 +690,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs  kategori bazlı */}
-      <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
+      <div className="flex flex-wrap items-center gap-1 border-b border-[var(--color-border)]">
         {visibleTabs.map(tab => {
           const Icon = tab.icon;
           return (
