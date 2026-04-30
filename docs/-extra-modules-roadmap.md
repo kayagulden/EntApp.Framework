@@ -1,7 +1,7 @@
 # 16h — Ek Modüller — Detaylı Yol Haritası
 
-> **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
-> **Durum:** Henüz başlanmadı
+> **Ana roadmap:** [-roadmap.md (Faz 16)](file:///c:/Users/kaya/projects/EntApp.Framework/docs/-roadmap.md#faz-16--delivery-platform-almitsm-mod�lleri)
+> **Durum:** Risk Management ✅ tamamlandı — diğerleri henüz başlanmadı
 
 ---
 
@@ -13,11 +13,13 @@
 - [ ] Etki analizi (impact assessment — hangi CI'lar, projeler, gereksinimler etkileniyor)
 - [ ] CR ↔ WorkItem bağlantısı
 
-### Risk Management
-- [ ] Risk entity (tanım, kategori, sahip)
-- [ ] Risk matrisi (olasılık × etki)
-- [ ] Risk azaltma aksiyonları (mitigation plan)
-- [ ] Risk dashboard widget
+### Risk Management ✅
+- [x] Risk entity (tanım, kategori, sahip) — Risk, MitigationAction entity, RiskId/MitigationActionId strongly-typed ID
+- [x] Risk matrisi (olasılık × etki) — 5×5 ısı haritası, GetRiskMatrixQuery, frontend matris
+- [x] Risk azaltma aksiyonları (mitigation plan) — MitigationAction CRUD, durum yönetimi
+- [x] Risk dashboard widget — RisksTab.tsx: liste + matris + özet kartlar + detay paneli
+- [x] API Endpoints — 10 endpoint (CRUD + status + matris + mitigation actions)
+- [x] Migration — V004_RiskManagement.sql
 
 ### Automation Rules
 - [ ] Rule engine: Trigger → Condition → Action

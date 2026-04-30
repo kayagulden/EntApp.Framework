@@ -9,6 +9,7 @@ import SprintsTab from "./SprintsTab";
 import BoardColumnSettings from "./BoardColumnSettings";
 import RequirementsTab from "./RequirementsTab";
 import ReleasesTab from "./ReleasesTab";
+import RisksTab from "./RisksTab";
 import WikiTab from "./WikiTab";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -108,7 +109,7 @@ function formatDateShort(dateStr?: string): string {
 }
 
 // Tab config — kategori bazlı filtreleme
-type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "releases" | "test-scenarios" | "test-plans" | "wiki" | "settings";
+type TabKey = "overview" | "workitems" | "board" | "sprints" | "metrics" | "milestones" | "requirements" | "releases" | "risks" | "test-scenarios" | "test-plans" | "wiki" | "settings";
 const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; categories: string[]; disabled?: boolean }[] = [
   { key: "overview", label: "Genel Bakış", icon: FolderKanban, categories: ["all"] },
   { key: "workitems", label: "Backlog", icon: ListTodo, categories: ["all"] },
@@ -120,6 +121,7 @@ const ALL_TABS: { key: TabKey; label: string; icon: React.ComponentType<{ classN
   { key: "test-scenarios", label: "Test Senaryoları", icon: FlaskConical, categories: ["all"] },
   { key: "test-plans", label: "Test Planları", icon: TestTube2, categories: ["all"] },
   { key: "releases", label: "Releases", icon: Rocket, categories: ["all"] },
+  { key: "risks", label: "Riskler", icon: AlertCircle, categories: ["all"] },
   { key: "wiki", label: "Wiki", icon: BookOpen, categories: ["all"] },
   { key: "settings", label: "Ayarlar", icon: Settings, categories: ["all"] },
 ];
@@ -1460,7 +1462,12 @@ export default function ProjectDetailPage() {
 
       {/* Releases Tab */}
       {activeTab === "releases" && (
-        <ReleasesTab projectId={projectId as string} />
+      <ReleasesTab projectId={projectId as string} />
+      )}
+
+      {/* Risks Tab */}
+      {activeTab === "risks" && (
+        <RisksTab projectId={projectId as string} />
       )}
 
       {/* Wiki Tab */}
