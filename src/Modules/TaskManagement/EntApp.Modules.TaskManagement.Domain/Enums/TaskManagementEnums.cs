@@ -414,3 +414,50 @@ public enum GoNoGoItemStatus
     /// <summary>Uygulanamaz — bu release için geçerli değil.</summary>
     NotApplicable = 3
 }
+
+// ── Risk Management Enum'ları ────────────────────────────────
+
+/// <summary>Risk durumu.</summary>
+public enum RiskStatus
+{
+    /// <summary>Açık — aktif risk.</summary>
+    Open = 0,
+    /// <summary>Azaltıldı — mitigation uygulandı.</summary>
+    Mitigated = 1,
+    /// <summary>Kapatıldı — risk ortadan kalktı.</summary>
+    Closed = 2
+}
+
+/// <summary>Risk kategorisi.</summary>
+public enum RiskCategory
+{
+    /// <summary>Teknik risk — teknoloji, mimari, performans.</summary>
+    Technical = 0,
+    /// <summary>Takvim riski — gecikme, deadline.</summary>
+    Schedule = 1,
+    /// <summary>Bütçe riski — maliyet aşımı.</summary>
+    Budget = 2,
+    /// <summary>Kaynak riski — personel eksikliği, yetkinlik.</summary>
+    Resource = 3,
+    /// <summary>Kapsam riski — scope creep.</summary>
+    Scope = 4,
+    /// <summary>Kalite riski — bug, test coverage.</summary>
+    Quality = 5,
+    /// <summary>Dış etken riski — vendor, regülasyon.</summary>
+    External = 6,
+    /// <summary>Organizasyonel risk — yönetim, iletişim.</summary>
+    Organizational = 7
+}
+
+/// <summary>Risk azaltma aksiyonu durumu.</summary>
+public enum MitigationActionStatus
+{
+    /// <summary>Planlandı.</summary>
+    Planned = 0,
+    /// <summary>Devam ediyor.</summary>
+    InProgress = 1,
+    /// <summary>Tamamlandı.</summary>
+    Completed = 2,
+    /// <summary>İptal edildi.</summary>
+    Cancelled = 3
+}

@@ -2828,3 +2828,227 @@ public sealed class UpdateReleaseNoteCommandHandler(TaskManagementDbContext db)
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// RISK MANAGEMENT HANDLERS
+// ══════════════════════════════════════════════════════════════
+
+// ── Risk Queries ────────────────────────────────────────────
+
+public sealed class ListRisksQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<ListRisksQuery, List<RiskListDto>>
+{
+    public async Task<List<RiskListDto>> Handle(ListRisksQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var query = db.Risks.Where(r => r.ProjectId == projectId);
+
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<RiskStatus>(request.Status, out var s))
+            query = query.Where(r => r.Status == s);
+        if (!string.IsNullOrEmpty(request.Category) && Enum.TryParse<RiskCategory>(request.Category, out var c))
+            query = query.Where(r => r.Category == c);
+
+        return await query
+            .OrderByDescending(r => r.RiskScore).ThenByDescending(r => r.CreatedAt)
+            .Select(r => new RiskListDto(
+                r.Id.Value, r.Title, r.Category.ToString(), r.Status.ToString(),
+                r.Probability, r.Impact, r.RiskScore,
+                r.OwnerUserId, r.MitigationActions.Count,
+                r.CreatedAt))
+            .ToListAsync(ct);
+    }
+}
+
+public sealed class GetRiskQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetRiskQuery, RiskDetailDto?>
+{
+    public async Task<RiskDetailDto?> Handle(GetRiskQuery request, CancellationToken ct)
+    {
+        var riskId = new RiskId(request.RiskId);
+        var r = await db.Risks
+            .Include(x => x.MitigationActions)
+            .FirstOrDefaultAsync(x => x.Id == riskId, ct);
+        if (r is null) return null;
+
+        return new RiskDetailDto(
+            r.Id.Value, r.Title, r.Description,
+            r.Category.ToString(), r.Status.ToString(),
+            r.Probability, r.Impact, r.RiskScore,
+            r.MitigationPlan, r.OwnerUserId,
+            r.CreatedAt, r.UpdatedAt,
+            r.MitigationActions.OrderBy(a => a.CreatedAt).Select(a => new MitigationActionDto(
+                a.Id.Value, a.Title, a.Description,
+                a.Status.ToString(), a.AssigneeUserId,
+                a.DueDate, a.CompletedAt,
+                a.CreatedAt)).ToList());
+    }
+}
+
+public sealed class GetRiskMatrixQueryHandler(TaskManagementDbContext db)
+    : IRequestHandler<GetRiskMatrixQuery, RiskMatrixDto>
+{
+    public async Task<RiskMatrixDto> Handle(GetRiskMatrixQuery request, CancellationToken ct)
+    {
+        var projectId = new ProjectId(request.ProjectId);
+        var risks = await db.Risks
+            .Where(r => r.ProjectId == projectId)
+            .Select(r => new { r.Id, r.Title, r.Status, r.Probability, r.Impact, r.RiskScore })
+            .ToListAsync(ct);
+
+        var total = risks.Count;
+        var open = risks.Count(r => r.Status == RiskStatus.Open);
+        var mitigated = risks.Count(r => r.Status == RiskStatus.Mitigated);
+        var closed = risks.Count(r => r.Status == RiskStatus.Closed);
+
+        // Severity thresholds: Critical ≥15, High 10-14, Medium 5-9, Low 1-4
+        var critical = risks.Count(r => r.RiskScore >= 15);
+        var high = risks.Count(r => r.RiskScore >= 10 && r.RiskScore < 15);
+        var medium = risks.Count(r => r.RiskScore >= 5 && r.RiskScore < 10);
+        var low = risks.Count(r => r.RiskScore < 5);
+
+        // Build 5×5 matrix cells
+        var cells = new List<RiskMatrixCell>();
+        for (int p = 1; p <= 5; p++)
+        {
+            for (int i = 1; i <= 5; i++)
+            {
+                var cellRisks = risks
+                    .Where(r => r.Probability == p && r.Impact == i)
+                    .Select(r => new RiskMatrixRiskDto(r.Id.Value, r.Title, r.Status.ToString()))
+                    .ToList();
+                cells.Add(new RiskMatrixCell(p, i, p * i, cellRisks.Count, cellRisks));
+            }
+        }
+
+        return new RiskMatrixDto(total, open, mitigated, closed,
+            critical, high, medium, low, cells);
+    }
+}
+
+// ── Risk Commands ───────────────────────────────────────────
+
+public sealed class CreateRiskCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateRiskCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateRiskCommand request, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RiskCategory>(request.Category, out var category))
+            category = RiskCategory.Technical;
+
+        var risk = Risk.Create(
+            new ProjectId(request.ProjectId),
+            request.Title, category,
+            request.Probability, request.Impact,
+            request.Description, request.MitigationPlan,
+            request.OwnerUserId);
+
+        db.Risks.Add(risk);
+        await db.SaveChangesAsync(ct);
+        return risk.Id.Value;
+    }
+}
+
+public sealed class UpdateRiskCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateRiskCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateRiskCommand request, CancellationToken ct)
+    {
+        var risk = await db.Risks.FindAsync([new RiskId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"Risk {request.Id} not found");
+
+        RiskCategory? category = null;
+        if (request.Category is not null && Enum.TryParse<RiskCategory>(request.Category, out var c))
+            category = c;
+
+        risk.Update(request.Title, request.Description, category,
+            request.Probability, request.Impact,
+            request.MitigationPlan, request.OwnerUserId);
+
+        await db.SaveChangesAsync(ct);
+        return risk.Id.Value;
+    }
+}
+
+public sealed class UpdateRiskStatusCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateRiskStatusCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateRiskStatusCommand request, CancellationToken ct)
+    {
+        var risk = await db.Risks.FindAsync([new RiskId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"Risk {request.Id} not found");
+
+        if (!Enum.TryParse<RiskStatus>(request.Status, out var status))
+            throw new ArgumentException($"Invalid risk status: {request.Status}");
+
+        risk.UpdateStatus(status);
+        await db.SaveChangesAsync(ct);
+        return risk.Id.Value;
+    }
+}
+
+public sealed class DeleteRiskCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteRiskCommand>
+{
+    public async Task Handle(DeleteRiskCommand request, CancellationToken ct)
+    {
+        var risk = await db.Risks
+            .Include(r => r.MitigationActions)
+            .FirstOrDefaultAsync(r => r.Id == new RiskId(request.Id), ct)
+            ?? throw new KeyNotFoundException($"Risk {request.Id} not found");
+        db.Risks.Remove(risk);
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+// ── Mitigation Action Handlers ──────────────────────────────
+
+public sealed class CreateMitigationActionCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<CreateMitigationActionCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateMitigationActionCommand request, CancellationToken ct)
+    {
+        var riskId = new RiskId(request.RiskId);
+        var exists = await db.Risks.AnyAsync(r => r.Id == riskId, ct);
+        if (!exists)
+            throw new KeyNotFoundException($"Risk {request.RiskId} not found");
+
+        var action = MitigationAction.Create(riskId, request.Title,
+            request.Description, request.AssigneeUserId, request.DueDate);
+
+        db.MitigationActions.Add(action);
+        await db.SaveChangesAsync(ct);
+        return action.Id.Value;
+    }
+}
+
+public sealed class UpdateMitigationActionCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<UpdateMitigationActionCommand, Guid>
+{
+    public async Task<Guid> Handle(UpdateMitigationActionCommand request, CancellationToken ct)
+    {
+        var action = await db.MitigationActions.FindAsync([new MitigationActionId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"MitigationAction {request.Id} not found");
+
+        MitigationActionStatus? status = null;
+        if (request.Status is not null && Enum.TryParse<MitigationActionStatus>(request.Status, out var s))
+            status = s;
+
+        action.Update(request.Title, request.Description, status,
+            request.AssigneeUserId, request.DueDate);
+
+        await db.SaveChangesAsync(ct);
+        return action.Id.Value;
+    }
+}
+
+public sealed class DeleteMitigationActionCommandHandler(TaskManagementDbContext db)
+    : IRequestHandler<DeleteMitigationActionCommand>
+{
+    public async Task Handle(DeleteMitigationActionCommand request, CancellationToken ct)
+    {
+        var action = await db.MitigationActions.FindAsync([new MitigationActionId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"MitigationAction {request.Id} not found");
+        db.MitigationActions.Remove(action);
+        await db.SaveChangesAsync(ct);
+    }
+}
+

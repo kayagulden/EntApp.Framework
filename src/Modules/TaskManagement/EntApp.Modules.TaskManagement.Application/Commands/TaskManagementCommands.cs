@@ -329,3 +329,31 @@ public sealed record GenerateReleaseNoteCommand(Guid ReleaseId) : IRequest<Guid>
 
 public sealed record UpdateReleaseNoteCommand(Guid ReleaseId, string Content) : IRequest<Guid>;
 
+// ── Risk ────────────────────────────────────────────────────
+
+public sealed record CreateRiskCommand(Guid ProjectId, string Title,
+    string Category, int Probability, int Impact,
+    string? Description = null, string? MitigationPlan = null,
+    Guid? OwnerUserId = null) : IRequest<Guid>;
+
+public sealed record UpdateRiskCommand(Guid Id, string? Title = null,
+    string? Description = null, string? Category = null,
+    int? Probability = null, int? Impact = null,
+    string? MitigationPlan = null, Guid? OwnerUserId = null) : IRequest<Guid>;
+
+public sealed record UpdateRiskStatusCommand(Guid Id, string Status) : IRequest<Guid>;
+
+public sealed record DeleteRiskCommand(Guid Id) : IRequest;
+
+// ── Mitigation Action ───────────────────────────────────────
+
+public sealed record CreateMitigationActionCommand(Guid RiskId, string Title,
+    string? Description = null, Guid? AssigneeUserId = null,
+    DateTime? DueDate = null) : IRequest<Guid>;
+
+public sealed record UpdateMitigationActionCommand(Guid Id, string? Title = null,
+    string? Description = null, string? Status = null,
+    Guid? AssigneeUserId = null, DateTime? DueDate = null) : IRequest<Guid>;
+
+public sealed record DeleteMitigationActionCommand(Guid Id) : IRequest;
+

@@ -465,3 +465,45 @@ public sealed record ReleaseNoteDto(
     Guid Id, Guid ReleaseId, string Content,
     DateTime GeneratedAt, bool IsManuallyEdited, DateTime? PublishedAt);
 
+// ── Risk ────────────────────────────────────────────────────
+
+public sealed record ListRisksQuery(Guid ProjectId,
+    string? Status = null, string? Category = null) : IRequest<List<RiskListDto>>;
+
+public sealed record GetRiskQuery(Guid RiskId) : IRequest<RiskDetailDto?>;
+
+public sealed record RiskListDto(
+    Guid Id, string Title, string Category, string Status,
+    int Probability, int Impact, int RiskScore,
+    Guid? OwnerUserId, int MitigationActionCount,
+    DateTime CreatedAt);
+
+public sealed record RiskDetailDto(
+    Guid Id, string Title, string? Description,
+    string Category, string Status,
+    int Probability, int Impact, int RiskScore,
+    string? MitigationPlan, Guid? OwnerUserId,
+    DateTime CreatedAt, DateTime? UpdatedAt,
+    List<MitigationActionDto>? MitigationActions = null);
+
+public sealed record MitigationActionDto(
+    Guid Id, string Title, string? Description,
+    string Status, Guid? AssigneeUserId,
+    DateTime? DueDate, DateTime? CompletedAt,
+    DateTime CreatedAt);
+
+// ── Risk Matrix Summary ─────────────────────────────────────
+
+public sealed record GetRiskMatrixQuery(Guid ProjectId) : IRequest<RiskMatrixDto>;
+
+public sealed record RiskMatrixDto(
+    int TotalRisks, int OpenRisks, int MitigatedRisks, int ClosedRisks,
+    int CriticalCount, int HighCount, int MediumCount, int LowCount,
+    List<RiskMatrixCell> Cells);
+
+public sealed record RiskMatrixCell(
+    int Probability, int Impact, int RiskScore,
+    int Count, List<RiskMatrixRiskDto> Risks);
+
+public sealed record RiskMatrixRiskDto(Guid Id, string Title, string Status);
+

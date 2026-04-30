@@ -23,3 +23,5 @@ public readonly record struct TestExecutionId(Guid Value) : IEntityId;
 public readonly record struct ReleaseId(Guid Value) : IEntityId;
 public readonly record struct GoNoGoChecklistId(Guid Value) : IEntityId;
 public readonly record struct ReleaseNoteId(Guid Value) : IEntityId;
+public readonly record struct RiskId(Guid Value) : IEntityId;
+public readonly record struct MitigationActionId(Guid Value) : IEntityId;

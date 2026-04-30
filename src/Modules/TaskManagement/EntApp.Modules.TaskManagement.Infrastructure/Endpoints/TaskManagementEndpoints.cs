@@ -661,6 +661,70 @@ public static class TaskManagementEndpoints
             return Results.Text(note.Content, "text/markdown");
         }).WithName("ExportReleaseNote").WithSummary("Release note'u Markdown olarak export eder");
 
+        // ── Risk ──────────────────────────────────────────────────
+        proj.MapGet("/{id:guid}/risks", async (Guid id, ISender mediator, string? status, string? category) =>
+            Results.Ok(await mediator.Send(new ListRisksQuery(id, status, category))))
+            .WithName("ListProjectRisks").WithTags("PM - Risks");
+
+        proj.MapPost("/{id:guid}/risks", async (Guid id, CreateRiskRequest req, ISender mediator) =>
+        {
+            var rid = await mediator.Send(new CreateRiskCommand(id, req.Title,
+                req.Category, req.Probability, req.Impact,
+                req.Description, req.MitigationPlan, req.OwnerUserId));
+            return Results.Created($"/api/pm/risks/{rid}", new { id = rid });
+        }).WithName("CreateRisk").WithTags("PM - Risks");
+
+        proj.MapGet("/{id:guid}/risks/matrix", async (Guid id, ISender mediator) =>
+            Results.Ok(await mediator.Send(new GetRiskMatrixQuery(id))))
+            .WithName("GetRiskMatrix").WithTags("PM - Risks")
+            .WithSummary("5×5 risk matrisi (proje bazlı aggregate)");
+
+        var risks = app.MapGroup("/api/pm/risks").WithTags("PM - Risks");
+        risks.MapGet("/{id:guid}", async (Guid id, ISender mediator) =>
+        { var r = await mediator.Send(new GetRiskQuery(id)); return r is null ? Results.NotFound() : Results.Ok(r); })
+            .WithName("GetRisk");
+
+        risks.MapPut("/{id:guid}", async (Guid id, UpdateRiskRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateRiskCommand(id, req.Title, req.Description,
+                req.Category, req.Probability, req.Impact,
+                req.MitigationPlan, req.OwnerUserId));
+            return Results.Ok(new { id });
+        }).WithName("UpdateRisk");
+
+        risks.MapPatch("/{id:guid}/status", async (Guid id, UpdateRiskStatusRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateRiskStatusCommand(id, req.Status));
+            return Results.Ok(new { id });
+        }).WithName("UpdateRiskStatus");
+
+        risks.MapDelete("/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteRiskCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteRisk");
+
+        // Mitigation Actions
+        risks.MapPost("/{riskId:guid}/actions", async (Guid riskId, CreateMitigationActionRequest req, ISender mediator) =>
+        {
+            var aid = await mediator.Send(new CreateMitigationActionCommand(riskId, req.Title,
+                req.Description, req.AssigneeUserId, req.DueDate));
+            return Results.Created($"/api/pm/risks/{riskId}", new { id = aid });
+        }).WithName("CreateMitigationAction");
+
+        risks.MapPut("/actions/{id:guid}", async (Guid id, UpdateMitigationActionRequest req, ISender mediator) =>
+        {
+            await mediator.Send(new UpdateMitigationActionCommand(id, req.Title,
+                req.Description, req.Status, req.AssigneeUserId, req.DueDate));
+            return Results.Ok(new { id });
+        }).WithName("UpdateMitigationAction");
+
+        risks.MapDelete("/actions/{id:guid}", async (Guid id, ISender mediator) =>
+        {
+            await mediator.Send(new DeleteMitigationActionCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteMitigationAction");
+
         return app;
     }
 }
@@ -861,4 +925,26 @@ public sealed record DecideGoNoGoRequest(string Status,
     string? DecisionBy = null, string? DecisionNotes = null);
 
 public sealed record UpdateReleaseNoteRequest(string Content);
+
+// Risk
+public sealed record CreateRiskRequest(string Title, string Category,
+    int Probability, int Impact,
+    string? Description = null, string? MitigationPlan = null,
+    Guid? OwnerUserId = null);
+
+public sealed record UpdateRiskRequest(string? Title = null,
+    string? Description = null, string? Category = null,
+    int? Probability = null, int? Impact = null,
+    string? MitigationPlan = null, Guid? OwnerUserId = null);
+
+public sealed record UpdateRiskStatusRequest(string Status);
+
+// Mitigation Action
+public sealed record CreateMitigationActionRequest(string Title,
+    string? Description = null, Guid? AssigneeUserId = null,
+    DateTime? DueDate = null);
+
+public sealed record UpdateMitigationActionRequest(string? Title = null,
+    string? Description = null, string? Status = null,
+    Guid? AssigneeUserId = null, DateTime? DueDate = null);
 

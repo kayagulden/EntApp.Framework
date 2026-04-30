@@ -42,6 +42,8 @@ public sealed class TaskManagementDbContext : BaseDbContext
     public DbSet<GoNoGoChecklist> GoNoGoChecklists => Set<GoNoGoChecklist>();
     public DbSet<GoNoGoItem> GoNoGoItems => Set<GoNoGoItem>();
     public DbSet<ReleaseNote> ReleaseNotes => Set<ReleaseNote>();
+    public DbSet<Risk> Risks => Set<Risk>();
+    public DbSet<MitigationAction> MitigationActions => Set<MitigationAction>();
 
     public TaskManagementDbContext(DbContextOptions<TaskManagementDbContext> options) : base(options) { }
 
@@ -543,6 +545,37 @@ public sealed class TaskManagementDbContext : BaseDbContext
             e.Property(x => x.Content).HasColumnType("text").IsRequired();
             e.HasOne(x => x.Release).WithOne(r => r.ReleaseNote).HasForeignKey<ReleaseNote>(x => x.ReleaseId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.ReleaseId).IsUnique().HasDatabaseName("ix_release_notes_release");
+        });
+
+        // ── Risk ────────────────────────────────────────────────────
+        modelBuilder.Entity<Risk>(e =>
+        {
+            e.ToTable("risks");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<RiskId>());
+            e.Property(x => x.ProjectId).HasConversion(new StronglyTypedIdValueConverter<ProjectId>());
+            e.HasIndex(x => x.ProjectId).HasDatabaseName("ix_risks_project");
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_risks_status");
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.MitigationPlan).HasColumnType("text");
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── MitigationAction ────────────────────────────────────────
+        modelBuilder.Entity<MitigationAction>(e =>
+        {
+            e.ToTable("mitigation_actions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<MitigationActionId>());
+            e.Property(x => x.RiskId).HasConversion(new StronglyTypedIdValueConverter<RiskId>());
+            e.HasIndex(x => x.RiskId).HasDatabaseName("ix_mitigation_actions_risk");
+            e.Property(x => x.Title).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Risk).WithMany(r => r.MitigationActions).HasForeignKey(x => x.RiskId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
