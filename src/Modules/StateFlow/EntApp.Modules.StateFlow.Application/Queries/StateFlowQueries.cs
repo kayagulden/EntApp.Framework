@@ -26,3 +26,9 @@ public sealed record ValidateTransitionQuery(
     string CurrentState,
     string Trigger,
     Guid FlowDefinitionId) : IRequest<bool>;
+
+/// <summary>Aksiyon çalışma geçmişini getirir (akış veya entity bazlı).</summary>
+public sealed record ListRuleExecutionLogsQuery(
+    Guid? FlowDefinitionId = null,
+    Guid? EntityId = null,
+    int Limit = 50) : IRequest<IReadOnlyList<RuleExecutionLogDto>>;

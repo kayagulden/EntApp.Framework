@@ -33,6 +33,9 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
     /// <summary>Sıralama (butonların gösterim sırası).</summary>
     public int SortOrder { get; private set; }
 
+    /// <summary>Geçiş sırasında tetiklenecek aksiyonlar (JSON). Örnek: [{"type":"SendNotification","params":{"channel":"InApp"}}]</summary>
+    public string? OnTransitionActions { get; private set; }
+
     // Navigation
     public StateFlowDefinition FlowDefinition { get; private set; } = null!;
 
@@ -43,7 +46,7 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
         string fromStateName, string toStateName,
         string triggerName, string label,
         string? requiredRole = null, string? guardExpression = null,
-        int sortOrder = 0)
+        int sortOrder = 0, string? onTransitionActions = null)
     {
         return new TransitionDefinition
         {
@@ -56,6 +59,7 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
             RequiredRole = requiredRole,
             GuardExpression = guardExpression,
             SortOrder = sortOrder,
+            OnTransitionActions = onTransitionActions,
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -64,7 +68,7 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
         string fromStateName, string toStateName,
         string triggerName, string label,
         string? requiredRole, string? guardExpression,
-        int sortOrder)
+        int sortOrder, string? onTransitionActions = null)
     {
         FromStateName = fromStateName;
         ToStateName = toStateName;
@@ -73,6 +77,7 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
         RequiredRole = requiredRole;
         GuardExpression = guardExpression;
         SortOrder = sortOrder;
+        OnTransitionActions = onTransitionActions;
     }
 
     /// <summary>Kopyalama (yeni versiyon veya şablon klonlama için).</summary>
@@ -89,6 +94,7 @@ public sealed class TransitionDefinition : AuditableEntity<TransitionDefinitionI
             RequiredRole = RequiredRole,
             GuardExpression = GuardExpression,
             SortOrder = SortOrder,
+            OnTransitionActions = OnTransitionActions,
             CreatedAt = DateTime.UtcNow
         };
     }

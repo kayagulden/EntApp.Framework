@@ -1,6 +1,7 @@
 "use client";
 
 import { useStateFlowDesignerStore } from "@/stores/state-flow-store";
+import { ActionsEditor } from "./ActionsEditor";
 
 const CATEGORIES = ["Active", "Waiting", "Closed", "Cancelled"];
 const COLORS = [
@@ -130,6 +131,15 @@ export function PropertiesPanel() {
             State&apos;i Sil
           </button>
         )}
+
+        <div className="properties-panel__divider" />
+
+        <ActionsEditor
+          actionsJson={state.onEntryActions}
+          onChange={(json) => updateState(state.id, { onEntryActions: json })}
+          source="OnEntry"
+          isReadOnly={isReadOnly}
+        />
       </div>
     );
   }
@@ -194,6 +204,15 @@ export function PropertiesPanel() {
           Geçişi Sil
         </button>
       )}
+
+      <div className="properties-panel__divider" />
+
+      <ActionsEditor
+        actionsJson={transition.onTransitionActions}
+        onChange={(json) => updateTransition(transition.id, { onTransitionActions: json })}
+        source="OnTransition"
+        isReadOnly={isReadOnly}
+      />
     </div>
   );
 }

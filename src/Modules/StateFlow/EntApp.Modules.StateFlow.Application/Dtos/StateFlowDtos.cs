@@ -57,7 +57,8 @@ public sealed record TransitionDto(
     string Label,
     string? RequiredRole,
     string? GuardExpression,
-    int SortOrder);
+    int SortOrder,
+    string? OnTransitionActions);
 
 /// <summary>İzin verilen tetikleyici bilgisi.</summary>
 public sealed record TriggerInfo(
@@ -65,3 +66,19 @@ public sealed record TriggerInfo(
     string Label,
     string ToStateName,
     string? RequiredRole);
+
+/// <summary>Kural çalışma kaydı DTO'su.</summary>
+public sealed record RuleExecutionLogDto(
+    Guid Id,
+    Guid FlowDefinitionId,
+    string EntityType,
+    Guid TargetEntityId,
+    string Source,
+    string StateName,
+    string? TriggerName,
+    string ActionType,
+    string ActionParamsJson,
+    bool Success,
+    string? ErrorMessage,
+    int DurationMs,
+    DateTime CreatedAt);

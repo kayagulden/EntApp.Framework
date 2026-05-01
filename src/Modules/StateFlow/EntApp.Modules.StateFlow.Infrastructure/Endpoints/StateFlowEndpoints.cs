@@ -103,6 +103,23 @@ public static class StateFlowEndpoints
             return Results.Ok(new { newState });
         }).WithName("FireTransition");
 
+        // ═══════════ Automation — Execution Logs ═══════════
+        var automation = app.MapGroup("/api/sf/automation").WithTags("StateFlow - Automation");
+
+        automation.MapGet("/logs", async (ISender mediator, Guid? flowDefinitionId, Guid? entityId, int limit = 50) =>
+            Results.Ok(await mediator.Send(new ListRuleExecutionLogsQuery(flowDefinitionId, entityId, limit))))
+            .WithName("ListRuleExecutionLogs");
+
+        automation.MapGet("/action-types", () =>
+            Results.Ok(new List<object>
+            {
+                new { type = "SendNotification", label = "Bildirim Gönder", description = "InApp veya Email bildirim gönderir", paramFields = new[] { "channel: InApp|Email", "template: string", "recipientRole: Assignee|ProjectManager|Reporter" } },
+                new { type = "AddComment", label = "Yorum Ekle", description = "Entity'ye otomatik yorum ekler", paramFields = new[] { "content: string" } },
+                new { type = "AssignWorkItem", label = "Atama Yap", description = "İş kalemini belirtilen kişiye atar", paramFields = new[] { "userId: guid", "role: string?" } },
+                new { type = "ChangeStatus", label = "Durum Değiştir", description = "İlişkili entity'nin durumunu değiştirir", paramFields = new[] { "status: string", "targetEntityType: string?" } },
+            }))
+            .WithName("GetSupportedActionTypes");
+
         return app;
     }
 }

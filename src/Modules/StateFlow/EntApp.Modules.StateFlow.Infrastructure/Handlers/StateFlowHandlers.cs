@@ -243,14 +243,16 @@ internal sealed class SaveFlowDesignHandler(StateFlowDbContext db, IMemoryCache 
             {
                 existing.Update(dto.FromStateName, dto.ToStateName,
                     dto.TriggerName, dto.Label,
-                    dto.RequiredRole, dto.GuardExpression, dto.SortOrder);
+                    dto.RequiredRole, dto.GuardExpression, dto.SortOrder,
+                    dto.OnTransitionActions);
             }
             else
             {
                 var newTransition = TransitionDefinition.Create(
                     flowId, dto.FromStateName, dto.ToStateName,
                     dto.TriggerName, dto.Label,
-                    dto.RequiredRole, dto.GuardExpression, dto.SortOrder);
+                    dto.RequiredRole, dto.GuardExpression, dto.SortOrder,
+                    dto.OnTransitionActions);
                 db.TransitionDefinitions.Add(newTransition);
             }
         }
@@ -410,6 +412,40 @@ internal static class HandlerMapper
             flow.Transitions.OrderBy(t => t.SortOrder).Select(t => new TransitionDto(
                 t.Id.Value, t.FromStateName, t.ToStateName,
                 t.TriggerName, t.Label, t.RequiredRole,
-                t.GuardExpression, t.SortOrder)).ToList());
+                t.GuardExpression, t.SortOrder, t.OnTransitionActions)).ToList());
     }
 }
+
+/// <summary>Aksiyon çalışma geçmişini getirir.</summary>
+internal sealed class ListRuleExecutionLogsHandler(StateFlowDbContext db)
+    : IRequestHandler<ListRuleExecutionLogsQuery, IReadOnlyList<RuleExecutionLogDto>>
+{
+    public async Task<IReadOnlyList<RuleExecutionLogDto>> Handle(
+        ListRuleExecutionLogsQuery request, CancellationToken ct)
+    {
+        var query = db.RuleExecutionLogs.AsNoTracking().AsQueryable();
+
+        if (request.FlowDefinitionId.HasValue)
+        {
+            var flowId = EntityId.From<StateFlowDefinitionId>(request.FlowDefinitionId.Value);
+            query = query.Where(l => l.FlowDefinitionId == flowId);
+        }
+
+        if (request.EntityId.HasValue)
+            query = query.Where(l => l.TargetEntityId == request.EntityId.Value);
+
+        var logs = await query
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(request.Limit)
+            .ToListAsync(ct);
+
+        return logs.Select(l => new RuleExecutionLogDto(
+            l.Id.Value, l.FlowDefinitionId.Value,
+            l.EntityType, l.TargetEntityId,
+            l.Source, l.StateName, l.TriggerName,
+            l.ActionType, l.ActionParamsJson,
+            l.Success, l.ErrorMessage, l.DurationMs,
+            l.CreatedAt)).ToList();
+    }
+}
+

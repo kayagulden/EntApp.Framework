@@ -27,6 +27,7 @@ export interface TransitionDto {
   requiredRole: string | null;
   guardExpression: string | null;
   sortOrder: number;
+  onTransitionActions: string | null;
 }
 
 export interface FlowDefinitionDto {
@@ -162,3 +163,47 @@ export async function fireTransition(
   });
   return data.newState;
 }
+
+// ── Automation ────────────────────────────────────────────────
+
+export interface RuleExecutionLogDto {
+  id: string;
+  flowDefinitionId: string;
+  entityType: string;
+  targetEntityId: string;
+  source: string;
+  stateName: string;
+  triggerName: string | null;
+  actionType: string;
+  actionParamsJson: string;
+  success: boolean;
+  errorMessage: string | null;
+  durationMs: number;
+  createdAt: string;
+}
+
+export interface ActionTypeInfo {
+  type: string;
+  label: string;
+  description: string;
+  paramFields: string[];
+}
+
+export async function listExecutionLogs(
+  flowDefinitionId?: string,
+  entityId?: string,
+  limit = 50
+) {
+  const params = new URLSearchParams();
+  if (flowDefinitionId) params.set("flowDefinitionId", flowDefinitionId);
+  if (entityId) params.set("entityId", entityId);
+  if (limit !== 50) params.set("limit", String(limit));
+  const { data } = await apiClient.get<RuleExecutionLogDto[]>(`${BASE.replace('/flows', '')}/automation/logs?${params}`);
+  return data;
+}
+
+export async function getActionTypes() {
+  const { data } = await apiClient.get<ActionTypeInfo[]>(`${BASE.replace('/flows', '')}/automation/action-types`);
+  return data;
+}
+

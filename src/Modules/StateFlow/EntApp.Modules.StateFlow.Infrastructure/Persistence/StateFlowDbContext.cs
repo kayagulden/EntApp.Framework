@@ -15,6 +15,7 @@ public sealed class StateFlowDbContext : BaseDbContext
     public DbSet<StateFlowDefinition> FlowDefinitions => Set<StateFlowDefinition>();
     public DbSet<StateDefinition> StateDefinitions => Set<StateDefinition>();
     public DbSet<TransitionDefinition> TransitionDefinitions => Set<TransitionDefinition>();
+    public DbSet<RuleExecutionLog> RuleExecutionLogs => Set<RuleExecutionLog>();
 
     public StateFlowDbContext(DbContextOptions<StateFlowDbContext> options) : base(options) { }
 
@@ -96,6 +97,7 @@ public sealed class StateFlowDbContext : BaseDbContext
             e.Property(x => x.Label).HasMaxLength(200).IsRequired();
             e.Property(x => x.RequiredRole).HasMaxLength(100);
             e.Property(x => x.GuardExpression).HasMaxLength(500);
+            e.Property(x => x.OnTransitionActions).HasColumnType("jsonb");
             e.Property(x => x.RowVersion).IsRowVersion();
             e.HasQueryFilter(x => !x.IsDeleted);
 
@@ -108,6 +110,29 @@ public sealed class StateFlowDbContext : BaseDbContext
                 .WithMany(f => f.Transitions)
                 .HasForeignKey(x => x.FlowDefinitionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── RuleExecutionLog ────────────────────────────────────
+        modelBuilder.Entity<RuleExecutionLog>(e =>
+        {
+            e.ToTable("rule_execution_logs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<RuleExecutionLogId>());
+            e.Property(x => x.FlowDefinitionId).HasConversion(new StronglyTypedIdValueConverter<StateFlowDefinitionId>());
+            e.Property(x => x.EntityType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Source).HasMaxLength(30).IsRequired();
+            e.Property(x => x.StateName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.TriggerName).HasMaxLength(100);
+            e.Property(x => x.ActionType).HasMaxLength(50).IsRequired();
+            e.Property(x => x.ActionParamsJson).HasColumnType("jsonb");
+            e.Property(x => x.ErrorMessage).HasColumnType("text");
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
+
+            e.HasIndex(x => x.FlowDefinitionId).HasDatabaseName("ix_rule_execution_logs_flow");
+            e.HasIndex(x => x.TargetEntityId).HasDatabaseName("ix_rule_execution_logs_entity");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_rule_execution_logs_created");
+            e.HasIndex(x => x.TenantId);
         });
     }
 }

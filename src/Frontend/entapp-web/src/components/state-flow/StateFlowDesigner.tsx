@@ -157,6 +157,7 @@ function DesignerInner({ flowId }: DesignerProps) {
         requiredRole: null,
         guardExpression: null,
         sortOrder: store.transitions.length,
+        onTransitionActions: null,
       };
 
       store.addTransition(newTransition);
