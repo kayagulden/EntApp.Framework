@@ -82,3 +82,18 @@ public sealed record RuleExecutionLogDto(
     string? ErrorMessage,
     int DurationMs,
     DateTime CreatedAt);
+
+/// <summary>Event-driven otomasyon kuralı DTO'su.</summary>
+public sealed record EventAutomationRuleDto(
+    Guid Id,
+    string Name,
+    string? Description,
+    string TriggerType,
+    string TriggerConditions,
+    string ActionType,
+    string ActionParams,
+    string? EntityType,
+    bool IsEnabled,
+    int Priority,
+    int SortOrder,
+    DateTime CreatedAt);

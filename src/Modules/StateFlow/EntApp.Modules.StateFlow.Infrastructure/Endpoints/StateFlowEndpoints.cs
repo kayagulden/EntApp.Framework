@@ -120,6 +120,60 @@ public static class StateFlowEndpoints
             }))
             .WithName("GetSupportedActionTypes");
 
+        // ═══════════ Automation — Event Rules CRUD ═══════════
+
+        automation.MapGet("/event-rules", async (ISender mediator, bool? enabledOnly) =>
+            Results.Ok(await mediator.Send(new ListEventRulesQuery(enabledOnly))))
+            .WithName("ListEventRules");
+
+        automation.MapPost("/event-rules", async (ISender mediator, CreateEventRuleRequest req) =>
+        {
+            var id = await mediator.Send(new CreateEventRuleCommand(
+                req.Name, req.TriggerType, req.ActionType,
+                req.Description, req.TriggerConditions,
+                req.ActionParams, req.EntityType,
+                req.Priority, req.SortOrder));
+            return Results.Created($"/api/sf/automation/event-rules/{id}", new { id });
+        }).WithName("CreateEventRule");
+
+        automation.MapPut("/event-rules/{id:guid}", async (ISender mediator, Guid id, UpdateEventRuleRequest req) =>
+        {
+            await mediator.Send(new UpdateEventRuleCommand(
+                id, req.Name, req.TriggerType, req.ActionType,
+                req.Description, req.TriggerConditions,
+                req.ActionParams, req.EntityType,
+                req.Priority, req.SortOrder));
+            return Results.NoContent();
+        }).WithName("UpdateEventRule");
+
+        automation.MapPatch("/event-rules/{id:guid}/toggle", async (ISender mediator, Guid id) =>
+        {
+            await mediator.Send(new ToggleEventRuleCommand(id));
+            return Results.NoContent();
+        }).WithName("ToggleEventRule");
+
+        automation.MapDelete("/event-rules/{id:guid}", async (ISender mediator, Guid id) =>
+        {
+            await mediator.Send(new DeleteEventRuleCommand(id));
+            return Results.NoContent();
+        }).WithName("DeleteEventRule");
+
+        // ═══════════ Automation — Trigger Types Reference ═══════════
+
+        automation.MapGet("/trigger-types", () =>
+            Results.Ok(new List<object>
+            {
+                new { type = "SLAResponseBreached", label = "SLA Yanıt Süresi Aşımı", description = "SLA yanıt süresi aşıldığında tetiklenir" },
+                new { type = "SLAResolutionBreached", label = "SLA Çözüm Süresi Aşımı", description = "SLA çözüm süresi aşıldığında tetiklenir" },
+                new { type = "TicketIdleTimeout", label = "Ticket Bekleme Zaman Aşımı", description = "Ticket belirli süre atanmadan/güncellenmeden beklediğinde tetiklenir" },
+                new { type = "PriorityChanged", label = "Öncelik Değişikliği", description = "Entity önceliği değiştiğinde tetiklenir" },
+                new { type = "AssignmentChanged", label = "Atama Değişikliği", description = "Entity ataması değiştiğinde tetiklenir" },
+                new { type = "EntityCreated", label = "Entity Oluşturuldu", description = "Yeni entity oluşturulduğunda tetiklenir" },
+                new { type = "EntityUpdated", label = "Entity Güncellendi", description = "Entity güncellendiğinde tetiklenir" },
+                new { type = "CommentAdded", label = "Yorum Eklendi", description = "Entity'ye yorum eklendiğinde tetiklenir" },
+            }))
+            .WithName("GetSupportedTriggerTypes");
+
         return app;
     }
 }
@@ -145,3 +199,16 @@ public sealed record ValidateTransitionRequest(
 
 public sealed record FireTransitionRequest(
     string EntityType, string CurrentState, string Trigger, Guid FlowDefinitionId);
+
+// ── Event Automation Rule Request DTOs ────────────────────────
+public sealed record CreateEventRuleRequest(
+    string Name, string TriggerType, string ActionType,
+    string? Description = null, string? TriggerConditions = null,
+    string? ActionParams = null, string? EntityType = null,
+    int Priority = 0, int SortOrder = 0);
+
+public sealed record UpdateEventRuleRequest(
+    string Name, string TriggerType, string ActionType,
+    string? Description, string? TriggerConditions,
+    string? ActionParams, string? EntityType,
+    int Priority, int SortOrder);

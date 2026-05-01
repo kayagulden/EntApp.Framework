@@ -46,3 +46,25 @@ public sealed record FireTransitionCommand(
     string CurrentState,
     string Trigger,
     Guid FlowDefinitionId) : IRequest<string>;
+
+// ── Event Automation Rules ──────────────────────────────────
+
+/// <summary>Yeni event-driven otomasyon kuralı oluşturur.</summary>
+public sealed record CreateEventRuleCommand(
+    string Name, string TriggerType, string ActionType,
+    string? Description = null, string? TriggerConditions = null,
+    string? ActionParams = null, string? EntityType = null,
+    int Priority = 0, int SortOrder = 0) : IRequest<Guid>;
+
+/// <summary>Event-driven otomasyon kuralını günceller.</summary>
+public sealed record UpdateEventRuleCommand(
+    Guid Id, string Name, string TriggerType, string ActionType,
+    string? Description, string? TriggerConditions,
+    string? ActionParams, string? EntityType,
+    int Priority, int SortOrder) : IRequest;
+
+/// <summary>Event kuralını aktif/pasif yapar.</summary>
+public sealed record ToggleEventRuleCommand(Guid Id) : IRequest;
+
+/// <summary>Event kuralını siler.</summary>
+public sealed record DeleteEventRuleCommand(Guid Id) : IRequest;

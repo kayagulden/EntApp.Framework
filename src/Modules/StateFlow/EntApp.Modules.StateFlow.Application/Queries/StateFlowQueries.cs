@@ -32,3 +32,7 @@ public sealed record ListRuleExecutionLogsQuery(
     Guid? FlowDefinitionId = null,
     Guid? EntityId = null,
     int Limit = 50) : IRequest<IReadOnlyList<RuleExecutionLogDto>>;
+
+/// <summary>Event-driven otomasyon kurallarını listeler.</summary>
+public sealed record ListEventRulesQuery(
+    bool? EnabledOnly = null) : IRequest<IReadOnlyList<EventAutomationRuleDto>>;

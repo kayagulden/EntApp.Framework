@@ -449,3 +449,93 @@ internal sealed class ListRuleExecutionLogsHandler(StateFlowDbContext db)
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  EVENT AUTOMATION RULE HANDLERS
+// ═══════════════════════════════════════════════════════════════
+
+internal sealed class CreateEventRuleHandler(StateFlowDbContext db)
+    : IRequestHandler<CreateEventRuleCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateEventRuleCommand request, CancellationToken ct)
+    {
+        var rule = EventAutomationRule.Create(
+            request.Name, request.TriggerType, request.ActionType,
+            request.Description, request.TriggerConditions,
+            request.ActionParams, request.EntityType,
+            request.Priority, request.SortOrder);
+
+        db.EventAutomationRules.Add(rule);
+        await db.SaveChangesAsync(ct);
+        return rule.Id.Value;
+    }
+}
+
+internal sealed class UpdateEventRuleHandler(StateFlowDbContext db)
+    : IRequestHandler<UpdateEventRuleCommand>
+{
+    public async Task Handle(UpdateEventRuleCommand request, CancellationToken ct)
+    {
+        var rule = await db.EventAutomationRules
+            .FindAsync([new EventAutomationRuleId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"EventAutomationRule {request.Id} not found");
+
+        rule.Update(request.Name, request.TriggerType, request.ActionType,
+            request.Description, request.TriggerConditions,
+            request.ActionParams, request.EntityType,
+            request.Priority, request.SortOrder);
+
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+internal sealed class ToggleEventRuleHandler(StateFlowDbContext db)
+    : IRequestHandler<ToggleEventRuleCommand>
+{
+    public async Task Handle(ToggleEventRuleCommand request, CancellationToken ct)
+    {
+        var rule = await db.EventAutomationRules
+            .FindAsync([new EventAutomationRuleId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"EventAutomationRule {request.Id} not found");
+
+        rule.Toggle();
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+internal sealed class DeleteEventRuleHandler(StateFlowDbContext db)
+    : IRequestHandler<DeleteEventRuleCommand>
+{
+    public async Task Handle(DeleteEventRuleCommand request, CancellationToken ct)
+    {
+        var rule = await db.EventAutomationRules
+            .FindAsync([new EventAutomationRuleId(request.Id)], ct)
+            ?? throw new KeyNotFoundException($"EventAutomationRule {request.Id} not found");
+
+        rule.IsDeleted = true;
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+internal sealed class ListEventRulesHandler(StateFlowDbContext db)
+    : IRequestHandler<ListEventRulesQuery, IReadOnlyList<EventAutomationRuleDto>>
+{
+    public async Task<IReadOnlyList<EventAutomationRuleDto>> Handle(ListEventRulesQuery request, CancellationToken ct)
+    {
+        var query = db.EventAutomationRules.AsQueryable();
+
+        if (request.EnabledOnly == true)
+            query = query.Where(r => r.IsEnabled);
+
+        var rules = await query
+            .OrderBy(r => r.SortOrder).ThenBy(r => r.Priority)
+            .ToListAsync(ct);
+
+        return rules.Select(r => new EventAutomationRuleDto(
+            r.Id.Value, r.Name, r.Description,
+            r.TriggerType, r.TriggerConditions,
+            r.ActionType, r.ActionParams,
+            r.EntityType, r.IsEnabled,
+            r.Priority, r.SortOrder,
+            r.CreatedAt)).ToList();
+    }
+}

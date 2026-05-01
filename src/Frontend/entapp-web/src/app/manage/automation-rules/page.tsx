@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   listFlowDefinitions,
   getFlowDefinition,
   listExecutionLogs,
   getActionTypes,
+  listEventRules,
+  toggleEventRule,
+  deleteEventRule,
   type FlowDefinitionDetailDto,
   type RuleExecutionLogDto,
   type ActionTypeInfo,
+  type EventAutomationRuleDto,
 } from "@/lib/api/state-flow";
+import { AddRuleModal } from "./AddRuleModal";
+import { AddEventRuleModal } from "./AddEventRuleModal";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -88,7 +94,18 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 // ── Tab Type ─────────────────────────────────────────────────
-type TabId = "rules" | "logs" | "action-types";
+type TabId = "rules" | "event-rules" | "logs" | "action-types";
+
+const TRIGGER_LABELS: Record<string, string> = {
+  SLAResponseBreached: "🕐 SLA Yanıt Aşımı",
+  SLAResolutionBreached: "⏰ SLA Çözüm Aşımı",
+  TicketIdleTimeout: "💤 Bekleme Zaman Aşımı",
+  PriorityChanged: "🔺 Öncelik Değişikliği",
+  AssignmentChanged: "👤 Atama Değişikliği",
+  EntityCreated: "✨ Entity Oluşturuldu",
+  EntityUpdated: "📝 Entity Güncellendi",
+  CommentAdded: "💬 Yorum Eklendi",
+};
 
 export default function AutomationRulesPage() {
   const [activeTab, setActiveTab] = useState<TabId>("rules");
@@ -97,33 +114,38 @@ export default function AutomationRulesPage() {
   const [actionTypes, setActionTypes] = useState<ActionTypeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [logFilter, setLogFilter] = useState<{ flowId?: string; limit: number }>({ limit: 50 });
+  const [eventRules, setEventRules] = useState<EventAutomationRuleDto[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Load data
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [flowList, logsData, atData] = await Promise.all([
-          listFlowDefinitions(),
-          listExecutionLogs(undefined, undefined, logFilter.limit),
-          getActionTypes(),
-        ]);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [flowList, logsData, atData, evRules] = await Promise.all([
+        listFlowDefinitions(),
+        listExecutionLogs(undefined, undefined, logFilter.limit),
+        getActionTypes(),
+        listEventRules(),
+      ]);
 
-        // Fetch details for each flow to get states/transitions with actions
-        const flowDetails = await Promise.all(
-          flowList.map(f => getFlowDefinition(f.id).catch(() => null))
-        );
+      const flowDetails = await Promise.all(
+        flowList.map(f => getFlowDefinition(f.id).catch(() => null))
+      );
 
-        setFlows(flowDetails.filter((f): f is FlowDefinitionDetailDto => f !== null));
-        setLogs(logsData);
-        setActionTypes(atData);
-      } catch (err) {
-        console.error("Automation Rules load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
+      setFlows(flowDetails.filter((f): f is FlowDefinitionDetailDto => f !== null));
+      setLogs(logsData);
+      setActionTypes(atData);
+      setEventRules(evRules);
+    } catch (err) {
+      console.error("Automation Rules load error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [logFilter]);
+
+  useEffect(() => { loadData(); }, [loadData, refreshKey]);
 
   // Parse all actions from all flows
   const allActions = useMemo(() => {
@@ -141,21 +163,49 @@ export default function AutomationRulesPage() {
   }), [allActions, logs]);
 
   const tabs: { id: TabId; label: string; icon: string; count?: number }[] = [
-    { id: "rules", label: "Tanımlı Kurallar", icon: "⚡", count: allActions.length },
+    { id: "rules", label: "StateFlow Kuralları", icon: "⚡", count: allActions.length },
+    { id: "event-rules", label: "Event Kuralları", icon: "🎯", count: eventRules.length },
     { id: "logs", label: "Çalışma Geçmişi", icon: "📋", count: logs.length },
     { id: "action-types", label: "Aksiyon Tipleri", icon: "🧩", count: actionTypes.length },
   ];
 
+  const handleToggle = async (id: string) => {
+    await toggleEventRule(id);
+    setRefreshKey(k => k + 1);
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm("Bu kuralı silmek istediğinize emin misiniz?")) return;
+    await deleteEventRule(id);
+    setRefreshKey(k => k + 1);
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Header ─────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">
-          ⚡ Otomasyon Kuralları
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)] mt-1">
-          StateFlow akışlarına bağlı otomasyon kurallarını görüntüleyin ve yönetin.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-text)]">
+            ⚡ Otomasyon Kuralları
+          </h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+            Otomasyon kurallarını görüntüleyin ve yönetin.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowEventModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:opacity-90 shadow-lg shadow-emerald-500/20 transition-all duration-200"
+          >
+            <span className="text-lg">＋</span> Event Kuralı
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:opacity-90 shadow-lg shadow-violet-500/20 transition-all duration-200"
+          >
+            <span className="text-lg">＋</span> StateFlow Kuralı
+          </button>
+        </div>
       </div>
 
       {/* ── Stats Cards ────────────────────────────────── */}
@@ -427,6 +477,74 @@ export default function AutomationRulesPage() {
           )}
         </>
       )}
+      {/* ── TAB: Event Rules ─────────────────────── */}
+          {activeTab === "event-rules" && (
+            <div className="space-y-3">
+              {eventRules.length === 0 ? (
+                <div className="text-center py-16 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                  <p className="text-4xl mb-3">🎯</p>
+                  <p className="text-[var(--color-text-muted)] text-sm">Henüz event kuralı tanımlanmamış.</p>
+                  <p className="text-[var(--color-text-muted)] text-xs mt-1">SLA aşımı, öncelik değişikliği gibi olaylara tepki veren kurallar ekleyin.</p>
+                  <button onClick={() => setShowEventModal(true)} className="inline-block mt-4 text-sm text-emerald-400 hover:text-emerald-300 transition-colors">→ Event Kuralı Ekle</button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white/[0.02] border-b border-[var(--color-border)]">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Durum</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Kural</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tetikleyici</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Aksiyon</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Entity</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--color-border)]">
+                      {eventRules.map((rule) => (
+                        <tr key={rule.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-4 py-3">
+                            <button onClick={() => handleToggle(rule.id)} className={`w-10 h-5 rounded-full transition-colors relative ${rule.isEnabled ? 'bg-emerald-500' : 'bg-white/20'}`}>
+                              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${rule.isEnabled ? 'left-5' : 'left-0.5'}`} />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-[var(--color-text)] font-medium">{rule.name}</p>
+                            {rule.description && <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{rule.description}</p>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400">
+                              {TRIGGER_LABELS[rule.triggerType] || rule.triggerType}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span>{ACTION_ICONS[rule.actionType] || '⚙️'}</span>
+                              <span className="text-[var(--color-text)]">{ACTION_LABELS[rule.actionType] || rule.actionType}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">{rule.entityType || 'Tümü'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button onClick={() => handleDeleteRule(rule.id)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Sil</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+      <AddRuleModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSaved={() => setRefreshKey(k => k + 1)}
+      />
+      <AddEventRuleModal
+        open={showEventModal}
+        onClose={() => setShowEventModal(false)}
+        onSaved={() => setRefreshKey(k => k + 1)}
+      />
     </div>
   );
 }

@@ -207,3 +207,66 @@ export async function getActionTypes() {
   return data;
 }
 
+// ── Event Automation Rules ───────────────────────────────────
+
+export interface EventAutomationRuleDto {
+  id: string;
+  name: string;
+  description: string | null;
+  triggerType: string;
+  triggerConditions: string;
+  actionType: string;
+  actionParams: string;
+  entityType: string | null;
+  isEnabled: boolean;
+  priority: number;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface TriggerTypeInfo {
+  type: string;
+  label: string;
+  description: string;
+}
+
+const AUTO_BASE = `${BASE.replace('/flows', '')}/automation`;
+
+export async function listEventRules(enabledOnly?: boolean) {
+  const params = new URLSearchParams();
+  if (enabledOnly !== undefined) params.set("enabledOnly", String(enabledOnly));
+  const { data } = await apiClient.get<EventAutomationRuleDto[]>(`${AUTO_BASE}/event-rules?${params}`);
+  return data;
+}
+
+export async function createEventRule(rule: {
+  name: string; triggerType: string; actionType: string;
+  description?: string; triggerConditions?: string;
+  actionParams?: string; entityType?: string;
+  priority?: number; sortOrder?: number;
+}) {
+  const { data } = await apiClient.post<{ id: string }>(`${AUTO_BASE}/event-rules`, rule);
+  return data;
+}
+
+export async function updateEventRule(id: string, rule: {
+  name: string; triggerType: string; actionType: string;
+  description?: string; triggerConditions?: string;
+  actionParams?: string; entityType?: string;
+  priority?: number; sortOrder?: number;
+}) {
+  await apiClient.put(`${AUTO_BASE}/event-rules/${id}`, rule);
+}
+
+export async function toggleEventRule(id: string) {
+  await apiClient.patch(`${AUTO_BASE}/event-rules/${id}/toggle`, {});
+}
+
+export async function deleteEventRule(id: string) {
+  await apiClient.delete(`${AUTO_BASE}/event-rules/${id}`);
+}
+
+export async function getTriggerTypes() {
+  const { data } = await apiClient.get<TriggerTypeInfo[]>(`${AUTO_BASE}/trigger-types`);
+  return data;
+}

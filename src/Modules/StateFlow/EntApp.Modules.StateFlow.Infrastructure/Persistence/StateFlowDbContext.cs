@@ -16,6 +16,7 @@ public sealed class StateFlowDbContext : BaseDbContext
     public DbSet<StateDefinition> StateDefinitions => Set<StateDefinition>();
     public DbSet<TransitionDefinition> TransitionDefinitions => Set<TransitionDefinition>();
     public DbSet<RuleExecutionLog> RuleExecutionLogs => Set<RuleExecutionLog>();
+    public DbSet<EventAutomationRule> EventAutomationRules => Set<EventAutomationRule>();
 
     public StateFlowDbContext(DbContextOptions<StateFlowDbContext> options) : base(options) { }
 
@@ -133,6 +134,26 @@ public sealed class StateFlowDbContext : BaseDbContext
             e.HasIndex(x => x.TargetEntityId).HasDatabaseName("ix_rule_execution_logs_entity");
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_rule_execution_logs_created");
             e.HasIndex(x => x.TenantId);
+        });
+
+        // ── EventAutomationRule ─────────────────────────────────
+        modelBuilder.Entity<EventAutomationRule>(e =>
+        {
+            e.ToTable("event_automation_rules");
+            e.Property(x => x.Id).HasConversion(new StronglyTypedIdValueConverter<EventAutomationRuleId>());
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasColumnType("text");
+            e.Property(x => x.TriggerType).HasMaxLength(50).IsRequired();
+            e.Property(x => x.TriggerConditions).HasColumnType("jsonb");
+            e.Property(x => x.ActionType).HasMaxLength(50).IsRequired();
+            e.Property(x => x.ActionParams).HasColumnType("jsonb");
+            e.Property(x => x.EntityType).HasMaxLength(100);
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.HasQueryFilter(x => !x.IsDeleted);
+
+            e.HasIndex(x => x.TenantId);
+            e.HasIndex(x => x.TriggerType).HasDatabaseName("ix_event_automation_rules_trigger");
+            e.HasIndex(x => x.IsEnabled).HasDatabaseName("ix_event_automation_rules_enabled");
         });
     }
 }
